@@ -1,0 +1,48 @@
+{
+  "name": "millennium-desk",
+  "productName": "Millennium Desk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Millennium Desk — painel touchscreen modular",
+  "main": ".vite/build/main.js",
+  "scripts": {
+    "start": "electron-forge start",
+    "renderer:dev": "vite --host 127.0.0.1 --port 5273 --strictPort",
+    "package": "electron-forge package",
+    "package:signed": "cross-env EVS_SIGN=1 electron-forge package",
+    "make": "electron-forge make",
+    "make:signed": "cross-env EVS_SIGN=1 electron-forge make",
+    "build": "electron-forge package",
+    "release": "powershell -ExecutionPolicy Bypass -File scripts/release.ps1",
+    "release:unsigned": "powershell -ExecutionPolicy Bypass -File scripts/release.ps1 -Unsigned",
+    "build:installer": "powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1",
+    "build:installer:unsigned": "powershell -ExecutionPolicy Bypass -File scripts/build-installer.ps1 -Unsigned",
+    "evs:install": "py -3 -m pip install --upgrade castlabs-evs",
+    "evs:login": "py -3 -m castlabs_evs.account reauth",
+    "evs:sign-dev": "py -3 -m castlabs_evs.vmp sign-pkg node_modules/electron/dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "author": "Pedro",
+  "license": "MIT",
+  "dependencies": {
+    "electron-squirrel-startup": "^1.0.1",
+    "motion": "^12.23.26",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "systeminformation": "^5.31.7"
+  },
+  "devDependencies": {
+    "@electron-forge/cli": "^7.11.2",
+    "@electron-forge/maker-squirrel": "^7.11.2",
+    "@electron-forge/plugin-vite": "^7.11.2",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.2",
+    "cross-env": "^10.1.0",
+    "electron": "github:castlabs/electron-releases#v42.3.3+wvcus",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  }
+}
