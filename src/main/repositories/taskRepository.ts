@@ -110,6 +110,8 @@ export const createTask = (input: CreateTaskInput): TaskItem => {
 export const updateTask = (input: UpdateTaskInput): TaskItem => {
   const row = getTaskRow(input.id);
   assertEditableDate(row.task_date);
+  const nextDate = input.date !== undefined ? input.date : row.task_date;
+  assertEditableDate(nextDate);
 
   const nextText = input.text !== undefined ? input.text.trim() : row.text;
   if (!nextText) {
@@ -117,16 +119,26 @@ export const updateTask = (input: UpdateTaskInput): TaskItem => {
   }
 
   const nextDone = input.done !== undefined ? (input.done ? 1 : 0) : row.done;
+  const movingTask = nextDate !== row.task_date;
+  const nextSortOrder = movingTask
+    ? (
+        getDatabase()
+          .prepare(
+            "SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM tasks WHERE task_date = ?",
+          )
+          .get(nextDate) as { next_order: number }
+      ).next_order
+    : row.sort_order;
 
   getDatabase()
     .prepare(
       `
         UPDATE tasks
-        SET text = ?, done = ?, updated_at = datetime('now')
+        SET task_date = ?, text = ?, done = ?, sort_order = ?, updated_at = datetime('now')
         WHERE id = ?
       `,
     )
-    .run(nextText, nextDone, input.id);
+    .run(nextDate, nextText, nextDone, nextSortOrder, input.id);
 
   if (input.tagIds !== undefined) {
     setTaskTags(input.id, input.tagIds);

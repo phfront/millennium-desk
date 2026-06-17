@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type {
   AppSettings,
+  DashboardProfile,
   DashboardLayoutNode,
   DashboardModuleId,
   PreferredDisplay,
@@ -15,6 +16,7 @@ import { getDatabase, getDatabasePath } from "../database";
 const LEGACY_SETTINGS_FILE = "settings.json";
 const SETTINGS_ROW_ID = 1;
 const DEFAULT_ACCENT = "#8c8dff";
+const DEFAULT_PROFILE_ID = "default";
 
 export const DEFAULT_SETTINGS: AppSettings = {
   theme: "system",
@@ -31,7 +33,27 @@ export const DEFAULT_SETTINGS: AppSettings = {
   activeMediaApp: null,
   hiddenMediaAppIds: [],
   shortcutGrid: { columns: 4, rows: 2 },
+  activeProfileId: DEFAULT_PROFILE_ID,
+  dashboardProfiles: [],
 };
+
+const createDefaultSettings = (): AppSettings => ({
+  ...DEFAULT_SETTINGS,
+  activeProfileId: DEFAULT_PROFILE_ID,
+  dashboardProfiles: [
+    {
+      id: DEFAULT_PROFILE_ID,
+      name: "Padrao",
+      dashboardLayout: null,
+      hiddenModuleIds: [],
+      activeMediaApp: null,
+      hiddenMediaAppIds: [],
+      theme: DEFAULT_SETTINGS.theme,
+      accentColor: DEFAULT_SETTINGS.accentColor,
+      shortcutGrid: DEFAULT_SETTINGS.shortcutGrid,
+    },
+  ],
+});
 
 let cachedSettings: AppSettings | null = null;
 
@@ -48,7 +70,6 @@ const normalizeDashboardModuleId = (
   if (
     value === "tasks" ||
     value === "weather" ||
-    value === "youtube" ||
     value === "media" ||
     value === "system" ||
     value === "shortcuts"
@@ -83,7 +104,8 @@ const normalizeDashboardLayout = (
   }
   const first = normalizeDashboardLayout(raw.first, seen);
   const second = normalizeDashboardLayout(raw.second, seen);
-  if (!first || !second) return null;
+  if (!first) return second;
+  if (!second) return first;
   const minimumRatio = raw.direction === "column" ? 0.1 : 0.2;
   return {
     type: "split",
@@ -155,6 +177,52 @@ const normalizeHexColor = (value: unknown): string | null => {
   return full ? `#${full[1].toLowerCase()}` : null;
 };
 
+const normalizeShortcutGrid = (value: unknown): AppSettings["shortcutGrid"] => {
+  const raw = value as Partial<AppSettings["shortcutGrid"]> | null | undefined;
+  return {
+    columns:
+      raw && Number.isSafeInteger(raw.columns)
+        ? Math.min(8, Math.max(1, raw.columns))
+        : DEFAULT_SETTINGS.shortcutGrid.columns,
+    rows:
+      raw && Number.isSafeInteger(raw.rows)
+        ? Math.min(6, Math.max(1, raw.rows))
+        : DEFAULT_SETTINGS.shortcutGrid.rows,
+  };
+};
+
+const normalizeProfileId = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return /^[a-zA-Z0-9_-]{1,48}$/.test(trimmed) ? trimmed : null;
+};
+
+const normalizeDashboardProfile = (value: unknown): DashboardProfile | null => {
+  if (!value || typeof value !== "object") return null;
+  const raw = value as Partial<DashboardProfile>;
+  const id = normalizeProfileId(raw.id);
+  const name = typeof raw.name === "string" ? raw.name.trim() : "";
+  if (!id || !name) return null;
+
+  return {
+    id,
+    name: name.slice(0, 40),
+    dashboardLayout: normalizeDashboardLayout(raw.dashboardLayout),
+    hiddenModuleIds: Array.isArray(raw.hiddenModuleIds)
+      ? raw.hiddenModuleIds.filter((item): item is string => typeof item === "string")
+      : [],
+    activeMediaApp: isMediaAppId(raw.activeMediaApp)
+      ? raw.activeMediaApp
+      : DEFAULT_SETTINGS.activeMediaApp,
+    hiddenMediaAppIds: Array.isArray(raw.hiddenMediaAppIds)
+      ? raw.hiddenMediaAppIds.filter((id): id is MediaAppId => isMediaAppId(id))
+      : [],
+    theme: isThemePreference(raw.theme) ? raw.theme : DEFAULT_SETTINGS.theme,
+    accentColor: normalizeHexColor(raw.accentColor) ?? DEFAULT_SETTINGS.accentColor,
+    shortcutGrid: normalizeShortcutGrid(raw.shortcutGrid),
+  };
+};
+
 const normalizeWeatherLocations = (value: unknown): WeatherLocation[] => {
   if (!Array.isArray(value)) return [];
   return value.flatMap((item) => {
@@ -164,15 +232,55 @@ const normalizeWeatherLocations = (value: unknown): WeatherLocation[] => {
 };
 
 const normalizeSettings = (value: unknown): AppSettings => {
-  if (!value || typeof value !== "object") return { ...DEFAULT_SETTINGS };
+  if (!value || typeof value !== "object") return createDefaultSettings();
 
   const raw = value as Partial<AppSettings>;
-  const rawShortcutGrid = raw.shortcutGrid;
   const weatherLocation = normalizeWeatherLocation(raw.weatherLocation);
   let weatherSavedLocations = normalizeWeatherLocations(raw.weatherSavedLocations);
   if (weatherSavedLocations.length === 0 && weatherLocation) {
     weatherSavedLocations = [weatherLocation];
   }
+  const shortcutGrid = normalizeShortcutGrid(raw.shortcutGrid);
+  const dashboardLayout = normalizeDashboardLayout(raw.dashboardLayout);
+  const activeMediaApp = isMediaAppId(raw.activeMediaApp)
+    ? raw.activeMediaApp
+    : DEFAULT_SETTINGS.activeMediaApp;
+  const hiddenMediaAppIds = Array.isArray(raw.hiddenMediaAppIds)
+    ? raw.hiddenMediaAppIds.filter((id): id is MediaAppId => isMediaAppId(id))
+    : DEFAULT_SETTINGS.hiddenMediaAppIds;
+  const dashboardProfiles = Array.isArray(raw.dashboardProfiles)
+    ? raw.dashboardProfiles.flatMap((item) => {
+        const profile = normalizeDashboardProfile(item);
+        return profile ? [profile] : [];
+      })
+    : [];
+  const activeProfileId =
+    normalizeProfileId(raw.activeProfileId) ?? DEFAULT_PROFILE_ID;
+  const profiles =
+    dashboardProfiles.length > 0
+      ? dashboardProfiles
+      : [
+          {
+            id: DEFAULT_PROFILE_ID,
+            name: "Padrao",
+            dashboardLayout,
+            hiddenModuleIds: Array.isArray(raw.hiddenModuleIds)
+              ? raw.hiddenModuleIds.filter(
+                  (id): id is string => typeof id === "string",
+                )
+              : DEFAULT_SETTINGS.hiddenModuleIds,
+            activeMediaApp,
+            hiddenMediaAppIds,
+            theme: isThemePreference(raw.theme)
+              ? raw.theme
+              : DEFAULT_SETTINGS.theme,
+            accentColor:
+              normalizeHexColor(raw.accentColor) ??
+              DEFAULT_SETTINGS.accentColor,
+            shortcutGrid,
+          },
+        ];
+
   return {
     theme: isThemePreference(raw.theme) ? raw.theme : DEFAULT_SETTINGS.theme,
     accentColor:
@@ -201,27 +309,14 @@ const normalizeSettings = (value: unknown): AppSettings => {
     weatherTemperatureUnit: isTemperatureUnit(raw.weatherTemperatureUnit)
       ? raw.weatherTemperatureUnit
       : DEFAULT_SETTINGS.weatherTemperatureUnit,
-    dashboardLayout: normalizeDashboardLayout(raw.dashboardLayout),
-    activeMediaApp: isMediaAppId(raw.activeMediaApp)
-      ? raw.activeMediaApp
-      : DEFAULT_SETTINGS.activeMediaApp,
-    hiddenMediaAppIds: Array.isArray(raw.hiddenMediaAppIds)
-      ? raw.hiddenMediaAppIds.filter((id): id is MediaAppId =>
-          isMediaAppId(id),
-        )
-      : DEFAULT_SETTINGS.hiddenMediaAppIds,
-    shortcutGrid: {
-      columns:
-        rawShortcutGrid &&
-        Number.isSafeInteger(rawShortcutGrid.columns)
-          ? Math.min(8, Math.max(1, rawShortcutGrid.columns))
-          : DEFAULT_SETTINGS.shortcutGrid.columns,
-      rows:
-        rawShortcutGrid &&
-        Number.isSafeInteger(rawShortcutGrid.rows)
-          ? Math.min(6, Math.max(1, rawShortcutGrid.rows))
-          : DEFAULT_SETTINGS.shortcutGrid.rows,
-    },
+    dashboardLayout,
+    activeMediaApp,
+    hiddenMediaAppIds,
+    shortcutGrid,
+    activeProfileId: profiles.some((profile) => profile.id === activeProfileId)
+      ? activeProfileId
+      : profiles[0]?.id ?? DEFAULT_PROFILE_ID,
+    dashboardProfiles: profiles,
   };
 };
 

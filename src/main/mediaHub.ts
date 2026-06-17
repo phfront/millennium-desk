@@ -22,6 +22,7 @@ import {
   isMediaAppId,
   MEDIA_APP_DEFINITIONS,
   MEDIA_APPS,
+  resolveActiveMediaApp,
   type MediaAppDefinition,
   type MediaAppId,
 } from "../shared/mediaApps";
@@ -144,16 +145,25 @@ const disposeMediaApp = (appId: MediaAppId) => {
 const suspendMediaApp = parkMediaApp;
 
 const suspendInactiveMediaApps = () => {
+  const hidden = new Set(getHiddenMediaAppIds());
   for (const appId of [...runtimes.keys()]) {
-    if (appId !== activeAppId) {
+    if (appId === activeAppId) continue;
+    if (hidden.has(appId)) {
+      disposeMediaApp(appId);
+    } else {
       suspendMediaApp(appId);
     }
   }
 };
 
 const suspendAllMediaApps = () => {
+  const hidden = new Set(getHiddenMediaAppIds());
   for (const appId of [...runtimes.keys()]) {
-    parkMediaApp(appId);
+    if (hidden.has(appId)) {
+      disposeMediaApp(appId);
+    } else {
+      parkMediaApp(appId);
+    }
   }
 };
 
@@ -192,6 +202,7 @@ const ensureMediaApp = (appId: MediaAppId) => {
 const warmInactiveMediaApps = () => {
   if (!hubVisible) return;
 
+  unloadHiddenMediaApps();
   clearWarmTimers();
   const hidden = new Set(getHiddenMediaAppIds());
   let delay = 0;
@@ -220,6 +231,7 @@ const showActiveMediaApp = () => {
   const parent = context?.getMainWindow()?.contentView ?? null;
   if (!parent || !hubVisible || !slotBounds) return;
 
+  unloadHiddenMediaApps();
   suspendInactiveMediaApps();
 
   const runtime = ensureMediaApp(activeAppId);
@@ -237,6 +249,35 @@ const applySpotifyLayoutIfNeeded = (bounds: ViewBounds) => {
 
 export const initMediaHub = (hubContext: MediaHubContext) => {
   context = hubContext;
+};
+
+/** Descarrega webviews ocultos nas configs; cookies ficam na particao persist:*. */
+export const unloadHiddenMediaApps = () => {
+  const hidden = new Set(getHiddenMediaAppIds());
+  if (hidden.size === 0) return;
+
+  for (const appId of [...runtimes.keys()]) {
+    if (hidden.has(appId)) {
+      disposeMediaApp(appId);
+    }
+  }
+
+  clearWarmTimers();
+
+  const nextActive = resolveActiveMediaApp(
+    activeAppId,
+    getSettings().hiddenMediaAppIds,
+  );
+  if (nextActive !== activeAppId) {
+    activeAppId = nextActive;
+  }
+};
+
+export const syncHiddenMediaApps = () => {
+  unloadHiddenMediaApps();
+  if (hubVisible && slotBounds) {
+    showActiveMediaApp();
+  }
 };
 
 export const getActiveMediaHubView = () => {
@@ -374,6 +415,27 @@ export const registerMediaIpc = () => {
     await shell.openExternal("spotify:");
     return true;
   });
+};
+
+export const reloadActiveMediaApp = () => {
+  runtimes.get(activeAppId)?.view.webContents.reload();
+};
+
+export const goHomeActiveMediaApp = () => {
+  const runtime = runtimes.get(activeAppId);
+  if (!runtime) return;
+  const definition = getMediaAppDefinition(activeAppId);
+  savedMediaUrls.delete(activeAppId);
+  if (activeAppId === "spotify" && runtime.spotifyIdentity) {
+    void runtime.view.webContents.loadURL(
+      getEmbeddedWebHomeUrl(
+        "spotify",
+        runtime.spotifyIdentity.getLayout(),
+      ),
+    );
+    return;
+  }
+  void runtime.view.webContents.loadURL(definition.homeUrl);
 };
 
 export const setMediaHubActiveApp = (appId: MediaAppId) => {

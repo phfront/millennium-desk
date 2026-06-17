@@ -360,7 +360,7 @@ export const createEmbeddedWebView = (config: EmbeddedWebViewConfig) => {
     },
   });
 
-  view.setBackgroundColor("#090b10");
+  view.setBackgroundColor("#0b0b0c");
   view.webContents.setAudioMuted(false);
   if (userAgent) {
     applyUserAgent(embeddedSession, view, userAgent);

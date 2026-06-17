@@ -19,7 +19,6 @@ export type TemperatureUnit = "celsius" | "fahrenheit";
 export type DashboardModuleId =
   | "tasks"
   | "weather"
-  | "youtube"
   | "media"
   | "system"
   | "shortcuts";
@@ -59,6 +58,7 @@ export interface SaveShortcutInput {
   iconDataUrl?: string | null;
   imageOnly?: boolean;
   confirmBeforeRun?: boolean;
+  gridSlot?: number;
 }
 
 export interface ShortcutExecutionResult {
@@ -122,6 +122,18 @@ export interface WeatherLocation {
   timezone: string;
 }
 
+export interface DashboardProfile {
+  id: string;
+  name: string;
+  dashboardLayout: DashboardLayoutNode | null;
+  hiddenModuleIds: string[];
+  activeMediaApp: MediaAppId | null;
+  hiddenMediaAppIds: MediaAppId[];
+  theme: ThemePreference;
+  accentColor: string;
+  shortcutGrid: ShortcutGridSettings;
+}
+
 export interface AppSettings {
   theme: ThemePreference;
   accentColor: string;
@@ -141,6 +153,8 @@ export interface AppSettings {
   /** Apps ocultos no dock do hub de midia (permanecem estacionados em memoria). */
   hiddenMediaAppIds: MediaAppId[];
   shortcutGrid: ShortcutGridSettings;
+  activeProfileId: string;
+  dashboardProfiles: DashboardProfile[];
 }
 
 export interface WeatherCurrent {
@@ -211,6 +225,7 @@ export interface CreateTaskInput {
 
 export interface UpdateTaskInput {
   id: number;
+  date?: string;
   text?: string;
   done?: boolean;
   tagIds?: number[];
@@ -317,10 +332,21 @@ export interface ElectronControlApi {
     clearSession(appId?: MediaAppId): Promise<void>;
     openSpotifyDesktop(): Promise<boolean>;
     warmApps(): Promise<void>;
+    showControlsMenu(
+      mediaFullscreen: boolean,
+      anchor: ViewBounds,
+    ): Promise<boolean>;
+    setFullscreenOverlayActive(active: boolean): Promise<void>;
+    onFullscreenOverlayExit(callback: () => void): () => void;
+    onFullscreenMenuToggle(callback: () => void): () => void;
+    onControlsMenuClosed(callback: () => void): () => void;
   };
   window: {
     toggleFullscreen(): Promise<boolean>;
     isFullscreen(): Promise<boolean>;
+    minimize(): Promise<void>;
+    toggleMaximize(): Promise<boolean>;
+    close(): Promise<void>;
     onFullscreenChanged(callback: (fullscreen: boolean) => void): () => void;
     onDisplayChanged(callback: (display: DisplayInfo) => void): () => void;
     moveToDisplay(displayId: number): Promise<DisplayInfo>;

@@ -63,11 +63,12 @@ Instalador: `dist/Millennium-Desk-Setup.exe`
 Configurações, tarefas e layout ficam em:
 
 ```text
-%APPDATA%\electron-control\
+%APPDATA%\millennium-desk\
   dashboard.sqlite
+  Partitions\          ← cookies e login dos webviews (Spotify, Netflix, etc.)
 ```
 
-O nome do produto é Millennium Desk, mas a pasta de dados permanece `electron-control` para não perder dados de instalações anteriores.
+Dev (`npm start`) e o instalador usam **a mesma pasta**. Na primeira execução após atualizar, logins antigos em `electron-control` ou `Millennium Desk` são migrados automaticamente.
 
 ## Variáveis de ambiente
 

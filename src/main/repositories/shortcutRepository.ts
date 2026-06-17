@@ -167,7 +167,16 @@ export const saveShortcut = (input: SaveShortcutInput): ShortcutItem => {
     .get() as { value: number };
   const occupiedSlots = new Set(listShortcuts().map((item) => item.gridSlot));
   let nextSlot = 0;
-  while (occupiedSlots.has(nextSlot)) nextSlot += 1;
+  if (
+    input.gridSlot !== undefined &&
+    Number.isInteger(input.gridSlot) &&
+    input.gridSlot >= 0 &&
+    !occupiedSlots.has(input.gridSlot)
+  ) {
+    nextSlot = input.gridSlot;
+  } else {
+    while (occupiedSlots.has(nextSlot)) nextSlot += 1;
+  }
   const result = database
     .prepare(
       `INSERT INTO shortcuts

@@ -8,13 +8,7 @@ import {
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { initDatabase, closeDatabase } from "../main/database";
-
-/** Mantém dados em %APPDATA%\electron-control após o rename do produto. */
-const LEGACY_APP_DATA_DIR = "electron-control";
-app.setPath(
-  "userData",
-  path.join(app.getPath("appData"), LEGACY_APP_DATA_DIR),
-);
+import { getAppIconPath } from "../main/appIcon";
 import {
   captureEmbeddedWebPreview,
   createEmbeddedWebView,
@@ -25,7 +19,9 @@ import {
 } from "../main/embeddedWeb";
 import {
   initMediaHub,
+  goHomeActiveMediaApp,
   registerMediaIpc,
+  reloadActiveMediaApp,
   resolveMediaHubDevToolsTarget,
   setMediaHubActiveApp,
 } from "../main/mediaHub";
@@ -63,6 +59,336 @@ let mainWindow: BrowserWindow | null = null;
 let youtubeView: WebContentsView | null = null;
 let youtubeVisible = true;
 let currentDisplayId: number | null = null;
+let mediaFullscreenOverlayActive = false;
+let mediaFullscreenExitOverlay: BrowserWindow | null = null;
+let mediaControlsOverlay: BrowserWindow | null = null;
+let mediaControlsMenuOpen = false;
+
+const isEscapeInput = (input: Electron.Input) =>
+  input.key === "Escape" || input.key === "Esc" || input.code === "Escape";
+
+const positionMediaFullscreenExitOverlay = () => {
+  if (!mainWindow || !mediaFullscreenExitOverlay) return;
+  const bounds = mainWindow.getBounds();
+  const size = 40;
+  mediaFullscreenExitOverlay.setBounds({
+    x: bounds.x + bounds.width - size,
+    y: bounds.y + bounds.height - size,
+    width: size,
+    height: size,
+  });
+};
+
+const hideMediaFullscreenExitOverlay = () => {
+  mediaFullscreenExitOverlay?.hide();
+};
+
+const ensureMediaFullscreenExitOverlay = () => {
+  if (!mainWindow) return null;
+  if (mediaFullscreenExitOverlay && !mediaFullscreenExitOverlay.isDestroyed()) {
+    return mediaFullscreenExitOverlay;
+  }
+
+  mediaFullscreenExitOverlay = new BrowserWindow({
+    parent: mainWindow,
+    width: 40,
+    height: 40,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    closable: false,
+    skipTaskbar: true,
+    show: false,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+    },
+  });
+  mediaFullscreenExitOverlay.setMenuBarVisibility(false);
+  mediaFullscreenExitOverlay.webContents.on("before-input-event", (event, input) => {
+    if (input.type === "keyDown" && isEscapeInput(input)) {
+      event.preventDefault();
+      requestMediaFullscreenOverlayExit();
+    }
+  });
+  void mediaFullscreenExitOverlay.loadURL(
+    `data:text/html;charset=utf-8,${encodeURIComponent(`
+      <!doctype html>
+      <html>
+        <head>
+          <style>
+            html, body {
+              width: 100%;
+              height: 100%;
+              margin: 0;
+              overflow: hidden;
+              background: transparent;
+            }
+
+            button {
+              display: grid;
+              place-items: center;
+              width: 40px;
+              height: 40px;
+              padding: 0;
+              border: 1px solid rgba(255, 255, 255, 0.24);
+              border-radius: 10px 0 0 0;
+              color: #fff;
+              background: rgba(8, 10, 14, 0.78);
+              box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+              cursor: pointer;
+              backdrop-filter: blur(10px);
+            }
+
+            button:hover {
+              background: rgba(8, 10, 14, 0.9);
+            }
+
+            button:active {
+              transform: scale(0.96);
+            }
+
+            span {
+              width: 17px;
+              height: 17px;
+              background: currentColor;
+              mask-repeat: no-repeat;
+              mask-position: center;
+              mask-size: contain;
+              mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3v3a2 2 0 0 1-2 2H3'/%3E%3Cpath d='M16 3v3a2 2 0 0 0 2 2h3'/%3E%3Cpath d='M8 21v-3a2 2 0 0 0-2-2H3'/%3E%3Cpath d='M16 21v-3a2 2 0 0 1 2-2h3'/%3E%3C/svg%3E");
+            }
+          </style>
+        </head>
+        <body>
+          <button type="button" aria-label="Sair da tela cheia do Smart TV" title="Sair da tela cheia do Smart TV">
+            <span></span>
+          </button>
+          <script>
+            const { ipcRenderer } = require("electron");
+            document.querySelector("button").addEventListener("click", () => {
+              ipcRenderer.send("media:fullscreen-overlay-exit-request");
+            });
+          </script>
+        </body>
+      </html>
+    `)}`,
+  );
+  mediaFullscreenExitOverlay.on("closed", () => {
+    mediaFullscreenExitOverlay = null;
+  });
+  return mediaFullscreenExitOverlay;
+};
+
+function requestMediaFullscreenOverlayExit() {
+  if (!mainWindow) return;
+  mediaFullscreenOverlayActive = false;
+  hideMediaFullscreenExitOverlay();
+  mainWindow.webContents.send("media:fullscreen-overlay-exit");
+}
+
+const syncMediaFullscreenExitOverlay = () => {
+  if (!mediaFullscreenOverlayActive) {
+    hideMediaFullscreenExitOverlay();
+    return;
+  }
+
+  const overlay = ensureMediaFullscreenExitOverlay();
+  if (!overlay) return;
+  positionMediaFullscreenExitOverlay();
+  overlay.showInactive();
+};
+
+const hideMediaControlsOverlay = () => {
+  if (!mediaControlsMenuOpen && !mediaControlsOverlay?.isVisible()) {
+    return;
+  }
+  mediaControlsMenuOpen = false;
+  mediaControlsOverlay?.hide();
+  mainWindow?.webContents.send("media:controls-menu-closed");
+};
+
+const ensureMediaControlsOverlay = () => {
+  if (!mainWindow) return null;
+  if (mediaControlsOverlay && !mediaControlsOverlay.isDestroyed()) {
+    return mediaControlsOverlay;
+  }
+
+  mediaControlsOverlay = new BrowserWindow({
+    parent: mainWindow,
+    width: 210,
+    height: 176,
+    frame: false,
+    transparent: true,
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    skipTaskbar: true,
+    show: false,
+    backgroundColor: "#00000000",
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+    },
+  });
+  mediaControlsOverlay.setMenuBarVisibility(false);
+  mediaControlsOverlay.on("blur", () => {
+    window.setTimeout(() => {
+      if (mediaControlsMenuOpen) {
+        hideMediaControlsOverlay();
+      }
+    }, 0);
+  });
+  mediaControlsOverlay.on("closed", () => {
+    mediaControlsMenuOpen = false;
+    mediaControlsOverlay = null;
+  });
+  return mediaControlsOverlay;
+};
+
+const loadMediaControlsOverlay = (
+  overlay: BrowserWindow,
+  mediaFullscreen: boolean,
+) =>
+  overlay.loadURL(
+    `data:text/html;charset=utf-8,${encodeURIComponent(`
+      <!doctype html>
+      <html>
+        <head>
+          <style>
+            * { box-sizing: border-box; }
+            html, body {
+              width: 100%;
+              height: 100%;
+              margin: 0;
+              overflow: hidden;
+              color: #f3f3f4;
+              font-family: Inter, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+              background: transparent;
+            }
+            body {
+              padding: 8px;
+            }
+            .menu {
+              display: grid;
+              gap: 6px;
+              width: 100%;
+              height: 100%;
+              padding: 8px;
+              border: 1px solid rgba(255, 255, 255, 0.12);
+              border-radius: 16px;
+              background: rgba(24, 24, 26, 0.96);
+              box-shadow: 0 18px 48px rgba(0, 0, 0, 0.42);
+              backdrop-filter: blur(14px);
+            }
+            button {
+              display: grid;
+              grid-template-columns: 34px minmax(0, 1fr);
+              align-items: center;
+              gap: 10px;
+              min-height: 42px;
+              padding: 0 12px 0 8px;
+              border: 0;
+              border-radius: 12px;
+              color: inherit;
+              font: inherit;
+              font-size: 14px;
+              font-weight: 650;
+              text-align: left;
+              background: transparent;
+              cursor: pointer;
+            }
+            button:hover {
+              background: rgba(255, 255, 255, 0.08);
+            }
+            .icon {
+              display: grid;
+              place-items: center;
+              width: 30px;
+              height: 30px;
+              border: 1px solid rgba(255, 255, 255, 0.1);
+              border-radius: 10px;
+              color: #d7d7da;
+              background: rgba(255, 255, 255, 0.06);
+            }
+            .icon::before {
+              content: "";
+              width: 16px;
+              height: 16px;
+              background: currentColor;
+              mask-repeat: no-repeat;
+              mask-position: center;
+              mask-size: contain;
+            }
+            .fullscreen .icon::before {
+              mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M8 3H5a2 2 0 0 0-2 2v3'/%3E%3Cpath d='M16 3h3a2 2 0 0 1 2 2v3'/%3E%3Cpath d='M8 21H5a2 2 0 0 1-2-2v-3'/%3E%3Cpath d='M16 21h3a2 2 0 0 0 2-2v-3'/%3E%3C/svg%3E");
+            }
+            .refresh .icon::before {
+              mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6v5h-5'/%3E%3Cpath d='M4 18v-5h5'/%3E%3Cpath d='M6.1 9a7 7 0 0 1 11.7-2.6L20 11'/%3E%3Cpath d='M17.9 15a7 7 0 0 1-11.7 2.6L4 13'/%3E%3C/svg%3E");
+            }
+            .home .icon::before {
+              mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 11 9-8 9 8'/%3E%3Cpath d='M5 10v10h14V10'/%3E%3Cpath d='M9 20v-6h6v6'/%3E%3C/svg%3E");
+            }
+          </style>
+        </head>
+        <body>
+          <div class="menu">
+            <button class="fullscreen" data-action="fullscreen"><span class="icon"></span>${mediaFullscreen ? "Sair do fullscreen" : "Fullscreen"}</button>
+            <button class="refresh" data-action="refresh"><span class="icon"></span>Refresh</button>
+            <button class="home" data-action="home"><span class="icon"></span>Home</button>
+          </div>
+          <script>
+            const { ipcRenderer } = require("electron");
+            for (const button of document.querySelectorAll("button")) {
+              button.addEventListener("click", () => {
+                ipcRenderer.send("media:controls-action", button.dataset.action);
+              });
+            }
+          </script>
+        </body>
+      </html>
+    `)}`,
+  );
+
+const showMediaControlsOverlay = (
+  mediaFullscreen: boolean,
+  anchor: ViewBounds,
+): boolean => {
+  if (!mainWindow) return false;
+  const overlay = ensureMediaControlsOverlay();
+  if (!overlay) return false;
+
+  if (mediaControlsMenuOpen) {
+    hideMediaControlsOverlay();
+    return false;
+  }
+
+  const windowBounds = mainWindow.getBounds();
+  const overlayWidth = 210;
+  const overlayHeight = 176;
+  const margin = 8;
+  const x = Math.round(
+    windowBounds.x +
+      Math.min(
+        windowBounds.width - overlayWidth - margin,
+        Math.max(margin, anchor.x + anchor.width - overlayWidth),
+      ),
+  );
+  const y = Math.round(
+    windowBounds.y +
+      Math.max(margin, anchor.y - overlayHeight - margin),
+  );
+  overlay.setBounds({ x, y, width: overlayWidth, height: overlayHeight });
+  void loadMediaControlsOverlay(overlay, mediaFullscreen).then(() => {
+    mediaControlsMenuOpen = true;
+    overlay.show();
+  });
+  return true;
+};
 
 const resolveEmbeddedDevToolsTarget = () =>
   resolveMediaHubDevToolsTarget(youtubeView, youtubeVisible);
@@ -84,9 +410,15 @@ const handleEmbeddedInputShortcut = (
     return;
   }
 
+  if (isEscapeInput(input) && mediaFullscreenOverlayActive) {
+    event.preventDefault();
+    requestMediaFullscreenOverlayExit();
+    return;
+  }
+
   const shouldToggle =
     input.key === "F11" ||
-    (input.key === "Escape" && mainWindow.isFullScreen());
+    (isEscapeInput(input) && mainWindow.isFullScreen());
 
   if (!shouldToggle) return;
   event.preventDefault();
@@ -208,13 +540,9 @@ const createWindow = async () => {
     height: Math.min(900, initialDisplay.workArea.height),
     minWidth: 900,
     minHeight: 620,
-    backgroundColor: "#090b10",
-    titleBarStyle: "hidden",
-    titleBarOverlay: {
-      color: "#00000000",
-      symbolColor: "#aeb7c7",
-      height: 44,
-    },
+    backgroundColor: "#0b0b0c",
+    icon: getAppIconPath(),
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -246,7 +574,6 @@ const createWindow = async () => {
   if (isMediaAppId(settings.activeMediaApp)) {
     setMediaHubActiveApp(settings.activeMediaApp);
   }
-  await createYoutubeView();
   currentDisplayId = screen.getDisplayMatching(mainWindow.getBounds()).id;
 
   const notifyDisplayChange = () => {
@@ -261,6 +588,8 @@ const createWindow = async () => {
 
   mainWindow.on("move", notifyDisplayChange);
   mainWindow.on("resize", notifyDisplayChange);
+  mainWindow.on("move", positionMediaFullscreenExitOverlay);
+  mainWindow.on("resize", positionMediaFullscreenExitOverlay);
 
   const notifyFullscreen = () => {
     mainWindow?.webContents.send(
@@ -345,6 +674,12 @@ const createWindow = async () => {
   }
 
   mainWindow.on("closed", () => {
+    mediaFullscreenExitOverlay?.destroy();
+    mediaFullscreenExitOverlay = null;
+    mediaControlsOverlay?.destroy();
+    mediaControlsOverlay = null;
+    mediaControlsMenuOpen = false;
+    mediaFullscreenOverlayActive = false;
     youtubeView = null;
     mainWindow = null;
   });
@@ -377,11 +712,62 @@ ipcMain.handle("youtube:capture-preview", () =>
   captureEmbeddedWebPreview(youtubeView),
 );
 
+ipcMain.handle(
+  "media:set-fullscreen-overlay-active",
+  (_event, active: boolean) => {
+    mediaFullscreenOverlayActive = active;
+    syncMediaFullscreenExitOverlay();
+  },
+);
+
+ipcMain.handle(
+  "media:show-controls-menu",
+  (_event, mediaFullscreen: boolean, anchor: ViewBounds) =>
+    showMediaControlsOverlay(mediaFullscreen, anchor),
+);
+
+ipcMain.on("media:controls-action", (_event, action: string) => {
+  hideMediaControlsOverlay();
+  if (action === "fullscreen") {
+    mainWindow?.webContents.send("media:fullscreen-menu-toggle");
+    return;
+  }
+  if (action === "refresh") {
+    reloadActiveMediaApp();
+    return;
+  }
+  if (action === "home") {
+    goHomeActiveMediaApp();
+  }
+});
+
+ipcMain.on("media:fullscreen-overlay-exit-request", () => {
+  requestMediaFullscreenOverlayExit();
+});
+
 ipcMain.handle("window:toggle-fullscreen", () => {
   if (!mainWindow) return false;
   const targetState = !mainWindow.isFullScreen();
   mainWindow.setFullScreen(targetState);
   return targetState;
+});
+
+ipcMain.handle("window:minimize", () => {
+  mainWindow?.minimize();
+});
+
+ipcMain.handle("window:toggle-maximize", () => {
+  if (!mainWindow) return false;
+  if (mainWindow.isMaximized()) {
+    mainWindow.unmaximize();
+    return false;
+  }
+  mainWindow.maximize();
+  return true;
+});
+
+ipcMain.handle("window:close", () => {
+  mainWindow?.close();
 });
 
 ipcMain.handle(

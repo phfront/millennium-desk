@@ -8,6 +8,7 @@ import {
 } from "react";
 import type {
   AppSettings,
+  DashboardProfile,
   DisplayInfo,
   SaveShortcutInput,
   ShortcutItem,
@@ -54,20 +55,19 @@ import {
   type TaskModuleSettings,
 } from "./modules/tasks";
 import { MediaModule, MediaModuleSettingsPanel } from "./modules/media";
-import { YoutubeModule } from "./modules/youtube/YoutubeModule";
 import { SystemModule } from "./modules/system";
 import {
   WeatherModule,
   WeatherSettingsPanel,
 } from "./modules/weather";
 import { LogsPanel } from "./logs/LogsPanel";
-import { ModuleSettingsContent } from "./settings/ModuleSettingsContent";
 import {
   ShortcutsModule,
   ShortcutsSettingsPanel,
 } from "./modules/shortcuts";
 
-const HEADER_HEIGHT = 44;
+const HEADER_HEIGHT = 56;
+const DEFAULT_PROFILE_ID = "default";
 const ACCENT_PRESETS = [
   "#8c8dff",
   "#4f9cf9",
@@ -79,7 +79,6 @@ const ACCENT_PRESETS = [
 const MODULE_LABELS: Record<ModuleId, string> = {
   tasks: "Tarefas",
   weather: "Ambiente",
-  youtube: "YouTube",
   media: "Midia",
   system: "Sistema",
   shortcuts: "Atalhos",
@@ -107,9 +106,6 @@ export function App() {
   const [accentColor, setAccentColor] = useState<string | null>(null);
   const resolvedTheme = useResolvedTheme(theme ?? "system");
   const [editMode, setEditMode] = useState(false);
-  const [youtubeEditPreview, setYoutubeEditPreview] = useState<string | null>(
-    null,
-  );
   const [mediaEditPreview, setMediaEditPreview] = useState<string | null>(null);
   const [activeMediaApp, setActiveMediaApp] = useState<MediaAppId>(
     DEFAULT_MEDIA_APP_ID,
@@ -118,6 +114,9 @@ export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logsOpen, setLogsOpen] = useState(false);
   const [moduleSettings, setModuleSettings] = useState<ModuleId | null>(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [activeProfileId, setActiveProfileId] = useState(DEFAULT_PROFILE_ID);
+  const [dashboardProfiles, setDashboardProfiles] = useState<DashboardProfile[]>([]);
   const [draggedModule, setDraggedModule] = useState<ModuleId | null>(null);
   const [dropTarget, setDropTarget] = useState<ModuleId | null>(null);
   const [dropPlacement, setDropPlacement] = useState<DropPlacement | null>(
@@ -129,7 +128,12 @@ export function App() {
     columns: 4,
     rows: 2,
   });
+  const shortcutGridRef = useRef(shortcutGrid);
+  const [shortcutCreateSlot, setShortcutCreateSlot] = useState<number | null>(
+    null,
+  );
   const [fullscreen, setFullscreen] = useState(false);
+  const [mediaModuleFullscreen, setMediaModuleFullscreen] = useState(false);
   const [launchAtStartup, setLaunchAtStartup] = useState(false);
   const [launchFullscreen, setLaunchFullscreen] = useState(true);
   const [taskSettings, setTaskSettings] = useState<TaskModuleSettings>({
@@ -159,7 +163,6 @@ export function App() {
       window.innerHeight - HEADER_HEIGHT,
     ),
   });
-  const youtubeSlotRef = useRef<HTMLDivElement>(null);
   const mediaSlotRef = useRef<HTMLDivElement>(null);
   const [mediaLayoutMode, setMediaLayoutMode] = useState<SpotifyLayoutMode>(
     () => inferSpotifyLayoutForWidth(window.innerWidth * 0.25),
@@ -169,6 +172,7 @@ export function App() {
   const hiddenMediaAppIdsRef = useRef(hiddenMediaAppIds);
   activeMediaAppRef.current = activeMediaApp;
   hiddenMediaAppIdsRef.current = hiddenMediaAppIds;
+  shortcutGridRef.current = shortcutGrid;
   const viewportRef = useRef({
     width: window.innerWidth,
     height: Math.max(
@@ -185,9 +189,8 @@ export function App() {
   hiddenModulesRef.current = hiddenModules;
   themeRef.current = theme;
   accentColorRef.current = accentColor;
-  const overlayOpen =
-    settingsOpen || logsOpen || moduleSettings !== null;
-  const compactLayout = fullscreen || editMode;
+  const overlayOpen = settingsOpen || logsOpen || moduleSettings !== null;
+  const compactLayout = fullscreen || editMode || mediaModuleFullscreen;
   const calculatedLayout = calculateLayout(layoutTree, {
     x: 0,
     y: 0,
@@ -195,10 +198,7 @@ export function App() {
     height: viewport.height,
   });
   const renderedLayouts = calculatedLayout.modules;
-  const youtubeInGrid = renderedLayouts.some((layout) => layout.id === "youtube");
   const mediaInGrid = renderedLayouts.some((layout) => layout.id === "media");
-  const youtubeSurfaceHidden =
-    overlayOpen || editMode || hiddenModules.includes("youtube") || !youtubeInGrid;
   const mediaSurfaceHidden =
     overlayOpen || editMode || hiddenModules.includes("media") || !mediaInGrid;
   const embeddedLayoutSignature = renderedLayouts
@@ -207,6 +207,63 @@ export function App() {
         `${module.id}:${module.x},${module.y},${module.width},${module.height}`,
     )
     .join("|");
+  const activeProfile =
+    dashboardProfiles.find((profile) => profile.id === activeProfileId) ??
+    dashboardProfiles[0] ??
+    null;
+
+  const buildProfileSnapshot = useCallback(
+    (id: string, name: string): DashboardProfile => ({
+      id,
+      name,
+      dashboardLayout: layoutTreeRef.current,
+      hiddenModuleIds: hiddenModulesRef.current,
+      activeMediaApp: activeMediaAppRef.current,
+      hiddenMediaAppIds: hiddenMediaAppIdsRef.current,
+      theme: themeRef.current ?? "system",
+      accentColor: accentColorRef.current ?? ACCENT_PRESETS[0],
+      shortcutGrid: shortcutGridRef.current,
+    }),
+    [],
+  );
+
+  const applyProfileState = useCallback((profile: DashboardProfile) => {
+    setTheme(profile.theme);
+    setAccentColor(profile.accentColor);
+    setShortcutGrid(profile.shortcutGrid);
+
+    const nextHiddenMediaApps = profile.hiddenMediaAppIds.filter((id) =>
+      isMediaAppId(id),
+    );
+    setHiddenMediaAppIds(nextHiddenMediaApps);
+
+    const nextActiveApp = resolveActiveMediaApp(
+      isMediaAppId(profile.activeMediaApp)
+        ? profile.activeMediaApp
+        : DEFAULT_MEDIA_APP_ID,
+      nextHiddenMediaApps,
+    );
+    setActiveMediaApp(nextActiveApp);
+    void window.electronControl.media.setActiveApp(nextActiveApp);
+
+    const validHiddenModules = profile.hiddenModuleIds
+      .map((id) => (id === "spotify" ? "media" : id))
+      .filter((id): id is ModuleId => MODULE_IDS.includes(id as ModuleId));
+    let nextLayout = migrateLegacyLayoutModules(
+      profile.dashboardLayout ?? createInitialLayoutTree(),
+    );
+    for (const id of validHiddenModules) {
+      nextLayout = removeModule(nextLayout, id);
+    }
+    const modulesInLayout = new Set(collectModulesInLayout(nextLayout));
+    const missingModules = MODULE_IDS.filter(
+      (id) => !modulesInLayout.has(id) && !validHiddenModules.includes(id),
+    );
+
+    setHiddenModules([...validHiddenModules, ...missingModules]);
+    setLayoutTree(nextLayout);
+    skipNextGridSaveRef.current = true;
+  }, []);
 
   useEffect(() => {
     void window.electronControl.settings
@@ -214,6 +271,8 @@ export function App() {
       .then((settings) => {
         setTheme(settings.theme);
         setAccentColor(settings.accentColor);
+        setDashboardProfiles(settings.dashboardProfiles);
+        setActiveProfileId(settings.activeProfileId);
         setLaunchAtStartup(settings.launchAtStartup);
         setLaunchFullscreen(settings.launchFullscreen);
         const activeLocation =
@@ -260,10 +319,14 @@ export function App() {
         console.error("Falha ao carregar configuracoes:", error);
         setTheme("system");
         setAccentColor(ACCENT_PRESETS[0]);
+        setDashboardProfiles([
+          buildProfileSnapshot(DEFAULT_PROFILE_ID, "Padrao"),
+        ]);
+        setActiveProfileId(DEFAULT_PROFILE_ID);
         skipNextGridSaveRef.current = true;
         setGridSettingsLoaded(true);
       });
-  }, []);
+  }, [buildProfileSnapshot]);
 
   const buildPersistedSettingsPatch = useCallback(
     (): Partial<AppSettings> => ({
@@ -339,10 +402,6 @@ export function App() {
   const deleteShortcut = async (id: number) => {
     await window.electronControl.shortcuts.delete(id);
     await loadShortcuts();
-  };
-
-  const reorderShortcuts = async (ids: number[]) => {
-    setShortcuts(await window.electronControl.shortcuts.reorder(ids));
   };
 
   const placeShortcut = async (id: number, slot: number) => {
@@ -437,28 +496,10 @@ export function App() {
     [],
   );
 
-  const resolveYoutubeSlot = useCallback(() => {
-    if (youtubeInGrid) return youtubeSlotRef.current;
-    return null;
-  }, [youtubeInGrid]);
-
   const resolveMediaSlot = useCallback(() => {
     if (mediaInGrid) return mediaSlotRef.current;
     return null;
   }, [mediaInGrid]);
-
-  const syncYoutubeBounds = useCallback(() => {
-    const element = resolveYoutubeSlot();
-    if (!element || youtubeSurfaceHidden) return;
-    const rect = element.getBoundingClientRect();
-    if (rect.width < 1 || rect.height < 1) return;
-    void window.electronControl.youtube.setBounds({
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height,
-    });
-  }, [resolveYoutubeSlot, youtubeSurfaceHidden]);
 
   const syncMediaBounds = useCallback(() => {
     const element = resolveMediaSlot();
@@ -484,26 +525,23 @@ export function App() {
   }, [mediaSurfaceHidden, resolveMediaSlot]);
 
   const syncEmbeddedWebBounds = useCallback(() => {
-    syncYoutubeBounds();
     syncMediaBounds();
-  }, [syncMediaBounds, syncYoutubeBounds]);
+  }, [syncMediaBounds]);
 
   useLayoutEffect(() => {
     syncEmbeddedWebBounds();
     const observer = new ResizeObserver(syncEmbeddedWebBounds);
-    const youtubeSlot = resolveYoutubeSlot();
     const mediaSlot = resolveMediaSlot();
-    if (youtubeSlot) observer.observe(youtubeSlot);
     if (mediaSlot) observer.observe(mediaSlot);
     window.addEventListener("resize", syncEmbeddedWebBounds);
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", syncEmbeddedWebBounds);
     };
-  }, [resolveMediaSlot, resolveYoutubeSlot, syncEmbeddedWebBounds]);
+  }, [resolveMediaSlot, syncEmbeddedWebBounds]);
 
   useLayoutEffect(() => {
-    if (youtubeSurfaceHidden && mediaSurfaceHidden) return;
+    if (mediaSurfaceHidden) return;
 
     const firstFrame = requestAnimationFrame(() => {
       syncEmbeddedWebBounds();
@@ -519,15 +557,10 @@ export function App() {
     editMode,
     embeddedLayoutSignature,
     fullscreen,
+    mediaModuleFullscreen,
     mediaSurfaceHidden,
     syncEmbeddedWebBounds,
-    youtubeSurfaceHidden,
   ]);
-
-  useEffect(() => {
-    void window.electronControl.youtube.setVisible(!youtubeSurfaceHidden);
-    if (!youtubeSurfaceHidden) requestAnimationFrame(syncYoutubeBounds);
-  }, [syncYoutubeBounds, youtubeSurfaceHidden]);
 
   useEffect(() => {
     void window.electronControl.media.setVisible(!mediaSurfaceHidden);
@@ -573,6 +606,11 @@ export function App() {
     },
     [],
   );
+
+  const updateMediaModuleFullscreen = useCallback((active: boolean) => {
+    void window.electronControl.media.setFullscreenOverlayActive(active);
+    setMediaModuleFullscreen(active);
+  }, []);
 
   useEffect(() => {
     void Promise.all([
@@ -632,20 +670,61 @@ export function App() {
     return () => window.removeEventListener("resize", fitLayoutsToViewport);
   }, [compactLayout]);
 
+  useEffect(() => {
+    void window.electronControl.media.setFullscreenOverlayActive(
+      mediaModuleFullscreen,
+    );
+  }, [mediaModuleFullscreen]);
+
+  useEffect(() => {
+    return window.electronControl.media.onFullscreenOverlayExit(() => {
+      setMediaModuleFullscreen(false);
+    });
+  }, []);
+
+  useEffect(() => {
+    return window.electronControl.media.onFullscreenMenuToggle(() => {
+      updateMediaModuleFullscreen(!mediaModuleFullscreen);
+    });
+  }, [mediaModuleFullscreen, updateMediaModuleFullscreen]);
+
+  useEffect(() => {
+    if (!mediaModuleFullscreen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" || event.key === "Esc" || event.code === "Escape") {
+        event.preventDefault();
+        event.stopPropagation();
+        updateMediaModuleFullscreen(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [mediaModuleFullscreen, updateMediaModuleFullscreen]);
+
   const openModuleSettings = (id: ModuleId) => {
     setModuleSettings(id);
   };
 
+  const handleShortcutCreateRequestHandled = useCallback(() => {
+    setShortcutCreateSlot(null);
+  }, []);
+
+  const openShortcutSettings = (slot?: number) => {
+    setShortcutCreateSlot(
+      typeof slot === "number" && Number.isInteger(slot) && slot >= 0
+        ? slot
+        : null,
+    );
+    openModuleSettings("shortcuts");
+  };
+
   const enterEditMode = async () => {
-    const [youtubePreview, mediaPreview] = await Promise.all([
-      hiddenModules.includes("youtube")
-        ? Promise.resolve(null)
-        : window.electronControl.youtube.capturePreview(),
-      hiddenModules.includes("media")
-        ? Promise.resolve(null)
-        : window.electronControl.media.capturePreview(),
-    ]);
-    setYoutubeEditPreview(youtubePreview);
+    updateMediaModuleFullscreen(false);
+    const mediaPreview = hiddenModules.includes("media")
+      ? null
+      : await window.electronControl.media.capturePreview();
     setMediaEditPreview(mediaPreview);
     setEditMode(true);
   };
@@ -656,11 +735,13 @@ export function App() {
       hiddenModuleIds: hiddenModules,
     });
     setEditMode(false);
-    setYoutubeEditPreview(null);
     setMediaEditPreview(null);
   };
 
   const hideModule = (id: ModuleId) => {
+    if (id === "media") {
+      updateMediaModuleFullscreen(false);
+    }
     setDraggedModule(null);
     setDropTarget(null);
     setModuleSettings((current) => (current === id ? null : current));
@@ -687,6 +768,76 @@ export function App() {
     );
   };
 
+  const persistProfiles = (
+    nextProfiles: DashboardProfile[],
+    nextActiveProfileId = activeProfileId,
+    snapshot?: DashboardProfile,
+  ) => {
+    setDashboardProfiles(nextProfiles);
+    setActiveProfileId(nextActiveProfileId);
+    void window.electronControl.settings.update({
+      dashboardProfiles: nextProfiles,
+      activeProfileId: nextActiveProfileId,
+      ...(snapshot
+        ? {
+            theme: snapshot.theme,
+            accentColor: snapshot.accentColor,
+            dashboardLayout: snapshot.dashboardLayout,
+            hiddenModuleIds: snapshot.hiddenModuleIds,
+            activeMediaApp: snapshot.activeMediaApp,
+            hiddenMediaAppIds: snapshot.hiddenMediaAppIds,
+            shortcutGrid: snapshot.shortcutGrid,
+          }
+        : {}),
+    });
+  };
+
+  const applyDashboardProfile = (profileId: string) => {
+    const profile = dashboardProfiles.find((item) => item.id === profileId);
+    if (!profile) return;
+    updateMediaModuleFullscreen(false);
+    applyProfileState(profile);
+    setProfileMenuOpen(false);
+    persistProfiles(dashboardProfiles, profile.id, profile);
+    requestAnimationFrame(syncEmbeddedWebBounds);
+  };
+
+  const saveActiveDashboardProfile = () => {
+    const current = activeProfile ?? dashboardProfiles[0];
+    if (!current) return;
+    const snapshot = buildProfileSnapshot(current.id, current.name);
+    const nextProfiles = dashboardProfiles.map((profile) =>
+      profile.id === current.id ? snapshot : profile,
+    );
+    persistProfiles(nextProfiles, current.id, snapshot);
+    setProfileMenuOpen(false);
+  };
+
+  const createDashboardProfile = () => {
+    const name = window.prompt("Nome do novo perfil", "Novo perfil")?.trim();
+    if (!name) return;
+    const id = `profile-${Date.now().toString(36)}`;
+    const snapshot = buildProfileSnapshot(id, name.slice(0, 40));
+    const nextProfiles = [...dashboardProfiles, snapshot];
+    persistProfiles(nextProfiles, id, snapshot);
+    setProfileMenuOpen(false);
+  };
+
+  const deleteActiveDashboardProfile = () => {
+    const current = activeProfile;
+    if (!current || dashboardProfiles.length <= 1) return;
+    const confirmed = window.confirm(`Excluir o perfil "${current.name}"?`);
+    if (!confirmed) return;
+    const nextProfiles = dashboardProfiles.filter(
+      (profile) => profile.id !== current.id,
+    );
+    const nextActive = nextProfiles[0];
+    if (!nextActive) return;
+    applyProfileState(nextActive);
+    persistProfiles(nextProfiles, nextActive.id, nextActive);
+    setProfileMenuOpen(false);
+  };
+
   const updateWeatherSettings = (value: {
     location?: WeatherLocation;
     temperatureUnit?: TemperatureUnit;
@@ -708,10 +859,8 @@ export function App() {
   const renderModuleContent = (
     id: ModuleId,
     options: {
-      youtubeSlotRef: typeof youtubeSlotRef;
       mediaSlotRef: typeof mediaSlotRef;
       editMode: boolean;
-      youtubeEditPreview: string | null;
       mediaEditPreview: string | null;
     },
   ) => {
@@ -736,15 +885,6 @@ export function App() {
             onConfigure={() => openModuleSettings("weather")}
           />
         );
-      case "youtube":
-        return (
-          <YoutubeModule
-            slotRef={options.youtubeSlotRef}
-            editMode={options.editMode}
-            editPreview={options.youtubeEditPreview}
-            onConfigure={() => openModuleSettings("youtube")}
-          />
-        );
       case "media":
         return (
           <MediaModule
@@ -758,6 +898,8 @@ export function App() {
             onReload={() => void window.electronControl.media.reload()}
             onGoHome={() => void window.electronControl.media.goHome()}
             onConfigure={() => openModuleSettings("media")}
+            mediaFullscreen={mediaModuleFullscreen}
+            onMediaFullscreenChange={updateMediaModuleFullscreen}
           />
         );
       case "system":
@@ -767,7 +909,8 @@ export function App() {
           <ShortcutsModule
             shortcuts={shortcuts}
             gridSettings={shortcutGrid}
-            onConfigure={() => openModuleSettings("shortcuts")}
+            onConfigure={() => openShortcutSettings()}
+            onAddAtSlot={(slot) => openShortcutSettings(slot)}
           />
         );
     }
@@ -788,6 +931,7 @@ export function App() {
       className={[
         "app",
         fullscreen && "fullscreen",
+        mediaModuleFullscreen && "media-module-fullscreen",
         editMode && "editing-layout",
       ]
         .filter(Boolean)
@@ -798,7 +942,120 @@ export function App() {
         "--accent-soft": `${accentColor}24`,
       } as React.CSSProperties}
     >
-      {!compactLayout && <header className="topbar">
+      {!compactLayout && (
+        <header className="topbar topbar-v2">
+          <div className="topbar-brand">
+            <span className="topbar-mark">
+              <img src="icon.png" alt="" />
+            </span>
+            <div>
+              <h1>Millennium Desk</h1>
+            </div>
+          </div>
+
+          <div className="topbar-actions">
+            <button
+              className="topbar-icon-button topbar-fullscreen-button"
+              type="button"
+              aria-label="Tela cheia"
+              title="Tela cheia"
+              onClick={async () => {
+                const value =
+                  await window.electronControl.window.toggleFullscreen();
+                setFullscreen(value);
+              }}
+            >
+            </button>
+            <button
+              className="topbar-icon-button topbar-edit-button"
+              type="button"
+              aria-label="Editar grid"
+              title="Editar grid"
+              onClick={() => void enterEditMode()}
+            />
+            <button
+              className="topbar-icon-button topbar-settings-button"
+              type="button"
+              aria-label="Ajustes"
+              title="Ajustes"
+              onClick={() => {
+                setSettingsOpen(true);
+              }}
+            />
+            <div className="profile-switcher">
+              <button
+                type="button"
+                className="profile-trigger"
+                aria-expanded={profileMenuOpen}
+                onClick={() => setProfileMenuOpen((open) => !open)}
+              >
+                <span className="profile-trigger-icon" aria-hidden="true" />
+                <strong>{activeProfile?.name ?? "Padrao"}</strong>
+              </button>
+              {profileMenuOpen && (
+                <div className="profile-menu">
+                  <div className="profile-menu-list">
+                    {dashboardProfiles.map((profile) => (
+                      <button
+                        key={profile.id}
+                        type="button"
+                        className={
+                          profile.id === activeProfileId ? "selected" : ""
+                        }
+                        onClick={() => applyDashboardProfile(profile.id)}
+                      >
+                        <span>{profile.name}</span>
+                        {profile.id === activeProfileId && <strong>Ativo</strong>}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="profile-menu-actions">
+                    <button type="button" onClick={saveActiveDashboardProfile}>
+                      Salvar atual
+                    </button>
+                    <button type="button" onClick={createDashboardProfile}>
+                      Novo perfil
+                    </button>
+                    <button
+                      type="button"
+                      disabled={dashboardProfiles.length <= 1}
+                      onClick={deleteActiveDashboardProfile}
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="window-controls" aria-label="Controles da janela">
+            <button
+              type="button"
+              className="window-control-button window-minimize-button"
+              aria-label="Minimizar"
+              title="Minimizar"
+              onClick={() => void window.electronControl.window.minimize()}
+            />
+            <button
+              type="button"
+              className="window-control-button window-maximize-button"
+              aria-label="Maximizar ou restaurar"
+              title="Maximizar ou restaurar"
+              onClick={() =>
+                void window.electronControl.window.toggleMaximize()
+              }
+            />
+            <button
+              type="button"
+              className="window-control-button window-close-button"
+              aria-label="Fechar"
+              title="Fechar"
+              onClick={() => void window.electronControl.window.close()}
+            />
+          </div>
+        </header>
+      )}
+      {false && !compactLayout && <header className="topbar">
         <div>
           <span className="eyebrow">MILLENNIUM</span>
           <h1>Millennium Desk</h1>
@@ -861,12 +1118,12 @@ export function App() {
             }}
             onPlace={moveModule}
             onHide={hideModule}
+            onConfigure={openModuleSettings}
+            expanded={layout.id === "media" && mediaModuleFullscreen}
           >
             {renderModuleContent(layout.id, {
-              youtubeSlotRef,
               mediaSlotRef,
               editMode,
-              youtubeEditPreview,
               mediaEditPreview,
             })}
           </ModuleCard>
@@ -887,21 +1144,11 @@ export function App() {
           ))}
         {editMode && (
           <aside className="hidden-modules-tray">
-            <div className="edit-tray-main">
-              <div>
-                <span className="eyebrow">MODO EDICAO</span>
-                <strong>Pre-visualizacao da tela cheia</strong>
-              </div>
-              <button className="button active" onClick={exitEditMode}>
-                Concluir edicao
-              </button>
-            </div>
+            <button className="edit-tray-done" onClick={exitEditMode}>
+              Concluir
+            </button>
             {hiddenModules.length > 0 && (
               <div className="hidden-modules-section">
-                <div>
-                  <span className="eyebrow">MODULOS OCULTOS</span>
-                  <strong>Exibir na grid</strong>
-                </div>
                 <div className="hidden-modules-list">
                   {hiddenModules.map((id) => (
                     <button key={id} onClick={() => showModule(id)}>
@@ -933,10 +1180,10 @@ export function App() {
             />
             <motion.aside
               className={logsOpen ? "settings-panel logs-panel" : "settings-panel"}
-              initial={reduceMotion ? false : { x: logsOpen ? 720 : 420 }}
-              animate={{ x: 0 }}
-              exit={reduceMotion ? { opacity: 0 } : { x: logsOpen ? 720 : 420 }}
-              transition={{ type: "spring", stiffness: 420, damping: 38 }}
+              initial={reduceMotion ? false : { opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
+              transition={{ type: "spring", stiffness: 420, damping: 34 }}
             >
               {logsOpen ? (
                 <LogsPanel
@@ -956,8 +1203,6 @@ export function App() {
                       ? "Tarefas"
                       : moduleSettings === "weather"
                         ? "Clima"
-                      : moduleSettings === "youtube"
-                        ? "YouTube"
                         : moduleSettings === "media"
                           ? "Midia"
                           : moduleSettings === "shortcuts"
@@ -966,14 +1211,15 @@ export function App() {
                   </h2>
                 </div>
                 <button
-                  className="icon-button"
+                  type="button"
+                  className="modal-close-button"
+                  aria-label="Fechar"
+                  title="Fechar"
                   onClick={() => {
                     setSettingsOpen(false);
                     setModuleSettings(null);
                   }}
-                >
-                  Fechar
-                </button>
+                />
               </div>
 
               {!moduleSettings && <section className="setting-group">
@@ -1097,8 +1343,8 @@ export function App() {
               {!moduleSettings && <section className="setting-group">
                 <h3>Diagnostico</h3>
                 <p className="muted">
-                  Este painel valida tema, movimento, toque, DPI e a superficie
-                  nativa do YouTube antes da arquitetura definitiva.
+                  Este painel valida tema, movimento, toque, DPI e superficies
+                  nativas antes da arquitetura definitiva.
                 </p>
               </section>}
 
@@ -1114,13 +1360,6 @@ export function App() {
                 />
               )}
 
-              {moduleSettings === "youtube" && (
-                <ModuleSettingsContent
-                  title="Navegador"
-                  description="Preferencias da sessao e dos controles desta instancia do YouTube."
-                  options={["Continuar audio oculto", "Exibir controles locais", "Abrir na pagina inicial"]}
-                />
-              )}
               {moduleSettings === "media" && (
                 <>
                   <MediaModuleSettingsPanel
@@ -1187,9 +1426,10 @@ export function App() {
                   gridSettings={shortcutGrid}
                   onSave={saveShortcut}
                   onDelete={deleteShortcut}
-                  onReorder={reorderShortcuts}
                   onPlace={placeShortcut}
                   onGridSettingsChange={updateShortcutGrid}
+                  createAtSlot={shortcutCreateSlot}
+                  onCreateRequestHandled={handleShortcutCreateRequestHandled}
                 />
               )}
                 </>

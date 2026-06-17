@@ -301,7 +301,14 @@ if (!window.electronControl) {
           imageOnly: Boolean(input.imageOnly && input.iconDataUrl),
           confirmBeforeRun: input.confirmBeforeRun ?? false,
           sortOrder: existing?.sortOrder ?? browserShortcuts.length,
-          gridSlot: existing?.gridSlot ?? browserShortcuts.length,
+          gridSlot:
+            existing?.gridSlot ??
+            (input.gridSlot !== undefined &&
+            Number.isInteger(input.gridSlot) &&
+            input.gridSlot >= 0 &&
+            !browserShortcuts.some((item) => item.gridSlot === input.gridSlot)
+              ? input.gridSlot
+              : browserShortcuts.length),
         };
         browserShortcuts = existing
           ? browserShortcuts.map((current) => current.id === item.id ? item : current)

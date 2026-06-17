@@ -9,7 +9,6 @@ import type {
 export type ModuleId =
   | "tasks"
   | "weather"
-  | "youtube"
   | "media"
   | "system"
   | "shortcuts";
@@ -19,6 +18,20 @@ const DROP_LABELS: Record<DropPlacement, string> = {
   right: "Encaixar à direita",
   top: "Encaixar acima",
   bottom: "Encaixar abaixo",
+};
+
+const MODULE_EDIT_META: Record<
+  ModuleId,
+  {
+    title: string;
+    eyebrow: string;
+  }
+> = {
+  tasks: { eyebrow: "Todoist", title: "Tarefas" },
+  weather: { eyebrow: "CLIMA · HORARIO", title: "Ambiente" },
+  media: { eyebrow: "SMART TV", title: "Midia" },
+  system: { eyebrow: "PERFORMANCE", title: "Sistema" },
+  shortcuts: { eyebrow: "ACOES RAPIDAS", title: "Atalhos" },
 };
 
 const getDropIndicatorBounds = (
@@ -72,6 +85,8 @@ export function ModuleCard({
   onDragStateChange,
   onPlace,
   onHide,
+  onConfigure,
+  expanded = false,
   children,
 }: {
   layout: ModuleLayout;
@@ -91,10 +106,13 @@ export function ModuleCard({
     placement: DropPlacement,
   ) => void;
   onHide: (id: ModuleId) => void;
+  onConfigure: (id: ModuleId) => void;
+  expanded?: boolean;
   children: ReactNode;
 }) {
   const isDragged = draggedModule === layout.id;
   const isDropTarget = dropTarget === layout.id;
+  const editMeta = MODULE_EDIT_META[layout.id];
   const getPlacement = (event: PointerEvent) => {
     const target = document
       .elementFromPoint(event.clientX, event.clientY)
@@ -128,6 +146,7 @@ export function ModuleCard({
       className={[
         "module-card",
         editMode ? "editable" : "",
+        expanded ? "module-card--expanded" : "",
         isDragged ? "dragging" : "",
         isDropTarget ? "drop-target" : "",
       ]
@@ -174,39 +193,52 @@ export function ModuleCard({
       {editMode && (
         <>
           <div className="module-edit-overlay" />
-          <div className="module-edit-toolbar">
-            <button
-              type="button"
-              className="module-edit-icon-button module-drag-button"
-              aria-label="Arrastar para reorganizar"
-              title="Arrastar"
-              onPointerDown={(event) => {
-                event.preventDefault();
-                event.currentTarget.setPointerCapture(event.pointerId);
-                onDragStateChange(layout.id, null, null);
-              }}
-              onPointerMove={(event) => {
-                if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
-                const next = getPlacement(event);
-                onDragStateChange(layout.id, next.targetId, next.placement);
-              }}
-              onPointerUp={(event) => {
-                const next = getPlacement(event);
-                if (next.targetId && next.placement) {
-                  onPlace(layout.id, next.targetId, next.placement);
-                }
-                onDragStateChange(null, null, null);
-                event.currentTarget.releasePointerCapture(event.pointerId);
-              }}
-              onPointerCancel={() => onDragStateChange(null, null, null)}
-            />
-            <button
-              type="button"
-              className="module-edit-icon-button module-hide-button"
-              aria-label={`Ocultar modulo ${layout.id}`}
-              title="Ocultar"
-              onClick={() => onHide(layout.id)}
-            />
+          <div className="module-edit-controls">
+            <div className="module-edit-label">
+              <span className="module-edit-eyebrow">{editMeta.title}</span>
+              <strong className="module-edit-title">{editMeta.eyebrow}</strong>
+            </div>
+            <div className="module-edit-toolbar">
+              <button
+                type="button"
+                className="module-edit-icon-button module-drag-button"
+                aria-label="Arrastar para reorganizar"
+                title="Arrastar"
+                onPointerDown={(event) => {
+                  event.preventDefault();
+                  event.currentTarget.setPointerCapture(event.pointerId);
+                  onDragStateChange(layout.id, null, null);
+                }}
+                onPointerMove={(event) => {
+                  if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+                  const next = getPlacement(event);
+                  onDragStateChange(layout.id, next.targetId, next.placement);
+                }}
+                onPointerUp={(event) => {
+                  const next = getPlacement(event);
+                  if (next.targetId && next.placement) {
+                    onPlace(layout.id, next.targetId, next.placement);
+                  }
+                  onDragStateChange(null, null, null);
+                  event.currentTarget.releasePointerCapture(event.pointerId);
+                }}
+                onPointerCancel={() => onDragStateChange(null, null, null)}
+              />
+              <button
+                type="button"
+                className="module-edit-icon-button module-config-edit-button"
+                aria-label={`Configurar modulo ${layout.id}`}
+                title="Configurar"
+                onClick={() => onConfigure(layout.id)}
+              />
+              <button
+                type="button"
+                className="module-edit-icon-button module-hide-button"
+                aria-label={`Ocultar modulo ${layout.id}`}
+                title="Ocultar"
+                onClick={() => onHide(layout.id)}
+              />
+            </div>
           </div>
         </>
       )}

@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { useEffect, useState } from "react";
 import { MEDIA_APPS, type MediaAppId } from "../../../shared/mediaApps";
 import type { SpotifyLayoutMode } from "../../../shared/spotifyLayout";
 import { MediaAppIcon } from "./MediaAppIcon";
@@ -14,6 +15,8 @@ export function MediaModule({
   onReload,
   onGoHome,
   onConfigure,
+  mediaFullscreen,
+  onMediaFullscreenChange,
 }: {
   slotRef: RefObject<HTMLDivElement | null>;
   editMode: boolean;
@@ -25,10 +28,20 @@ export function MediaModule({
   onReload: () => void;
   onGoHome: () => void;
   onConfigure: () => void;
+  mediaFullscreen: boolean;
+  onMediaFullscreenChange: (fullscreen: boolean) => void;
 }) {
   const dockApps = MEDIA_APPS.filter((app) => !hiddenAppIds.includes(app.id));
   const activeApp =
     dockApps.find((app) => app.id === activeAppId) ?? dockApps[0] ?? MEDIA_APPS[0];
+  const [controlsMenuOpen, setControlsMenuOpen] = useState(false);
+
+  useEffect(
+    () => window.electronControl.media.onControlsMenuClosed(() => {
+      setControlsMenuOpen(false);
+    }),
+    [],
+  );
 
   return (
     <div
@@ -110,6 +123,29 @@ export function MediaModule({
               </button>
             );
           })}
+          {!editMode && (
+            <div className="media-controls-menu">
+              <button
+                type="button"
+                className="media-more-button"
+                aria-label="Menu da Smart TV"
+                aria-expanded={controlsMenuOpen}
+                aria-haspopup="menu"
+                title="Menu"
+                onClick={(event) => {
+                  const rect = event.currentTarget.getBoundingClientRect();
+                  void window.electronControl.media
+                    .showControlsMenu(mediaFullscreen, {
+                      x: rect.x,
+                      y: rect.y,
+                      width: rect.width,
+                      height: rect.height,
+                    })
+                    .then(setControlsMenuOpen);
+                }}
+              />
+            </div>
+          )}
         </nav>
       </div>
     </div>

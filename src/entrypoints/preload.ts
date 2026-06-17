@@ -98,10 +98,40 @@ const api: ElectronControlApi = {
     openSpotifyDesktop: () =>
       ipcRenderer.invoke("media:open-spotify-desktop") as Promise<boolean>,
     warmApps: () => ipcRenderer.invoke("media:warm-apps") as Promise<void>,
+    showControlsMenu: (mediaFullscreen: boolean, anchor: ViewBounds) =>
+      ipcRenderer.invoke(
+        "media:show-controls-menu",
+        mediaFullscreen,
+        anchor,
+      ) as Promise<boolean>,
+    setFullscreenOverlayActive: (active: boolean) =>
+      ipcRenderer.invoke("media:set-fullscreen-overlay-active", active),
+    onFullscreenOverlayExit: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on("media:fullscreen-overlay-exit", listener);
+      return () =>
+        ipcRenderer.removeListener("media:fullscreen-overlay-exit", listener);
+    },
+    onFullscreenMenuToggle: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on("media:fullscreen-menu-toggle", listener);
+      return () =>
+        ipcRenderer.removeListener("media:fullscreen-menu-toggle", listener);
+    },
+    onControlsMenuClosed: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on("media:controls-menu-closed", listener);
+      return () =>
+        ipcRenderer.removeListener("media:controls-menu-closed", listener);
+    },
   },
   window: {
     toggleFullscreen: () => ipcRenderer.invoke("window:toggle-fullscreen"),
     isFullscreen: () => ipcRenderer.invoke("window:is-fullscreen"),
+    minimize: () => ipcRenderer.invoke("window:minimize"),
+    toggleMaximize: () =>
+      ipcRenderer.invoke("window:toggle-maximize") as Promise<boolean>,
+    close: () => ipcRenderer.invoke("window:close"),
     onFullscreenChanged: (callback: (fullscreen: boolean) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, value: boolean) =>
         callback(value);

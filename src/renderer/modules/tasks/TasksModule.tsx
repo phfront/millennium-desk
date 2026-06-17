@@ -2,7 +2,12 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { TaskItem, TaskTag } from "../../../shared/contracts";
 import { DatePicker } from "../../components/DatePicker";
-import { fromDateKey, toDateKey } from "../../utils/date";
+import {
+  formatDateKey,
+  fromDateKey,
+  shiftDateKey,
+  toDateKey,
+} from "../../utils/date";
 import { TaskTagPicker } from "./components/TaskTagPicker";
 import { TaskTagPill } from "./components/TaskTagPill";
 import { TaskTextEditor } from "./components/TaskTextEditor";
@@ -30,6 +35,10 @@ export function TasksModule({
   const [visibleTagIds, setVisibleTagIds] = useState<number[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingList, setEditingList] = useState(false);
+  const [movingTask, setMovingTask] = useState<{
+    item: TaskItem;
+    date: string;
+  } | null>(null);
   const [items, setItems] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,14 +58,6 @@ export function TasksModule({
   const progressPercent = items.length
     ? (completedCount / items.length) * 100
     : 0;
-  const formattedDate = new Intl.DateTimeFormat("pt-BR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-  })
-    .format(fromDateKey(selectedDate))
-    .replace(".", "")
-    .toUpperCase();
 
   useEffect(() => {
     const validTagIds = new Set(tags.map((tag) => tag.id));
@@ -186,8 +187,26 @@ export function TasksModule({
     }, "Falha ao criar tarefa.");
   };
 
+  const moveTaskToDate = () => {
+    if (!movingTask) return;
+    void runTaskMutation(async () => {
+      const updated = await window.electronControl.tasks.update({
+        id: movingTask.item.id,
+        date: movingTask.date,
+      });
+      setMovingTask(null);
+      if (movingTask.date !== selectedDate) {
+        return items.filter((entry) => entry.id !== movingTask.item.id);
+      }
+      return items.map((entry) =>
+        entry.id === movingTask.item.id ? updated : entry,
+      );
+    }, "Falha ao mover tarefa.");
+  };
+
   useEffect(() => {
     setEditingList(false);
+    setMovingTask(null);
     setNewTaskText("");
     setNewTaskCursor(0);
     setNewTaskTagIds([]);
@@ -215,7 +234,7 @@ export function TasksModule({
     <div className="module-content tasks-module">
       <div className="module-heading">
         <div>
-          <span className="eyebrow">{formattedDate}</span>
+          <span className="eyebrow">Todoist</span>
           <h2>
             {isToday
               ? "Tarefas de hoje"
@@ -397,18 +416,34 @@ export function TasksModule({
                   )}
                 </div>
                 {!isPast && editingList && (
-                  <button
-                    className="task-delete"
-                    aria-label="Excluir tarefa"
-                    onClick={() => {
-                      void runTaskMutation(async () => {
-                        await window.electronControl.tasks.delete(item.id);
-                        return items.filter((entry) => entry.id !== item.id);
-                      }, "Falha ao excluir tarefa.");
-                    }}
+                  <>
+                    <button
+                      className="task-move"
+                      aria-label="Mover tarefa para outro dia"
+                      title="Mover para outro dia"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setMovingTask({
+                          item,
+                          date: shiftDateKey(selectedDate, 1),
+                        });
+                      }}
+                    />
+                    <button
+                      className="task-delete"
+                      aria-label="Excluir tarefa"
+                      title="Excluir tarefa"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        void runTaskMutation(async () => {
+                          await window.electronControl.tasks.delete(item.id);
+                          return items.filter((entry) => entry.id !== item.id);
+                        }, "Falha ao excluir tarefa.");
+                      }}
                   >
                     🗑
                   </button>
+                  </>
                 )}
               </motion.div>
             ))}
@@ -517,7 +552,60 @@ export function TasksModule({
           </div>
         )}
       </div>
+      <AnimatePresence>
+        {movingTask && (
+          <motion.div
+            className="task-move-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mover tarefa para outro dia"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <button
+              className="task-move-backdrop"
+              type="button"
+              aria-label="Cancelar mover tarefa"
+              onClick={() => setMovingTask(null)}
+            />
+            <motion.div
+              className="task-move-dialog"
+              initial={{ opacity: 0, scale: 0.96, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.96, y: 8 }}
+              transition={{ duration: 0.14, ease: "easeOut" }}
+            >
+              <div className="task-move-heading">
+                <span>Mover tarefa</span>
+                <strong>{movingTask.item.text}</strong>
+              </div>
+              <DatePicker
+                aria-label="Selecionar nova data da tarefa"
+                value={movingTask.date}
+                clearable={false}
+                defaultOpen
+                onChange={(date) =>
+                  setMovingTask((current) =>
+                    current ? { ...current, date } : current,
+                  )
+                }
+              />
+              <div className="task-move-summary">
+                Nova data: {formatDateKey(movingTask.date)}
+              </div>
+              <div className="task-move-actions">
+                <button type="button" onClick={() => setMovingTask(null)}>
+                  Cancelar
+                </button>
+                <button type="button" onClick={moveTaskToDate}>
+                  Mover
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-

@@ -17,8 +17,8 @@ export function MediaModuleSettingsPanel({
       <section className="setting-group">
         <h3>Apps no dock</h3>
         <p className="muted">
-          Escolha quais apps aparecem no dock. Os apps ficam estacionados em
-          memoria para troca instantanea, mesmo quando ocultos.
+          Escolha quais apps aparecem no dock. Apps desativados sao descarregados
+          da memoria e param de reproduzir, mas o login e mantido.
         </p>
       </section>
       <section className="setting-group module-setting-list">

@@ -58,6 +58,7 @@ export interface DatePickerProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   clearable?: boolean;
+  defaultOpen?: boolean;
   placeholder?: string;
   "aria-label"?: string;
 }
@@ -67,13 +68,14 @@ export function DatePicker({
   onChange,
   disabled = false,
   clearable = true,
+  defaultOpen = false,
   placeholder = "Selecionar data",
   "aria-label": ariaLabel = "Selecionar data",
 }: DatePickerProps) {
   const reduceMotion = useReducedMotion();
   const rootRef = useRef<HTMLDivElement>(null);
   const listboxId = useId();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [monthPanelOpen, setMonthPanelOpen] = useState(false);
   const selectedDate = value ? fromDateKey(value) : null;
   const today = new Date();

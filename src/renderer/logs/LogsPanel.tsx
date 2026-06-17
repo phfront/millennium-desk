@@ -136,9 +136,13 @@ export function LogsPanel({ onClose }: { onClose: () => void }) {
           <span className="eyebrow">DIAGNOSTICO</span>
           <h2>Erros</h2>
         </div>
-        <button className="icon-button" onClick={onClose}>
-          Fechar
-        </button>
+        <button
+          type="button"
+          className="modal-close-button"
+          aria-label="Fechar"
+          title="Fechar"
+          onClick={onClose}
+        />
       </div>
 
       <p className="logs-intro muted">

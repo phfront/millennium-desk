@@ -1,6 +1,7 @@
 import { ipcMain } from "electron";
 import type { AppSettings } from "../../shared/contracts";
 import { syncLaunchAtStartup } from "../launchBehavior";
+import { syncHiddenMediaApps } from "../mediaHub";
 import { getSettings, getSettingsPath, updateSettings } from "../settings/store";
 
 const applySettingsSideEffects = (
@@ -9,6 +10,10 @@ const applySettingsSideEffects = (
 ) => {
   if ("launchAtStartup" in patch) {
     syncLaunchAtStartup(settings.launchAtStartup);
+  }
+
+  if ("hiddenMediaAppIds" in patch) {
+    syncHiddenMediaApps();
   }
 };
 

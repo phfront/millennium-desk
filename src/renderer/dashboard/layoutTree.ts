@@ -27,15 +27,21 @@ export interface LayoutDivider {
   position: number;
 }
 
-const normalizeLegacyModuleId = (id: ModuleId): ModuleId =>
-  (id as string) === "spotify" ? "media" : id;
+const normalizeLegacyModuleId = (id: string): ModuleId | null => {
+  if (id === "spotify") return "media";
+  if (id === "youtube") return null;
+  return ["tasks", "weather", "media", "system", "shortcuts"].includes(id)
+    ? (id as ModuleId)
+    : null;
+};
 
 export const migrateLegacyLayoutModules = (
   node: LayoutNode | null,
 ): LayoutNode | null => {
   if (!node) return null;
   if (node.type === "module") {
-    return { type: "module", id: normalizeLegacyModuleId(node.id) };
+    const id = normalizeLegacyModuleId(node.id);
+    return id ? { type: "module", id } : null;
   }
   const first = migrateLegacyLayoutModules(node.first);
   const second = migrateLegacyLayoutModules(node.second);
@@ -74,13 +80,7 @@ export const createInitialLayoutTree = (): LayoutNode => ({
       direction: "row",
       ratio: 0.24,
       first: { type: "module", id: "system" },
-      second: {
-        type: "split",
-        direction: "row",
-        ratio: 0.5,
-        first: { type: "module", id: "youtube" },
-        second: { type: "module", id: "media" },
-      },
+      second: { type: "module", id: "media" },
     },
   },
 });

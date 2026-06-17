@@ -35,9 +35,13 @@ const buildCastLabsElectronDownloadUrl = async (details: {
   return `${releaseDir}/electron-v${version}-${details.platform}-${details.arch}.zip`;
 };
 
+const iconBasePath = path.join(__dirname, "assets", "icon");
+
 const castLabsPackagerConfig = {
   asar: true,
   executableName: "millennium-desk",
+  icon: iconBasePath,
+  extraResource: [path.join(__dirname, "assets", "icon.png")],
   download: {
     mirrorOptions: {
       resolveAssetURL: buildCastLabsElectronDownloadUrl,
@@ -51,6 +55,7 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({
       name: "millennium_desk",
+      setupIcon: path.join(__dirname, "assets", "icon.ico"),
     }),
   ],
   hooks: {

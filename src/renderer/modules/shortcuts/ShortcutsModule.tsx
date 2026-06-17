@@ -18,13 +18,16 @@ export function ShortcutsModule({
   shortcuts,
   gridSettings,
   onConfigure,
+  onAddAtSlot,
 }: {
   shortcuts: ShortcutItem[];
   gridSettings: ShortcutGridSettings;
   onConfigure: () => void;
+  onAddAtSlot: (slot: number) => void;
 }) {
   const { showSnackbar } = useSnackbar();
   const [runningId, setRunningId] = useState<number | null>(null);
+  const slotCount = gridSettings.columns * gridSettings.rows;
 
   const run = async (shortcut: ShortcutItem) => {
     if (
@@ -61,20 +64,39 @@ export function ShortcutsModule({
         </div>
       </div>
       <div className="module-body shortcuts-body">
-        {shortcuts.length === 0 ? (
-          <button className="shortcuts-empty" onClick={onConfigure}>
-            <strong>Adicionar primeiro atalho</strong>
-            <span>Abra apps, URLs, arquivos, BAT ou PowerShell.</span>
-          </button>
-        ) : (
-          <div
-            className="shortcuts-grid"
-            style={{
-              "--shortcut-columns": gridSettings.columns,
-              "--shortcut-rows": gridSettings.rows,
-            } as React.CSSProperties}
-          >
-            {shortcuts.map((shortcut) => (
+        <div
+          className="shortcuts-grid"
+          style={{
+            "--shortcut-columns": gridSettings.columns,
+            "--shortcut-rows": gridSettings.rows,
+          } as React.CSSProperties}
+        >
+          {Array.from({ length: slotCount }, (_, slot) => {
+            const shortcut = shortcuts.find((item) => item.gridSlot === slot);
+            if (!shortcut) {
+              return (
+                <button
+                  key={`empty-${slot}`}
+                  type="button"
+                  className="shortcut-tile shortcut-tile--empty"
+                  data-grid-slot={slot}
+                  style={{
+                    gridColumn: (slot % gridSettings.columns) + 1,
+                    gridRow:
+                      Math.floor(slot / gridSettings.columns) + 1,
+                  }}
+                  aria-label={`Adicionar atalho no slot ${slot + 1}`}
+                  title="Adicionar atalho"
+                  onClick={() => onAddAtSlot(slot)}
+                >
+                  <span className="shortcut-tile-add-icon" aria-hidden="true">
+                    +
+                  </span>
+                </button>
+              );
+            }
+
+            return (
               <button
                 key={shortcut.id}
                 type="button"
@@ -83,7 +105,8 @@ export function ShortcutsModule({
                 data-grid-slot={shortcut.gridSlot}
                 style={{
                   gridColumn: (shortcut.gridSlot % gridSettings.columns) + 1,
-                  gridRow: Math.floor(shortcut.gridSlot / gridSettings.columns) + 1,
+                  gridRow:
+                    Math.floor(shortcut.gridSlot / gridSettings.columns) + 1,
                 }}
                 onClick={() => void run(shortcut)}
               >
@@ -112,9 +135,9 @@ export function ShortcutsModule({
                   </span>
                 )}
               </button>
-            ))}
-          </div>
-        )}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
