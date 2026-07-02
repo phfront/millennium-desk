@@ -825,22 +825,51 @@ export function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mediaModuleFullscreen, updateMediaModuleFullscreen]);
 
-  const openModuleSettings = (id: ModuleId) => {
+  const openModuleSettings = useCallback((id: ModuleId) => {
     setModuleSettings(id);
-  };
+  }, []);
 
   const handleShortcutCreateRequestHandled = useCallback(() => {
     setShortcutCreateSlot(null);
   }, []);
 
-  const openShortcutSettings = (slot?: number) => {
-    setShortcutCreateSlot(
-      typeof slot === "number" && Number.isInteger(slot) && slot >= 0
-        ? slot
-        : null,
-    );
-    openModuleSettings("shortcuts");
-  };
+  const openShortcutSettings = useCallback(
+    (slot?: number) => {
+      setShortcutCreateSlot(
+        typeof slot === "number" && Number.isInteger(slot) && slot >= 0
+          ? slot
+          : null,
+      );
+      openModuleSettings("shortcuts");
+    },
+    [openModuleSettings],
+  );
+
+  // Callbacks estaveis para nao invalidar o memo() dos modulos a cada render.
+  const openTasksSettings = useCallback(
+    () => openModuleSettings("tasks"),
+    [openModuleSettings],
+  );
+  const openWeatherSettings = useCallback(
+    () => openModuleSettings("weather"),
+    [openModuleSettings],
+  );
+  const openMediaSettings = useCallback(
+    () => openModuleSettings("media"),
+    [openModuleSettings],
+  );
+  const openShortcutsSettingsDefault = useCallback(
+    () => openShortcutSettings(),
+    [openShortcutSettings],
+  );
+  const reloadMediaApp = useCallback(
+    () => void window.electronControl.media.reload(),
+    [],
+  );
+  const goHomeMediaApp = useCallback(
+    () => void window.electronControl.media.goHome(),
+    [],
+  );
 
   const enterEditMode = async () => {
     updateMediaModuleFullscreen(false);
@@ -1192,23 +1221,33 @@ export function App() {
     startProfileEdit,
   ]);
 
-  const updateWeatherSettings = (value: {
-    location?: WeatherLocation;
-    temperatureUnit?: TemperatureUnit;
-    savedLocations?: WeatherLocation[];
-  }) => {
-    const nextLocation = value.location ?? weatherLocation;
-    const nextTemperatureUnit = value.temperatureUnit ?? weatherTemperatureUnit;
-    const nextSavedLocations = value.savedLocations ?? weatherSavedLocations;
-    setWeatherLocation(nextLocation);
-    setWeatherTemperatureUnit(nextTemperatureUnit);
-    setWeatherSavedLocations(nextSavedLocations);
-    void window.electronControl.settings.update({
-      weatherLocation: nextLocation,
-      weatherSavedLocations: nextSavedLocations,
-      weatherTemperatureUnit: nextTemperatureUnit,
-    });
-  };
+  const updateWeatherSettings = useCallback(
+    (value: {
+      location?: WeatherLocation;
+      temperatureUnit?: TemperatureUnit;
+      savedLocations?: WeatherLocation[];
+    }) => {
+      const nextLocation = value.location ?? weatherLocation;
+      const nextTemperatureUnit =
+        value.temperatureUnit ?? weatherTemperatureUnit;
+      const nextSavedLocations = value.savedLocations ?? weatherSavedLocations;
+      setWeatherLocation(nextLocation);
+      setWeatherTemperatureUnit(nextTemperatureUnit);
+      setWeatherSavedLocations(nextSavedLocations);
+      void window.electronControl.settings.update({
+        weatherLocation: nextLocation,
+        weatherSavedLocations: nextSavedLocations,
+        weatherTemperatureUnit: nextTemperatureUnit,
+      });
+    },
+    [weatherLocation, weatherSavedLocations, weatherTemperatureUnit],
+  );
+
+  const changeWeatherLocation = useCallback(
+    (nextLocation: WeatherLocation) =>
+      updateWeatherSettings({ location: nextLocation }),
+    [updateWeatherSettings],
+  );
 
   const renderModuleContent = (
     id: ModuleId,
@@ -1224,7 +1263,7 @@ export function App() {
           <TasksModule
             settings={taskSettings}
             tags={taskTags}
-            onConfigure={() => openModuleSettings("tasks")}
+            onConfigure={openTasksSettings}
           />
         );
       case "weather":
@@ -1233,10 +1272,8 @@ export function App() {
             location={weatherLocation}
             savedLocations={weatherSavedLocations}
             temperatureUnit={weatherTemperatureUnit}
-            onLocationChange={(nextLocation) =>
-              updateWeatherSettings({ location: nextLocation })
-            }
-            onConfigure={() => openModuleSettings("weather")}
+            onLocationChange={changeWeatherLocation}
+            onConfigure={openWeatherSettings}
           />
         );
       case "media":
@@ -1249,9 +1286,9 @@ export function App() {
             hiddenAppIds={hiddenMediaAppIds}
             layoutMode={mediaLayoutMode}
             onAppChange={changeMediaApp}
-            onReload={() => void window.electronControl.media.reload()}
-            onGoHome={() => void window.electronControl.media.goHome()}
-            onConfigure={() => openModuleSettings("media")}
+            onReload={reloadMediaApp}
+            onGoHome={goHomeMediaApp}
+            onConfigure={openMediaSettings}
             mediaFullscreen={mediaModuleFullscreen}
             onMediaFullscreenChange={updateMediaModuleFullscreen}
           />
@@ -1263,8 +1300,8 @@ export function App() {
           <ShortcutsModule
             shortcuts={shortcuts}
             gridSettings={shortcutGrid}
-            onConfigure={() => openShortcutSettings()}
-            onAddAtSlot={(slot) => openShortcutSettings(slot)}
+            onConfigure={openShortcutsSettingsDefault}
+            onAddAtSlot={openShortcutSettings}
           />
         );
     }

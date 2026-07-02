@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type {
   TemperatureUnit,
   WeatherForecast,
@@ -49,7 +49,39 @@ const formatTodayDate = (timestamp: string, timeZone: string) => {
 const formatLocation = (location: WeatherLocation) =>
   [location.region, location.country].filter(Boolean).join(", ");
 
-export function WeatherModule({
+// Relogio isolado: o tick de 1s re-renderiza somente este bloco, e nao o
+// modulo inteiro (cena animada + listas de previsao).
+const WeatherLocalClock = memo(function WeatherLocalClock({
+  timeZone,
+}: {
+  timeZone: string;
+}) {
+  const [localTime, setLocalTime] = useState("");
+  const [localDate, setLocalDate] = useState({ weekday: "", date: "" });
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date().toISOString();
+      setLocalTime(formatLocalTime(now, timeZone));
+      setLocalDate(formatTodayDate(now, timeZone));
+    };
+    updateClock();
+    const timer = window.setInterval(updateClock, 1000);
+    return () => window.clearInterval(timer);
+  }, [timeZone]);
+
+  return (
+    <div className="weather-location-time">
+      <span className="weather-today-date">
+        <span>{localDate.weekday}</span>
+        <span>{localDate.date}</span>
+      </span>
+      <strong>{localTime}</strong>
+    </div>
+  );
+});
+
+export const WeatherModule = memo(function WeatherModule({
   location,
   savedLocations,
   temperatureUnit,
@@ -66,11 +98,6 @@ export function WeatherModule({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [localTime, setLocalTime] = useState("");
-  const [localDate, setLocalDate] = useState({
-    weekday: "",
-    date: "",
-  });
   const pickerRef = useRef<HTMLDivElement>(null);
 
   const loadForecast = useCallback(async () => {
@@ -113,18 +140,6 @@ export function WeatherModule({
     document.addEventListener("pointerdown", handlePointerDown);
     return () => document.removeEventListener("pointerdown", handlePointerDown);
   }, [pickerOpen]);
-
-  useEffect(() => {
-    const timeZone = forecast?.location.timezone ?? location.timezone;
-    const updateClock = () => {
-      const now = new Date().toISOString();
-      setLocalTime(formatLocalTime(now, timeZone));
-      setLocalDate(formatTodayDate(now, timeZone));
-    };
-    updateClock();
-    const timer = window.setInterval(updateClock, 1000);
-    return () => window.clearInterval(timer);
-  }, [forecast, location.timezone]);
 
   const visual = getWeatherVisual(forecast?.current.weatherCode ?? 0);
   const isDay = forecast?.current.isDay !== false;
@@ -232,13 +247,11 @@ export function WeatherModule({
                       </div>
                     )}
                   </div>
-                  <div className="weather-location-time">
-                    <span className="weather-today-date">
-                      <span>{localDate.weekday}</span>
-                      <span>{localDate.date}</span>
-                    </span>
-                    <strong>{localTime}</strong>
-                  </div>
+                  <WeatherLocalClock
+                    timeZone={
+                      forecast.location.timezone ?? location.timezone
+                    }
+                  />
                 </header>
 
                 <div className="weather-current">
@@ -326,4 +339,4 @@ export function WeatherModule({
       </div>
     </div>
   );
-}
+});

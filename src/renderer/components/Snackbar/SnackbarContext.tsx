@@ -3,6 +3,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -31,8 +32,10 @@ export function SnackbarProvider({ children }: { children: ReactNode }) {
     }, 4000);
   }, []);
 
+  const contextValue = useMemo(() => ({ showSnackbar }), [showSnackbar]);
+
   return (
-    <SnackbarContext.Provider value={{ showSnackbar }}>
+    <SnackbarContext.Provider value={contextValue}>
       {children}
       <AnimatePresence>
         {message && (

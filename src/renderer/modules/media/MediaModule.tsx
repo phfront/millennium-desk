@@ -1,10 +1,10 @@
 import type { RefObject } from "react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { MEDIA_APPS, type MediaAppId } from "../../../shared/mediaApps";
 import type { SpotifyLayoutMode } from "../../../shared/spotifyLayout";
 import { MediaAppIcon } from "./MediaAppIcon";
 
-export function MediaModule({
+export const MediaModule = memo(function MediaModule({
   slotRef,
   editMode,
   editPreview,
@@ -150,4 +150,4 @@ export function MediaModule({
       </div>
     </div>
   );
-}
+});

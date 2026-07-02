@@ -24,6 +24,7 @@ import {
   reloadActiveMediaApp,
   resolveMediaHubDevToolsTarget,
   setMediaHubActiveApp,
+  setMediaRuntimeGate,
 } from "../main/mediaHub";
 import { registerLogsIpc, setLogsMainWindowGetter } from "../main/ipc/logsIpc";
 import { registerSettingsIpc } from "../main/ipc/settingsIpc";
@@ -39,9 +40,11 @@ import { ensureWidevineReady } from "../main/widevineComponents";
 import { isMediaAppId } from "../shared/mediaApps";
 import { registerTasksIpc } from "../main/ipc/tasksIpc";
 import { registerSystemIpc } from "../main/ipc/systemIpc";
+import { stopSystemStatusWorker } from "../main/systemStatus";
 import { registerShortcutsIpc } from "../main/ipc/shortcutsIpc";
 import { registerWeatherIpc } from "../main/ipc/weatherIpc";
 import {
+  flushSettingsStore,
   getSettings,
   initSettingsStore,
   updateSettings,
@@ -543,6 +546,7 @@ const createWindow = async () => {
     backgroundColor: "#0b0b0c",
     icon: getAppIconPath(),
     frame: false,
+    show: false,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       nodeIntegration: false,
@@ -551,21 +555,28 @@ const createWindow = async () => {
     },
   });
 
-  if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
-  } else {
-    await mainWindow.loadFile(
-      path.join(
-        __dirname,
-        `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
-      ),
-    );
+  try {
+    if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
+      await mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    } else {
+      await mainWindow.loadFile(
+        path.join(
+          __dirname,
+          `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`,
+        ),
+      );
+    }
+  } finally {
+    // Janela ja posicionada/fullscreen antes de aparecer: evita o flash de
+    // janela vazia enquanto o renderer inicializa.
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      applyInitialWindowPresentation(mainWindow, {
+        display: initialDisplay,
+        launchFullscreen: settings.launchFullscreen,
+      });
+      mainWindow.show();
+    }
   }
-
-  applyInitialWindowPresentation(mainWindow, {
-    display: initialDisplay,
-    launchFullscreen: settings.launchFullscreen,
-  });
 
   initMediaHub({
     getMainWindow: () => mainWindow,
@@ -801,8 +812,6 @@ app.commandLine.appendSwitch(
   "autoplay-policy",
   "no-user-gesture-required",
 );
-app.commandLine.appendSwitch("disable-renderer-backgrounding");
-app.commandLine.appendSwitch("disable-background-timer-throttling");
 app.commandLine.appendSwitch(
   "disable-blink-features",
   "AutomationControlled",
@@ -836,7 +845,9 @@ app.whenReady().then(async () => {
       moveWindowToDisplay(preferredDisplay);
     }
   });
-  await ensureWidevineReady();
+  // O preparo do Widevine (checagem/download do CDM) roda em paralelo com a
+  // criacao da janela; so a criacao dos webviews de midia espera por ele.
+  setMediaRuntimeGate(ensureWidevineReady());
   await createWindow();
   setLogsMainWindowGetter(() => mainWindow);
 
@@ -852,5 +863,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("will-quit", () => {
+  stopSystemStatusWorker();
+  flushSettingsStore();
   closeDatabase();
 });

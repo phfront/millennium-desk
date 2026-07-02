@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useState } from "react";
 import type { SystemStatus } from "../../../shared/contracts";
 
 const formatBytes = (bytes: number) => {
@@ -47,7 +47,7 @@ function MetricCell({
       </div>
       {!unavailable && (
         <div className="system-row-track" aria-hidden>
-          <span style={{ width: `${value}%` }} />
+          <span style={{ transform: `scaleX(${value / 100})` }} />
         </div>
       )}
       {detail && <small>{detail}</small>}
@@ -75,7 +75,7 @@ function ThroughputCell({
   );
 }
 
-export function SystemModule() {
+export const SystemModule = memo(function SystemModule() {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -155,4 +155,4 @@ export function SystemModule() {
       </div>
     </div>
   );
-}
+});

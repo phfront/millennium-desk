@@ -359,6 +359,38 @@ const writeSettings = (settings: AppSettings) => {
     .run(SETTINGS_ROW_ID, `${JSON.stringify(settings)}\n`);
 };
 
+// A serializacao inclui perfis com icones em data URL (ate ~512KB cada);
+// eventos frequentes (ex.: "move"/"resize" da janela) nao devem pagar esse
+// custo a cada disparo. As leituras continuam vindo de cachedSettings.
+const WRITE_DEBOUNCE_MS = 150;
+let pendingWriteTimer: NodeJS.Timeout | null = null;
+
+const writeCachedSettings = () => {
+  if (!cachedSettings) return;
+  try {
+    writeSettings(cachedSettings);
+  } catch (error) {
+    // Banco pode ja ter sido fechado durante o encerramento.
+    console.error("Falha ao gravar configuracoes:", error);
+  }
+};
+
+export const flushSettingsStore = () => {
+  if (pendingWriteTimer) {
+    clearTimeout(pendingWriteTimer);
+    pendingWriteTimer = null;
+  }
+  writeCachedSettings();
+};
+
+const scheduleSettingsWrite = () => {
+  if (pendingWriteTimer) clearTimeout(pendingWriteTimer);
+  pendingWriteTimer = setTimeout(() => {
+    pendingWriteTimer = null;
+    writeCachedSettings();
+  }, WRITE_DEBOUNCE_MS);
+};
+
 const migrateLegacySettingsFile = (userDataPath: string) => {
   const jsonPath = path.join(userDataPath, LEGACY_SETTINGS_FILE);
   if (!existsSync(jsonPath)) return;
@@ -391,11 +423,18 @@ export const getSettings = (): AppSettings => {
   return cachedSettings;
 };
 
-export const updateSettings = (patch: Partial<AppSettings>): AppSettings => {
+export const updateSettings = (
+  patch: Partial<AppSettings>,
+  options?: { flush?: boolean },
+): AppSettings => {
   const current = getSettings();
   const next = normalizeSettings({ ...current, ...patch });
   cachedSettings = next;
-  writeSettings(next);
+  if (options?.flush) {
+    flushSettingsStore();
+  } else {
+    scheduleSettingsWrite();
+  }
   return next;
 };
 

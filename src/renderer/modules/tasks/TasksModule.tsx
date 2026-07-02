@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { TaskItem, TaskTag } from "../../../shared/contracts";
 import { DatePicker } from "../../components/DatePicker";
 import {
@@ -18,7 +18,7 @@ import {
 } from "./tagUtils";
 import type { TaskModuleSettings } from "./types";
 
-export function TasksModule({
+export const TasksModule = memo(function TasksModule({
   settings,
   tags,
   onConfigure,
@@ -608,4 +608,4 @@ export function TasksModule({
       </AnimatePresence>
     </div>
   );
-}
+});

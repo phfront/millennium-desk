@@ -20,7 +20,6 @@ import {
   DEFAULT_MEDIA_APP_ID,
   getMediaAppDefinition,
   isMediaAppId,
-  MEDIA_APP_DEFINITIONS,
   MEDIA_APPS,
   resolveActiveMediaApp,
   type MediaAppDefinition,
@@ -47,11 +46,78 @@ let activeAppId: MediaAppId = DEFAULT_MEDIA_APP_ID;
 let slotBounds: Electron.Rectangle | null = null;
 const runtimes = new Map<MediaAppId, MediaAppRuntime>();
 const savedMediaUrls = new Map<MediaAppId, string>();
-const warmTimers = new Set<ReturnType<typeof setTimeout>>();
 
-const clearWarmTimers = () => {
-  for (const timer of warmTimers) clearTimeout(timer);
-  warmTimers.clear();
+// Webviews de streaming sao renderers Chromium completos (~200MB+ cada).
+// Mantemos no maximo o app ativo + alguns estacionados recentes; o resto e
+// descartado (a URL fica salva para retomar). Apps tocando audio (ex.:
+// Spotify em segundo plano) nunca sao descartados pela varredura.
+const MAX_PARKED_RUNTIMES = 2;
+const PARKED_RUNTIME_TTL_MS = 5 * 60_000;
+const runtimeLastActiveAt = new Map<MediaAppId, number>();
+let parkedSweepTimer: NodeJS.Timeout | null = null;
+
+const touchRuntime = (appId: MediaAppId) => {
+  runtimeLastActiveAt.set(appId, Date.now());
+};
+
+const isRuntimeAudible = (runtime: MediaAppRuntime) => {
+  const contents = runtime.view.webContents;
+  return !contents.isDestroyed() && contents.isCurrentlyAudible();
+};
+
+const evictParkedRuntimes = () => {
+  const now = Date.now();
+  const parked = [...runtimes.keys()].filter(
+    (appId) => !(hubVisible && appId === activeAppId),
+  );
+  const disposable = parked
+    .filter((appId) => {
+      const runtime = runtimes.get(appId);
+      return runtime ? !isRuntimeAudible(runtime) : false;
+    })
+    .sort(
+      (a, b) =>
+        (runtimeLastActiveAt.get(a) ?? 0) - (runtimeLastActiveAt.get(b) ?? 0),
+    );
+
+  let overCap = parked.length - MAX_PARKED_RUNTIMES;
+  for (const appId of disposable) {
+    const idleFor = now - (runtimeLastActiveAt.get(appId) ?? 0);
+    if (overCap > 0 || idleFor > PARKED_RUNTIME_TTL_MS) {
+      disposeMediaApp(appId);
+      overCap--;
+    }
+  }
+
+  syncParkedSweepTimer();
+};
+
+const syncParkedSweepTimer = () => {
+  const hasParked = [...runtimes.keys()].some(
+    (appId) => !(hubVisible && appId === activeAppId),
+  );
+  if (hasParked && !parkedSweepTimer) {
+    parkedSweepTimer = setInterval(evictParkedRuntimes, 60_000);
+    parkedSweepTimer.unref();
+    return;
+  }
+  if (!hasParked && parkedSweepTimer) {
+    clearInterval(parkedSweepTimer);
+    parkedSweepTimer = null;
+  }
+};
+
+// Criacao de webviews DRM espera o CDM do Widevine ficar pronto (o gate e
+// resolvido no boot, em paralelo com a criacao da janela).
+let mediaRuntimeReady = true;
+let mediaRuntimeGate: Promise<unknown> = Promise.resolve();
+let pendingShowAfterGate = false;
+
+export const setMediaRuntimeGate = (gate: Promise<unknown>) => {
+  mediaRuntimeReady = false;
+  mediaRuntimeGate = gate.finally(() => {
+    mediaRuntimeReady = true;
+  });
 };
 
 const getHiddenMediaAppIds = () => {
@@ -140,6 +206,7 @@ const disposeMediaApp = (appId: MediaAppId) => {
     runtime.view,
   );
   runtimes.delete(appId);
+  runtimeLastActiveAt.delete(appId);
 };
 
 const suspendMediaApp = parkMediaApp;
@@ -196,48 +263,34 @@ const ensureMediaApp = (appId: MediaAppId) => {
   view.setVisible(false);
   const runtime: MediaAppRuntime = { view, spotifyIdentity };
   runtimes.set(appId, runtime);
+  touchRuntime(appId);
+  syncParkedSweepTimer();
   return runtime;
-};
-
-const warmInactiveMediaApps = () => {
-  if (!hubVisible) return;
-
-  unloadHiddenMediaApps();
-  clearWarmTimers();
-  const hidden = new Set(getHiddenMediaAppIds());
-  let delay = 0;
-
-  for (const definition of MEDIA_APP_DEFINITIONS) {
-    if (definition.id === activeAppId || hidden.has(definition.id)) continue;
-
-    const appId = definition.id;
-    const timer = setTimeout(() => {
-      warmTimers.delete(timer);
-      if (!hubVisible || activeAppId === appId) return;
-
-      const hadRuntime = runtimes.has(appId);
-      ensureMediaApp(appId);
-      if (!hadRuntime) {
-        parkMediaApp(appId, { keepAudio: true });
-      }
-    }, delay);
-
-    warmTimers.add(timer);
-    delay += 120;
-  }
 };
 
 const showActiveMediaApp = () => {
   const parent = context?.getMainWindow()?.contentView ?? null;
   if (!parent || !hubVisible || !slotBounds) return;
 
+  if (!mediaRuntimeReady) {
+    if (!pendingShowAfterGate) {
+      pendingShowAfterGate = true;
+      void mediaRuntimeGate.then(() => {
+        pendingShowAfterGate = false;
+        showActiveMediaApp();
+      });
+    }
+    return;
+  }
+
   unloadHiddenMediaApps();
   suspendInactiveMediaApps();
 
   const runtime = ensureMediaApp(activeAppId);
+  touchRuntime(activeAppId);
   setEmbeddedWebViewVisible(parent, runtime.view, true);
   syncEmbeddedWebViewBounds(parent, runtime.view, slotBounds, true);
-  warmInactiveMediaApps();
+  evictParkedRuntimes();
 };
 
 const applySpotifyLayoutIfNeeded = (bounds: ViewBounds) => {
@@ -262,8 +315,6 @@ export const unloadHiddenMediaApps = () => {
     }
   }
 
-  clearWarmTimers();
-
   const nextActive = resolveActiveMediaApp(
     activeAppId,
     getSettings().hiddenMediaAppIds,
@@ -286,7 +337,10 @@ export const getActiveMediaHubView = () => {
 };
 
 export const disposeMediaHub = () => {
-  clearWarmTimers();
+  if (parkedSweepTimer) {
+    clearInterval(parkedSweepTimer);
+    parkedSweepTimer = null;
+  }
   disposeAllMediaApps();
   slotBounds = null;
   hubVisible = false;
@@ -325,15 +379,17 @@ export const registerMediaIpc = () => {
   ipcMain.handle("media:set-visible", (_event, visible: boolean) => {
     hubVisible = visible;
     if (!visible) {
-      clearWarmTimers();
       suspendAllMediaApps();
+      evictParkedRuntimes();
       return;
     }
     showActiveMediaApp();
   });
 
+  // Mantido por compatibilidade com o renderer; o hub nao pre-carrega mais
+  // todos os apps (cada webview e um renderer completo).
   ipcMain.handle("media:warm-apps", () => {
-    warmInactiveMediaApps();
+    unloadHiddenMediaApps();
   });
 
   ipcMain.handle("media:reload", () => {

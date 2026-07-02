@@ -27,7 +27,7 @@ export const registerSettingsIpc = () => {
   });
 
   ipcMain.on("settings:flush-sync", (event, patch: Partial<AppSettings>) => {
-    const next = updateSettings(patch);
+    const next = updateSettings(patch, { flush: true });
     applySettingsSideEffects(patch, next);
     event.returnValue = next;
   });

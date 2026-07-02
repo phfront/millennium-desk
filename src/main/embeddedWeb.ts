@@ -365,13 +365,15 @@ export const createEmbeddedWebView = (config: EmbeddedWebViewConfig) => {
     config.userAgent ??
     (layout === "mobile" ? MOBILE_USER_AGENT : undefined);
   const embeddedSession = configureEmbeddedSession(config.partition);
+  // backgroundThrottling fica no padrao (ativo): webviews estacionadas
+  // deixam de queimar CPU/GPU; audio em reproducao nao e throttled pelo
+  // Chromium e o keepalive de visibilidade impede o player de se pausar.
   const view = new WebContentsView({
     webPreferences: {
       session: embeddedSession,
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
-      backgroundThrottling: false,
       autoplayPolicy: "no-user-gesture-required",
     },
   });

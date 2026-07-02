@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { memo, useState } from "react";
 import { useSnackbar } from "../../components/Snackbar";
 import { shortcutTileStyle } from "./shortcutColors";
 import type {
@@ -14,7 +14,7 @@ const TYPE_SYMBOLS: Record<ShortcutItem["type"], string> = {
   powershell: "PS",
 };
 
-export function ShortcutsModule({
+export const ShortcutsModule = memo(function ShortcutsModule({
   shortcuts,
   gridSettings,
   onConfigure,
@@ -141,4 +141,4 @@ export function ShortcutsModule({
       </div>
     </div>
   );
-}
+});
