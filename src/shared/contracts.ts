@@ -207,6 +207,10 @@ export interface TaskItem {
   text: string;
   done: boolean;
   tagIds: number[];
+  /** Recorrente: aparece todos os dias, no fim da lista, ate ser concluida. */
+  persistent: boolean;
+  /** Chave YYYY-MM-DD do dia em que a tarefa recorrente foi concluida. */
+  completedOn: string | null;
 }
 
 export interface CreateTagInput {
@@ -222,6 +226,7 @@ export interface CreateTaskInput {
   date: string;
   text: string;
   tagIds?: number[];
+  persistent?: boolean;
 }
 
 export interface UpdateTaskInput {
@@ -230,6 +235,7 @@ export interface UpdateTaskInput {
   text?: string;
   done?: boolean;
   tagIds?: number[];
+  persistent?: boolean;
 }
 
 export interface TaskExportRecord {
@@ -240,6 +246,8 @@ export interface TaskExportRecord {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+  persistent: boolean;
+  completedOn: string | null;
 }
 
 export interface TaskExportPayload {

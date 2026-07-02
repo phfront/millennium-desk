@@ -32,6 +32,7 @@ export const TasksModule = memo(function TasksModule({
   const [newTaskText, setNewTaskText] = useState("");
   const [newTaskCursor, setNewTaskCursor] = useState(0);
   const [newTaskTagIds, setNewTaskTagIds] = useState<number[]>([]);
+  const [newTaskPersistent, setNewTaskPersistent] = useState(false);
   const [visibleTagIds, setVisibleTagIds] = useState<number[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingList, setEditingList] = useState(false);
@@ -51,9 +52,15 @@ export const TasksModule = memo(function TasksModule({
       item.tagIds.length === 0 ||
       item.tagIds.some((tagId) => visibleTagIds.includes(tagId)),
   );
-  const visibleItems = settings.pendingFirst
-    ? [...filteredItems].sort((a, b) => Number(a.done) - Number(b.done))
-    : filteredItems;
+  // Recorrentes sempre fecham a lista; pendingFirst ordena dentro dos grupos.
+  const sortPendingFirst = (group: TaskItem[]) =>
+    settings.pendingFirst
+      ? [...group].sort((a, b) => Number(a.done) - Number(b.done))
+      : group;
+  const visibleItems = [
+    ...sortPendingFirst(filteredItems.filter((item) => !item.persistent)),
+    ...sortPendingFirst(filteredItems.filter((item) => item.persistent)),
+  ];
   const completedCount = items.filter((item) => item.done).length;
   const progressPercent = items.length
     ? (completedCount / items.length) * 100
@@ -179,12 +186,26 @@ export const TasksModule = memo(function TasksModule({
         date: selectedDate,
         text,
         tagIds: newTaskTagIds,
+        persistent: newTaskPersistent,
       });
       setNewTaskText("");
       setNewTaskCursor(0);
       setNewTaskTagIds([]);
+      setNewTaskPersistent(false);
       return [...items, created];
     }, "Falha ao criar tarefa.");
+  };
+
+  const toggleTaskPersistent = (item: TaskItem) => {
+    void runTaskMutation(async () => {
+      const updated = await window.electronControl.tasks.update({
+        id: item.id,
+        persistent: !item.persistent,
+        // Ao voltar a ser datada, a tarefa passa a pertencer ao dia em vista.
+        ...(item.persistent ? { date: selectedDate } : {}),
+      });
+      return items.map((entry) => (entry.id === item.id ? updated : entry));
+    }, "Falha ao alterar recorrencia da tarefa.");
   };
 
   const moveTaskToDate = () => {
@@ -210,6 +231,7 @@ export const TasksModule = memo(function TasksModule({
     setNewTaskText("");
     setNewTaskCursor(0);
     setNewTaskTagIds([]);
+    setNewTaskPersistent(false);
   }, [selectedDate]);
 
   useEffect(() => {
@@ -391,6 +413,14 @@ export const TasksModule = memo(function TasksModule({
                   </div>
                 </div>
                 <div className="task-tags-row">
+                  {item.persistent && (
+                    <span
+                      className="task-persistent-pill"
+                      title="Recorrente: aparece todos os dias até ser concluída"
+                    >
+                      ∞ Recorrente
+                    </span>
+                  )}
                   {item.tagIds.map((tagId) => {
                     const tag = tagsById.get(tagId);
                     if (!tag) return null;
@@ -418,17 +448,42 @@ export const TasksModule = memo(function TasksModule({
                 {!isPast && editingList && (
                   <>
                     <button
-                      className="task-move"
-                      aria-label="Mover tarefa para outro dia"
-                      title="Mover para outro dia"
+                      className={
+                        item.persistent
+                          ? "task-persistent-toggle active"
+                          : "task-persistent-toggle"
+                      }
+                      aria-label={
+                        item.persistent
+                          ? "Transformar em tarefa com data"
+                          : "Transformar em recorrente"
+                      }
+                      title={
+                        item.persistent
+                          ? "Voltar a ter data (fica no dia em exibição)"
+                          : "Recorrente: aparece todos os dias até concluir"
+                      }
                       onClick={(event) => {
                         event.stopPropagation();
-                        setMovingTask({
-                          item,
-                          date: shiftDateKey(selectedDate, 1),
-                        });
+                        toggleTaskPersistent(item);
                       }}
-                    />
+                    >
+                      ∞
+                    </button>
+                    {!item.persistent && (
+                      <button
+                        className="task-move"
+                        aria-label="Mover tarefa para outro dia"
+                        title="Mover para outro dia"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setMovingTask({
+                            item,
+                            date: shiftDateKey(selectedDate, 1),
+                          });
+                        }}
+                      />
+                    )}
                     <button
                       className="task-delete"
                       aria-label="Excluir tarefa"
@@ -467,9 +522,11 @@ export const TasksModule = memo(function TasksModule({
                   ref={newTaskInputRef}
                   value={newTaskText}
                   placeholder={
-                    isToday
-                      ? "Adicionar atividade de hoje"
-                      : "Planejar atividade futura"
+                    newTaskPersistent
+                      ? "Adicionar tarefa recorrente (todo dia até concluir)"
+                      : isToday
+                        ? "Adicionar atividade de hoje"
+                        : "Planejar atividade futura"
                   }
                   aria-autocomplete="list"
                   aria-controls={
@@ -506,6 +563,20 @@ export const TasksModule = memo(function TasksModule({
                   </div>
                 )}
               </div>
+              <button
+                type="button"
+                className={
+                  newTaskPersistent
+                    ? "task-composer-persistent active"
+                    : "task-composer-persistent"
+                }
+                aria-pressed={newTaskPersistent}
+                aria-label="Criar como tarefa recorrente"
+                title="Recorrente: sem data, aparece todos os dias até ser concluída"
+                onClick={() => setNewTaskPersistent((value) => !value)}
+              >
+                ∞
+              </button>
               <button className="add-task" onClick={addTask}>
                 Adicionar
               </button>

@@ -99,6 +99,20 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
       ALTER TABLE shortcuts ADD COLUMN color_2 TEXT NOT NULL DEFAULT '#5a67ff';
     `,
   },
+  {
+    // Tarefas recorrentes: sem data fixa (task_date passa a ser a data de
+    // inicio), aparecem todos os dias ate serem concluidas; completed_on
+    // registra o dia da conclusao.
+    version: 9,
+    sql: `
+      ALTER TABLE tasks ADD COLUMN persistent INTEGER NOT NULL DEFAULT 0
+        CHECK (persistent IN (0, 1));
+      ALTER TABLE tasks ADD COLUMN completed_on TEXT
+        CHECK (completed_on IS NULL OR completed_on GLOB '????-??-??');
+      CREATE INDEX IF NOT EXISTS idx_tasks_persistent
+        ON tasks(persistent) WHERE persistent = 1;
+    `,
+  },
 ];
 
 const getCurrentVersion = (database: DatabaseSync) => {

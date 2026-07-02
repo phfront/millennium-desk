@@ -160,7 +160,21 @@ if (!window.electronControl) {
       }),
     },
     tasks: {
-      listByDate: async (date: string) => browserTasks.get(date) ?? [],
+      listByDate: async (date: string) => {
+        const dated = (browserTasks.get(date) ?? []).filter(
+          (task) => !task.persistent,
+        );
+        const persistent = [...browserTasks.entries()].flatMap(
+          ([bucketDate, tasks]) =>
+            tasks.filter(
+              (task) =>
+                task.persistent &&
+                bucketDate <= date &&
+                (!task.completedOn || task.completedOn >= date),
+            ),
+        );
+        return [...dated, ...persistent];
+      },
       create: async (input: CreateTaskInput) => {
         assertEditableDate(input.date);
         const text = input.text.trim();
@@ -170,34 +184,49 @@ if (!window.electronControl) {
           text,
           done: false,
           tagIds: input.tagIds ?? [],
+          persistent: input.persistent === true,
+          completedOn: null,
         };
         browserTasks.set(input.date, [...(browserTasks.get(input.date) ?? []), created]);
         return created;
       },
       update: async (input: UpdateTaskInput) => {
         const date = getTaskDate(input.id);
-        assertEditableDate(date);
         const current = getTaskById(input.id);
-        const updated = {
+        if (!current.persistent) assertEditableDate(date);
+        const nextPersistent = input.persistent ?? current.persistent;
+        const nextDone = input.done ?? current.done;
+        const updated: TaskItem = {
           ...current,
           text: input.text?.trim() || current.text,
-          done: input.done ?? current.done,
+          done: nextDone,
           tagIds: input.tagIds ?? current.tagIds,
+          persistent: nextPersistent,
+          completedOn:
+            !nextPersistent || !nextDone
+              ? null
+              : (current.completedOn ?? todayDateKey()),
         };
         if (!updated.text) {
           throw new Error("O texto da tarefa nao pode ficar vazio.");
         }
+        const nextDate =
+          !nextPersistent && input.date !== undefined ? input.date : date;
         browserTasks.set(
           date,
-          (browserTasks.get(date) ?? []).map((task) =>
-            task.id === input.id ? updated : task,
+          (browserTasks.get(date) ?? []).filter(
+            (task) => task.id !== input.id,
           ),
         );
+        browserTasks.set(nextDate, [
+          ...(browserTasks.get(nextDate) ?? []),
+          updated,
+        ]);
         return updated;
       },
       delete: async (id: number) => {
         const date = getTaskDate(id);
-        assertEditableDate(date);
+        if (!getTaskById(id).persistent) assertEditableDate(date);
         browserTasks.set(
           date,
           (browserTasks.get(date) ?? []).filter((task) => task.id !== id),
@@ -215,6 +244,8 @@ if (!window.electronControl) {
             sortOrder: index,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
+            persistent: task.persistent,
+            completedOn: task.completedOn,
           })),
         ),
       }),
