@@ -57,10 +57,18 @@ export const TasksModule = memo(function TasksModule({
     settings.pendingFirst
       ? [...group].sort((a, b) => Number(a.done) - Number(b.done))
       : group;
-  const visibleItems = [
-    ...sortPendingFirst(filteredItems.filter((item) => !item.persistent)),
-    ...sortPendingFirst(filteredItems.filter((item) => item.persistent)),
-  ];
+  const datedItems = sortPendingFirst(
+    filteredItems.filter((item) => !item.persistent),
+  );
+  const persistentItems = sortPendingFirst(
+    filteredItems.filter((item) => item.persistent),
+  );
+  const visibleItems = [...datedItems, ...persistentItems];
+  // Separador antes da primeira recorrente, apenas quando os dois grupos existem.
+  const persistentDividerId =
+    datedItems.length > 0 && persistentItems.length > 0
+      ? persistentItems[0].id
+      : null;
   const completedCount = items.filter((item) => item.done).length;
   const progressPercent = items.length
     ? (completedCount / items.length) * 100
@@ -365,7 +373,8 @@ export const TasksModule = memo(function TasksModule({
           {loading && <div className="empty-tasks">Carregando tarefas...</div>}
           <AnimatePresence initial={false}>
             {!loading &&
-              visibleItems.map((item) => (
+              visibleItems.flatMap((item) => {
+                const taskNode = (
               <motion.div
                 layout
                 key={item.id}
@@ -413,14 +422,29 @@ export const TasksModule = memo(function TasksModule({
                   </div>
                 </div>
                 <div className="task-tags-row">
-                  {item.persistent && (
-                    <span
-                      className="task-persistent-pill"
-                      title="Recorrente: aparece todos os dias até ser concluída"
-                    >
-                      ∞ Recorrente
-                    </span>
-                  )}
+                  {item.persistent &&
+                    (!isPast && editingList ? (
+                      <button
+                        type="button"
+                        className="task-persistent-pill"
+                        aria-label="Transformar em tarefa com data"
+                        title="Voltar a ter data (fica no dia em exibição)"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleTaskPersistent(item);
+                        }}
+                      >
+                        ∞
+                      </button>
+                    ) : (
+                      <span
+                        className="task-persistent-pill"
+                        aria-label="Recorrente"
+                        title="Recorrente: aparece todos os dias até ser concluída"
+                      >
+                        ∞
+                      </span>
+                    ))}
                   {item.tagIds.map((tagId) => {
                     const tag = tagsById.get(tagId);
                     if (!tag) return null;
@@ -447,29 +471,19 @@ export const TasksModule = memo(function TasksModule({
                 </div>
                 {!isPast && editingList && (
                   <>
-                    <button
-                      className={
-                        item.persistent
-                          ? "task-persistent-toggle active"
-                          : "task-persistent-toggle"
-                      }
-                      aria-label={
-                        item.persistent
-                          ? "Transformar em tarefa com data"
-                          : "Transformar em recorrente"
-                      }
-                      title={
-                        item.persistent
-                          ? "Voltar a ter data (fica no dia em exibição)"
-                          : "Recorrente: aparece todos os dias até concluir"
-                      }
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        toggleTaskPersistent(item);
-                      }}
-                    >
-                      ∞
-                    </button>
+                    {!item.persistent && (
+                      <button
+                        className="task-persistent-toggle"
+                        aria-label="Transformar em recorrente"
+                        title="Recorrente: aparece todos os dias até concluir"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleTaskPersistent(item);
+                        }}
+                      >
+                        ∞
+                      </button>
+                    )}
                     {!item.persistent && (
                       <button
                         className="task-move"
@@ -501,7 +515,24 @@ export const TasksModule = memo(function TasksModule({
                   </>
                 )}
               </motion.div>
-            ))}
+                );
+                if (item.id !== persistentDividerId) return [taskNode];
+                return [
+                  <motion.div
+                    key="task-group-divider"
+                    layout
+                    className="task-group-divider"
+                    role="separator"
+                    aria-label="Tarefas recorrentes"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                  >
+                    Recorrentes
+                  </motion.div>,
+                  taskNode,
+                ];
+              })}
           </AnimatePresence>
           {!loading && items.length === 0 && (
             <div className="empty-tasks">
@@ -577,8 +608,13 @@ export const TasksModule = memo(function TasksModule({
               >
                 ∞
               </button>
-              <button className="add-task" onClick={addTask}>
-                Adicionar
+              <button
+                className="add-task"
+                aria-label="Adicionar tarefa"
+                title="Adicionar tarefa"
+                onClick={addTask}
+              >
+                +
               </button>
             </div>
             {tags.length > 0 && (
