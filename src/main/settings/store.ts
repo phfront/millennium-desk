@@ -44,6 +44,7 @@ const createDefaultSettings = (): AppSettings => ({
     {
       id: DEFAULT_PROFILE_ID,
       name: "Padrao",
+      icon: "",
       dashboardLayout: null,
       hiddenModuleIds: [],
       activeMediaApp: null,
@@ -179,14 +180,16 @@ const normalizeHexColor = (value: unknown): string | null => {
 
 const normalizeShortcutGrid = (value: unknown): AppSettings["shortcutGrid"] => {
   const raw = value as Partial<AppSettings["shortcutGrid"]> | null | undefined;
+  const columns = raw?.columns;
+  const rows = raw?.rows;
   return {
     columns:
-      raw && Number.isSafeInteger(raw.columns)
-        ? Math.min(8, Math.max(1, raw.columns))
+      typeof columns === "number" && Number.isSafeInteger(columns)
+        ? Math.min(8, Math.max(1, columns))
         : DEFAULT_SETTINGS.shortcutGrid.columns,
     rows:
-      raw && Number.isSafeInteger(raw.rows)
-        ? Math.min(6, Math.max(1, raw.rows))
+      typeof rows === "number" && Number.isSafeInteger(rows)
+        ? Math.min(6, Math.max(1, rows))
         : DEFAULT_SETTINGS.shortcutGrid.rows,
   };
 };
@@ -195,6 +198,16 @@ const normalizeProfileId = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return /^[a-zA-Z0-9_-]{1,48}$/.test(trimmed) ? trimmed : null;
+};
+
+const normalizeProfileIconValue = (value: unknown): string => {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("data:image/")) {
+    return trimmed.length <= 512_000 ? trimmed : "";
+  }
+  return trimmed.slice(0, 8);
 };
 
 const normalizeDashboardProfile = (value: unknown): DashboardProfile | null => {
@@ -207,6 +220,7 @@ const normalizeDashboardProfile = (value: unknown): DashboardProfile | null => {
   return {
     id,
     name: name.slice(0, 40),
+    icon: normalizeProfileIconValue(raw.icon),
     dashboardLayout: normalizeDashboardLayout(raw.dashboardLayout),
     hiddenModuleIds: Array.isArray(raw.hiddenModuleIds)
       ? raw.hiddenModuleIds.filter((item): item is string => typeof item === "string")
@@ -263,6 +277,7 @@ const normalizeSettings = (value: unknown): AppSettings => {
           {
             id: DEFAULT_PROFILE_ID,
             name: "Padrao",
+            icon: "",
             dashboardLayout,
             hiddenModuleIds: Array.isArray(raw.hiddenModuleIds)
               ? raw.hiddenModuleIds.filter(

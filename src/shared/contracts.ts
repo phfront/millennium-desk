@@ -125,6 +125,7 @@ export interface WeatherLocation {
 export interface DashboardProfile {
   id: string;
   name: string;
+  icon: string;
   dashboardLayout: DashboardLayoutNode | null;
   hiddenModuleIds: string[];
   activeMediaApp: MediaAppId | null;

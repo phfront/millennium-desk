@@ -368,7 +368,7 @@ export function TasksModule({
                     aria-label={item.done ? "Desmarcar tarefa" : "Marcar tarefa"}
                     onClick={(event) => {
                       event.stopPropagation();
-                      if (editingList) toggleTaskDone(item);
+                      if (!isPast) toggleTaskDone(item);
                     }}
                   >
                   </button>

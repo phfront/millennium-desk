@@ -342,6 +342,22 @@ const applyUserAgent = (
   view.webContents.setUserAgent(userAgent);
 };
 
+const MAX_LOAD_RETRIES = 3;
+const BASE_RETRY_DELAY_MS = 2000;
+
+const UPSTREAM_ERROR_PATTERNS = [
+  "upstream request timeout",
+  "upstream prematurely closed",
+  "502 bad gateway",
+  "503 service temporarily unavailable",
+  "504 gateway timeout",
+];
+
+const isUpstreamErrorPage = (title: string, body: string): boolean => {
+  const text = `${title} ${body}`.toLowerCase();
+  return UPSTREAM_ERROR_PATTERNS.some((pattern) => text.includes(pattern));
+};
+
 export const createEmbeddedWebView = (config: EmbeddedWebViewConfig) => {
   const layout = config.layout ?? "desktop";
   const userAgent =
@@ -366,6 +382,42 @@ export const createEmbeddedWebView = (config: EmbeddedWebViewConfig) => {
     applyUserAgent(embeddedSession, view, userAgent);
   }
 
+  let loadRetryCount = 0;
+  let loadRetryTimer: ReturnType<typeof setTimeout> | null = null;
+  let currentLoadUrl = config.homeUrl;
+
+  const scheduleRetry = (url: string) => {
+    if (loadRetryCount >= MAX_LOAD_RETRIES) return;
+    loadRetryCount++;
+    const delay = BASE_RETRY_DELAY_MS * loadRetryCount;
+    console.log(
+      `[${config.label}] Retry ${loadRetryCount}/${MAX_LOAD_RETRIES} em ${delay}ms: ${url}`,
+    );
+    loadRetryTimer = setTimeout(() => {
+      loadRetryTimer = null;
+      if (view.webContents.isDestroyed()) return;
+      void view.webContents.loadURL(url).catch(() => {});
+    }, delay);
+  };
+
+  const detectUpstreamError = () => {
+    if (view.webContents.isDestroyed()) return;
+    void view.webContents
+      .executeJavaScript(
+        `JSON.stringify({ title: document.title ?? "", body: (document.body?.innerText ?? "").slice(0, 500) })`,
+      )
+      .then((result: string) => {
+        const { title, body } = JSON.parse(result) as { title: string; body: string };
+        if (isUpstreamErrorPage(title, body)) {
+          console.warn(
+            `[${config.label}] Upstream error detectado no conteudo da pagina`,
+          );
+          scheduleRetry(currentLoadUrl);
+        }
+      })
+      .catch(() => {});
+  };
+
   view.webContents.setWindowOpenHandler(({ url }) => {
     if (
       config.isTrustedNavigation(url) &&
@@ -385,12 +437,17 @@ export const createEmbeddedWebView = (config: EmbeddedWebViewConfig) => {
   view.webContents.on(
     "did-fail-load",
     (_event, errorCode, errorDescription, validatedUrl, isMainFrame) => {
-      if (isMainFrame && errorCode !== -3) {
-        console.error(`Falha de navegacao do ${config.label}:`, {
-          errorCode,
-          errorDescription,
-          validatedUrl,
-        });
+      if (!isMainFrame) return;
+      if (errorCode === -3) return;
+
+      console.error(`Falha de navegacao do ${config.label}:`, {
+        errorCode,
+        errorDescription,
+        validatedUrl,
+      });
+
+      if (errorCode === -7 || errorCode === -21 || errorCode === -118 || errorCode === -105 || errorCode === -130) {
+        scheduleRetry(validatedUrl || config.homeUrl);
       }
     },
   );
@@ -405,10 +462,15 @@ export const createEmbeddedWebView = (config: EmbeddedWebViewConfig) => {
   };
 
   view.webContents.on("dom-ready", injectPageScripts);
-  view.webContents.on("did-navigate", injectPageScripts);
+  view.webContents.on("did-navigate", (_event, url) => {
+    currentLoadUrl = url;
+    injectPageScripts();
+  });
   view.webContents.on("did-finish-load", () => {
+    loadRetryCount = 0;
     injectPageScripts();
     notifyEmbeddedWebViewResize(view, true);
+    detectUpstreamError();
   });
 
   if (!app.isPackaged && config.spotifyIdentity) {

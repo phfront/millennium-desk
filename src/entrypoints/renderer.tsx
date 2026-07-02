@@ -62,6 +62,21 @@ if (!window.electronControl) {
     activeMediaApp: null,
     hiddenMediaAppIds: [],
     shortcutGrid: { columns: 4, rows: 2 },
+    activeProfileId: "default",
+    dashboardProfiles: [
+      {
+        id: "default",
+        name: "Padrao",
+        icon: "",
+        dashboardLayout: null,
+        hiddenModuleIds: [],
+        activeMediaApp: null,
+        hiddenMediaAppIds: [],
+        theme: "system",
+        accentColor: "#8c8dff",
+        shortcutGrid: { columns: 4, rows: 2 },
+      },
+    ],
   });
 
   const readBrowserSettings = (): AppSettings => {
@@ -426,10 +441,18 @@ if (!window.electronControl) {
       clearSession: async () => undefined,
       openSpotifyDesktop: async () => false,
       warmApps: async () => undefined,
+      showControlsMenu: async () => false,
+      setFullscreenOverlayActive: async () => undefined,
+      onFullscreenOverlayExit: () => () => undefined,
+      onFullscreenMenuToggle: () => () => undefined,
+      onControlsMenuClosed: () => () => undefined,
     },
     window: {
       toggleFullscreen: async () => false,
       isFullscreen: async () => false,
+      minimize: async () => undefined,
+      toggleMaximize: async () => false,
+      close: async () => undefined,
       onFullscreenChanged: () => () => undefined,
       onDisplayChanged: () => () => undefined,
       moveToDisplay: async () => browserDisplay,

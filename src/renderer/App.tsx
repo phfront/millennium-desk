@@ -5,6 +5,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type PointerEvent,
 } from "react";
 import type {
   AppSettings,
@@ -62,6 +63,13 @@ import {
 } from "./modules/weather";
 import { LogsPanel } from "./logs/LogsPanel";
 import {
+  isProfileIconImage,
+  normalizeProfileIcon,
+  ProfileIcon,
+  readProfileIconImage,
+  takeProfileEmoji,
+} from "./profileIcon";
+import {
   ShortcutsModule,
   ShortcutsSettingsPanel,
 } from "./modules/shortcuts";
@@ -75,6 +83,35 @@ const ACCENT_PRESETS = [
   "#e15f9a",
   "#f08a4b",
 ] as const;
+
+const PROFILE_EMOJIS = [
+  "⭐", "🎯", "🚀", "💼", "🎨", "🎵", "🏠", "⚡",
+  "🔥", "💡", "🎮", "📚", "🛒", "💰", "🧘", "🎬",
+  "📸", "🛠", "🧪", "🌍", "❤️", "🏆", "📋", "⏰",
+] as const;
+
+const isPresetProfileIcon = (icon: string): boolean =>
+  icon === "" || (PROFILE_EMOJIS as readonly string[]).includes(icon);
+
+const isCustomTextProfileIcon = (icon: string): boolean =>
+  icon !== "" && !isPresetProfileIcon(icon) && !isProfileIconImage(icon);
+
+const ProfilePersonIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6.5 7-6.5s7 3 7 6.5"/></svg>
+);
+
+const renderProfileManagerCardContent = (profile: DashboardProfile) => (
+  <>
+    <div className="profile-card-icon">
+      <ProfileIcon
+        icon={profile.icon}
+        imageClassName="profile-icon-image profile-icon-image--card"
+        fallback={<ProfilePersonIcon />}
+      />
+    </div>
+    <span className="profile-card-name">{profile.name}</span>
+  </>
+);
 
 const MODULE_LABELS: Record<ModuleId, string> = {
   tasks: "Tarefas",
@@ -117,6 +154,31 @@ export function App() {
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [activeProfileId, setActiveProfileId] = useState(DEFAULT_PROFILE_ID);
   const [dashboardProfiles, setDashboardProfiles] = useState<DashboardProfile[]>([]);
+  const [editingProfiles, setEditingProfiles] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editIcon, setEditIcon] = useState("");
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const [emojiPickerDraft, setEmojiPickerDraft] = useState("");
+  const [emojiPickerError, setEmojiPickerError] = useState<string | null>(null);
+  const [draggedProfileId, setDraggedProfileId] = useState<string | null>(null);
+  const [dragOverProfileSlot, setDragOverProfileSlot] = useState<number | null>(
+    null,
+  );
+  const [pendingDelete, setPendingDelete] = useState(false);
+  const [profileDragGhost, setProfileDragGhost] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const [profileDragActive, setProfileDragActive] = useState(false);
+  const customEmojiInputRef = useRef<HTMLInputElement>(null);
+  const profileIconImageInputRef = useRef<HTMLInputElement>(null);
+  const profileDragRef = useRef({ moved: false, startX: 0, startY: 0 });
+  const profileDragTargetRef = useRef<{
+    profile: DashboardProfile;
+    index: number;
+  } | null>(null);
+  const dragOverProfileSlotRef = useRef<number | null>(null);
   const [draggedModule, setDraggedModule] = useState<ModuleId | null>(null);
   const [dropTarget, setDropTarget] = useState<ModuleId | null>(null);
   const [dropPlacement, setDropPlacement] = useState<DropPlacement | null>(
@@ -200,7 +262,13 @@ export function App() {
   const renderedLayouts = calculatedLayout.modules;
   const mediaInGrid = renderedLayouts.some((layout) => layout.id === "media");
   const mediaSurfaceHidden =
-    overlayOpen || editMode || hiddenModules.includes("media") || !mediaInGrid;
+    overlayOpen ||
+    profileMenuOpen ||
+    editingProfiles ||
+    emojiPickerOpen ||
+    editMode ||
+    hiddenModules.includes("media") ||
+    !mediaInGrid;
   const embeddedLayoutSignature = renderedLayouts
     .map(
       (module) =>
@@ -213,9 +281,10 @@ export function App() {
     null;
 
   const buildProfileSnapshot = useCallback(
-    (id: string, name: string): DashboardProfile => ({
+    (id: string, name: string, icon = ""): DashboardProfile => ({
       id,
       name,
+      icon,
       dashboardLayout: layoutTreeRef.current,
       hiddenModuleIds: hiddenModulesRef.current,
       activeMediaApp: activeMediaAppRef.current,
@@ -337,6 +406,59 @@ export function App() {
     }),
     [],
   );
+
+  const closeProfileMenu = useCallback(() => {
+    setProfileMenuOpen(false);
+  }, []);
+
+  const closeEmojiPicker = useCallback(() => {
+    setEmojiPickerOpen(false);
+    setEmojiPickerDraft("");
+    setEmojiPickerError(null);
+  }, []);
+
+  const openEmojiPicker = useCallback(() => {
+    setEmojiPickerDraft(editIcon);
+    setEmojiPickerError(null);
+    setEmojiPickerOpen(true);
+  }, [editIcon]);
+
+  const confirmEmojiPicker = useCallback(() => {
+    setEditIcon(normalizeProfileIcon(emojiPickerDraft));
+    closeEmojiPicker();
+  }, [closeEmojiPicker, emojiPickerDraft]);
+
+  const handleProfileIconImageUpload = useCallback(
+    async (file: File | undefined) => {
+      try {
+        setEmojiPickerError(null);
+        const dataUrl = await readProfileIconImage(file);
+        setEmojiPickerDraft(dataUrl);
+      } catch (error) {
+        setEmojiPickerError(
+          error instanceof Error ? error.message : "Falha ao carregar imagem.",
+        );
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!emojiPickerOpen) return;
+    const timer = window.setTimeout(() => {
+      customEmojiInputRef.current?.focus();
+    }, 80);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeEmojiPicker();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeEmojiPicker, emojiPickerOpen]);
 
   const flushGridSettings = useCallback(() => {
     if (!gridSettingsLoaded) return;
@@ -795,48 +917,280 @@ export function App() {
   const applyDashboardProfile = (profileId: string) => {
     const profile = dashboardProfiles.find((item) => item.id === profileId);
     if (!profile) return;
+    if (profileId === activeProfileId) {
+      setProfileMenuOpen(false);
+      return;
+    }
+    const currentSnapshot = activeProfile
+      ? buildProfileSnapshot(activeProfile.id, activeProfile.name, activeProfile.icon)
+      : null;
+    const nextProfiles = currentSnapshot
+      ? dashboardProfiles.map((p) =>
+          p.id === currentSnapshot.id ? currentSnapshot : p,
+        )
+      : dashboardProfiles;
     updateMediaModuleFullscreen(false);
     applyProfileState(profile);
     setProfileMenuOpen(false);
-    persistProfiles(dashboardProfiles, profile.id, profile);
+    persistProfiles(nextProfiles, profile.id, profile);
     requestAnimationFrame(syncEmbeddedWebBounds);
   };
 
-  const saveActiveDashboardProfile = () => {
-    const current = activeProfile ?? dashboardProfiles[0];
-    if (!current) return;
-    const snapshot = buildProfileSnapshot(current.id, current.name);
-    const nextProfiles = dashboardProfiles.map((profile) =>
-      profile.id === current.id ? snapshot : profile,
-    );
-    persistProfiles(nextProfiles, current.id, snapshot);
-    setProfileMenuOpen(false);
-  };
-
   const createDashboardProfile = () => {
-    const name = window.prompt("Nome do novo perfil", "Novo perfil")?.trim();
+    const name = editName.trim();
     if (!name) return;
     const id = `profile-${Date.now().toString(36)}`;
-    const snapshot = buildProfileSnapshot(id, name.slice(0, 40));
-    const nextProfiles = [...dashboardProfiles, snapshot];
+    const snapshot = buildProfileSnapshot(id, name.slice(0, 40), normalizeProfileIcon(editIcon));
+    const currentSnapshot = activeProfile
+      ? buildProfileSnapshot(activeProfile.id, activeProfile.name, activeProfile.icon)
+      : null;
+    const nextProfiles = [
+      ...(currentSnapshot
+        ? dashboardProfiles.map((p) =>
+            p.id === currentSnapshot.id ? currentSnapshot : p,
+          )
+        : dashboardProfiles),
+      snapshot,
+    ];
     persistProfiles(nextProfiles, id, snapshot);
-    setProfileMenuOpen(false);
+    setEditingProfileId(null);
+    setEditName("");
+    setEditIcon("");
   };
 
-  const deleteActiveDashboardProfile = () => {
-    const current = activeProfile;
-    if (!current || dashboardProfiles.length <= 1) return;
-    const confirmed = window.confirm(`Excluir o perfil "${current.name}"?`);
-    if (!confirmed) return;
-    const nextProfiles = dashboardProfiles.filter(
-      (profile) => profile.id !== current.id,
+  const saveProfileEdit = () => {
+    if (!editingProfileId) return;
+    const name = editName.trim();
+    if (!name) return;
+    const icon = normalizeProfileIcon(editIcon);
+    const nextProfiles = dashboardProfiles.map((p) =>
+      p.id === editingProfileId
+        ? { ...p, name: name.slice(0, 40), icon }
+        : p,
     );
+    persistProfiles(nextProfiles);
+    setEditingProfileId(null);
+    setEditName("");
+    setEditIcon("");
+  };
+
+  const deleteProfileById = (profileId: string) => {
+    if (dashboardProfiles.length <= 1) return;
+    const currentSnapshot =
+      activeProfile && activeProfile.id !== profileId
+        ? buildProfileSnapshot(activeProfile.id, activeProfile.name, activeProfile.icon)
+        : null;
+    const nextProfiles = (
+      currentSnapshot
+        ? dashboardProfiles.map((p) =>
+            p.id === currentSnapshot.id ? currentSnapshot : p,
+          )
+        : dashboardProfiles
+    ).filter((p) => p.id !== profileId);
     const nextActive = nextProfiles[0];
     if (!nextActive) return;
     applyProfileState(nextActive);
     persistProfiles(nextProfiles, nextActive.id, nextActive);
-    setProfileMenuOpen(false);
+    if (editingProfileId === profileId) {
+      setEditingProfileId(null);
+      setEditName("");
+      setEditIcon("");
+      setPendingDelete(false);
+    }
   };
+
+  const reorderProfile = (profileId: string, targetIndex: number) => {
+    const sourceIndex = dashboardProfiles.findIndex((p) => p.id === profileId);
+    if (sourceIndex < 0 || sourceIndex === targetIndex) return;
+    const next = [...dashboardProfiles];
+    const [moved] = next.splice(sourceIndex, 1);
+    next.splice(targetIndex, 0, moved);
+    persistProfiles(next);
+  };
+
+  const clearProfileDrag = useCallback(() => {
+    setDraggedProfileId(null);
+    setDragOverProfileSlot(null);
+    dragOverProfileSlotRef.current = null;
+    setProfileDragGhost(null);
+    setProfileDragActive(false);
+    profileDragRef.current.moved = false;
+    profileDragTargetRef.current = null;
+  }, []);
+
+  const getProfilePreviewAtSlot = useCallback(
+    (
+      slot: number,
+      draggedProfile: DashboardProfile | null,
+      sourceIndex: number | null,
+    ): DashboardProfile | null => {
+      if (
+        !draggedProfile ||
+        dragOverProfileSlot === null ||
+        sourceIndex === null
+      ) {
+        return null;
+      }
+      if (slot !== dragOverProfileSlot || slot === sourceIndex) return null;
+      return draggedProfile;
+    },
+    [dragOverProfileSlot],
+  );
+
+  const getProfileSlotFromPoint = useCallback(
+    (clientX: number, clientY: number) => {
+      const element = document.elementFromPoint(clientX, clientY);
+      const slotElement = element?.closest<HTMLElement>("[data-profile-slot]");
+      if (!slotElement) return null;
+      const slot = Number(slotElement.dataset.profileSlot);
+      return Number.isInteger(slot) &&
+        slot >= 0 &&
+        slot < dashboardProfiles.length
+        ? slot
+        : null;
+    },
+    [dashboardProfiles.length],
+  );
+
+  const startProfileEdit = useCallback((profile: DashboardProfile) => {
+    setEditingProfileId(profile.id);
+    setEditName(profile.name);
+    setEditIcon(profile.icon);
+    setPendingDelete(false);
+  }, []);
+
+  const handleProfileCardPointerDown = (
+    event: PointerEvent<HTMLButtonElement>,
+    profile: DashboardProfile,
+    index: number,
+  ) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    profileDragRef.current = {
+      moved: false,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+    setDraggedProfileId(profile.id);
+    setDragOverProfileSlot(index);
+    dragOverProfileSlotRef.current = index;
+    setProfileDragActive(false);
+    setProfileDragGhost(null);
+    profileDragTargetRef.current = { profile, index };
+  };
+
+  const handleProfileCardPointerMove = (
+    event: PointerEvent<HTMLButtonElement>,
+  ) => {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    const { startX, startY } = profileDragRef.current;
+    if (Math.hypot(event.clientX - startX, event.clientY - startY) > 8) {
+      if (!profileDragRef.current.moved) {
+        profileDragRef.current.moved = true;
+        setProfileDragActive(true);
+      }
+    }
+    if (profileDragRef.current.moved) {
+      setProfileDragGhost({ x: event.clientX, y: event.clientY });
+    }
+    const slot = getProfileSlotFromPoint(event.clientX, event.clientY);
+    if (slot !== null) {
+      dragOverProfileSlotRef.current = slot;
+      setDragOverProfileSlot(slot);
+    }
+  };
+
+  const handleProfileCardPointerUp = (
+    event: PointerEvent<HTMLButtonElement>,
+    profile: DashboardProfile,
+    index: number,
+  ) => {
+    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    if (profileDragActive) return;
+    const slot =
+      getProfileSlotFromPoint(event.clientX, event.clientY) ??
+      dragOverProfileSlot ??
+      index;
+    if (!profileDragRef.current.moved && slot === index) {
+      startProfileEdit(profile);
+      clearProfileDrag();
+      return;
+    }
+    if (slot !== null) {
+      reorderProfile(profile.id, slot);
+    }
+    clearProfileDrag();
+  };
+
+  const handleProfileCardPointerCancel = (
+    event: PointerEvent<HTMLButtonElement>,
+  ) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    clearProfileDrag();
+  };
+
+  const confirmDeleteProfile = () => {
+    if (!editingProfileId) return;
+    deleteProfileById(editingProfileId);
+    setPendingDelete(false);
+  };
+
+  useEffect(() => {
+    if (!editingProfiles) {
+      clearProfileDrag();
+      setPendingDelete(false);
+    }
+  }, [clearProfileDrag, editingProfiles]);
+
+  useEffect(() => {
+    setPendingDelete(false);
+  }, [editingProfileId]);
+
+  useEffect(() => {
+    if (!profileDragActive) return;
+
+    const handleWindowPointerMove = (event: globalThis.PointerEvent) => {
+      setProfileDragGhost({ x: event.clientX, y: event.clientY });
+      const slot = getProfileSlotFromPoint(event.clientX, event.clientY);
+      if (slot !== null) {
+        dragOverProfileSlotRef.current = slot;
+        setDragOverProfileSlot(slot);
+      }
+    };
+
+    const finishWindowDrag = (event: globalThis.PointerEvent) => {
+      const target = profileDragTargetRef.current;
+      if (!target) return;
+      const { profile, index } = target;
+      const slot =
+        getProfileSlotFromPoint(event.clientX, event.clientY) ??
+        dragOverProfileSlotRef.current ??
+        index;
+      if (!profileDragRef.current.moved && slot === index) {
+        startProfileEdit(profile);
+      } else if (profileDragRef.current.moved && slot !== null) {
+        reorderProfile(profile.id, slot);
+      }
+      clearProfileDrag();
+    };
+
+    window.addEventListener("pointermove", handleWindowPointerMove);
+    window.addEventListener("pointerup", finishWindowDrag);
+    window.addEventListener("pointercancel", finishWindowDrag);
+    return () => {
+      window.removeEventListener("pointermove", handleWindowPointerMove);
+      window.removeEventListener("pointerup", finishWindowDrag);
+      window.removeEventListener("pointercancel", finishWindowDrag);
+    };
+  }, [
+    clearProfileDrag,
+    getProfileSlotFromPoint,
+    profileDragActive,
+    startProfileEdit,
+  ]);
 
   const updateWeatherSettings = (value: {
     location?: WeatherLocation;
@@ -979,6 +1333,7 @@ export function App() {
               aria-label="Ajustes"
               title="Ajustes"
               onClick={() => {
+                closeProfileMenu();
                 setSettingsOpen(true);
               }}
             />
@@ -987,42 +1342,60 @@ export function App() {
                 type="button"
                 className="profile-trigger"
                 aria-expanded={profileMenuOpen}
-                onClick={() => setProfileMenuOpen((open) => !open)}
+                onClick={() => {
+                  setProfileMenuOpen((open) => !open);
+                }}
               >
-                <span className="profile-trigger-icon" aria-hidden="true" />
+                {activeProfile?.icon ? (
+                  <span className="profile-trigger-emoji" aria-hidden="true">
+                    <ProfileIcon
+                      icon={activeProfile.icon}
+                      imageClassName="profile-icon-image profile-icon-image--trigger"
+                      fallback={<ProfilePersonIcon />}
+                    />
+                  </span>
+                ) : (
+                  <span className="profile-trigger-icon" aria-hidden="true" />
+                )}
                 <strong>{activeProfile?.name ?? "Padrao"}</strong>
               </button>
               {profileMenuOpen && (
-                <div className="profile-menu">
-                  <div className="profile-menu-list">
+                <div className="profile-menu" role="dialog" aria-label="Selecionar perfil">
+                  <div className="profile-menu-header">
+                    <span>Perfis</span>
+                    <button
+                      type="button"
+                      className="profile-menu-save-btn"
+                      onClick={() => {
+                        closeProfileMenu();
+                        setEditingProfiles(true);
+                      }}
+                    >
+                      Editar
+                    </button>
+                  </div>
+                  <div className="profile-card-grid">
                     {dashboardProfiles.map((profile) => (
                       <button
                         key={profile.id}
                         type="button"
                         className={
-                          profile.id === activeProfileId ? "selected" : ""
+                          profile.id === activeProfileId
+                            ? "profile-card active"
+                            : "profile-card"
                         }
                         onClick={() => applyDashboardProfile(profile.id)}
                       >
-                        <span>{profile.name}</span>
-                        {profile.id === activeProfileId && <strong>Ativo</strong>}
+                        <div className="profile-card-icon">
+                          <ProfileIcon
+                            icon={profile.icon}
+                            imageClassName="profile-icon-image profile-icon-image--card"
+                            fallback={<ProfilePersonIcon />}
+                          />
+                        </div>
+                        <span className="profile-card-name">{profile.name}</span>
                       </button>
                     ))}
-                  </div>
-                  <div className="profile-menu-actions">
-                    <button type="button" onClick={saveActiveDashboardProfile}>
-                      Salvar atual
-                    </button>
-                    <button type="button" onClick={createDashboardProfile}>
-                      Novo perfil
-                    </button>
-                    <button
-                      type="button"
-                      disabled={dashboardProfiles.length <= 1}
-                      onClick={deleteActiveDashboardProfile}
-                    >
-                      Excluir
-                    </button>
                   </div>
                 </div>
               )}
@@ -1055,51 +1428,6 @@ export function App() {
           </div>
         </header>
       )}
-      {false && !compactLayout && <header className="topbar">
-        <div>
-          <span className="eyebrow">MILLENNIUM</span>
-          <h1>Millennium Desk</h1>
-        </div>
-        <div className="topbar-actions">
-          {display && (
-            <span className="display-chip">
-              {display.label} · {Math.round(display.scaleFactor * 100)}%
-            </span>
-          )}
-          <button
-            className="button"
-            onClick={async () => {
-              const value =
-                await window.electronControl.window.toggleFullscreen();
-              setFullscreen(value);
-            }}
-          >
-            Tela cheia
-          </button>
-          <button className="button" onClick={() => void enterEditMode()}>
-            Editar grid
-          </button>
-          <button
-            className="icon-button"
-            onClick={() => {
-              setSettingsOpen(false);
-              setModuleSettings(null);
-              setLogsOpen(true);
-            }}
-          >
-            Erros
-          </button>
-          <button
-            className="icon-button"
-            onClick={() => {
-              setLogsOpen(false);
-              setSettingsOpen(true);
-            }}
-          >
-            Configuracoes
-          </button>
-        </div>
-      </header>}
 
       <section className={editMode ? "canvas editing" : "canvas"}>
         {renderedLayouts.map((layout) => (
@@ -1162,6 +1490,16 @@ export function App() {
           </aside>
         )}
       </section>
+
+      {profileMenuOpen && (
+        <button
+          type="button"
+          className="profile-menu-scrim"
+          style={{ top: compactLayout ? 0 : HEADER_HEIGHT }}
+          aria-label="Fechar selecao de perfis"
+          onClick={closeProfileMenu}
+        />
+      )}
 
       <AnimatePresence>
         {overlayOpen && (
@@ -1436,6 +1774,471 @@ export function App() {
               )}
             </motion.aside>
           </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {editingProfiles && (
+          <motion.div
+            className="profile-config-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <button
+              type="button"
+              className="profile-config-backdrop"
+              onClick={() => {
+                if (emojiPickerOpen) return;
+                setEditingProfiles(false);
+                setEditingProfileId(null);
+                setEditName("");
+                setEditIcon("");
+                closeEmojiPicker();
+              }}
+            />
+            <motion.div
+              className="profile-config-modal profile-config-modal--manager"
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+            >
+              <div className="profile-config-header">
+                <h3>{editingProfileId ? "Editar perfil" : "Gerenciar perfis"}</h3>
+                <button
+                  type="button"
+                  className="profile-config-close"
+                  onClick={() => {
+                    setEditingProfiles(false);
+                    setEditingProfileId(null);
+                    setEditName("");
+                    setEditIcon("");
+                    closeEmojiPicker();
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
+              {editingProfileId ? (
+                <div className="profile-manager-edit">
+                  <div className="profile-manager-edit-top">
+                    <button
+                      type="button"
+                      className="profile-manager-edit-icon profile-manager-edit-icon-button"
+                      aria-label="Escolher icone"
+                      title="Escolher icone"
+                      onClick={openEmojiPicker}
+                    >
+                      <ProfileIcon
+                        icon={editIcon}
+                        imageClassName="profile-icon-image profile-icon-image--edit"
+                        fallback={(
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6.5 7-6.5s7 3 7 6.5"/></svg>
+                        )}
+                      />
+                    </button>
+                    <input
+                      className="profile-manager-name-input"
+                      value={editName}
+                      autoFocus
+                      onChange={(e) => setEditName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") saveProfileEdit();
+                        if (e.key === "Escape") {
+                          if (emojiPickerOpen) {
+                            closeEmojiPicker();
+                            return;
+                          }
+                          if (pendingDelete) {
+                            setPendingDelete(false);
+                            return;
+                          }
+                          setEditingProfileId(null);
+                          setEditName("");
+                          setEditIcon("");
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="profile-manager-edit-actions">
+                    <button
+                      type="button"
+                      className="profile-config-cancel-btn"
+                      onClick={() => {
+                        closeEmojiPicker();
+                        setEditingProfileId(null);
+                        setEditName("");
+                        setEditIcon("");
+                        setPendingDelete(false);
+                      }}
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      type="button"
+                      className="profile-config-save-btn"
+                      onClick={saveProfileEdit}
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                  {dashboardProfiles.length > 1 && (
+                    <div className="profile-manager-delete-zone">
+                      {pendingDelete ? (
+                        <div className="profile-manager-delete-confirm">
+                          <p>Excluir o perfil &quot;{editName.trim() || "sem nome"}&quot;?</p>
+                          <div className="profile-manager-delete-confirm-actions">
+                            <button
+                              type="button"
+                              className="profile-config-cancel-btn"
+                              onClick={() => setPendingDelete(false)}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              className="profile-manager-delete-confirm-btn"
+                              onClick={confirmDeleteProfile}
+                            >
+                              Sim, excluir
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="profile-manager-delete-trigger"
+                          onClick={() => setPendingDelete(true)}
+                        >
+                          Excluir perfil
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    const draggedProfile =
+                      draggedProfileId !== null
+                        ? (dashboardProfiles.find(
+                            (profile) => profile.id === draggedProfileId,
+                          ) ?? null)
+                        : null;
+                    const draggedProfileSourceIndex =
+                      draggedProfileId !== null
+                        ? dashboardProfiles.findIndex(
+                            (profile) => profile.id === draggedProfileId,
+                          )
+                        : null;
+                    const isProfileDragging =
+                      profileDragActive && draggedProfileId !== null;
+
+                    return (
+                      <>
+                        <div
+                          className={[
+                            "profile-manager-grid",
+                            isProfileDragging
+                              ? "profile-manager-grid--dragging"
+                              : "",
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        >
+                          {dashboardProfiles.map((profile, index) => {
+                            const isDragging = draggedProfileId === profile.id;
+                            const previewProfile = getProfilePreviewAtSlot(
+                              index,
+                              draggedProfile,
+                              draggedProfileSourceIndex,
+                            );
+                            const isDropTarget =
+                              isProfileDragging &&
+                              dragOverProfileSlot === index &&
+                              !isDragging;
+                            const isSourceSlot =
+                              isProfileDragging &&
+                              draggedProfileSourceIndex === index;
+
+                            return (
+                              <div
+                                key={profile.id}
+                                data-profile-slot={index}
+                                className={[
+                                  "profile-manager-slot",
+                                  isDropTarget
+                                    ? "profile-manager-slot--drop-target"
+                                    : "",
+                                  isSourceSlot
+                                    ? "profile-manager-slot--source"
+                                    : "",
+                                ]
+                                  .filter(Boolean)
+                                  .join(" ")}
+                              >
+                                {isDragging && isProfileDragging && (
+                                  <div
+                                    className="profile-manager-slot-placeholder"
+                                    aria-hidden="true"
+                                  />
+                                )}
+                                <button
+                                  type="button"
+                                  className={[
+                                    "profile-card",
+                                    "profile-manager-card",
+                                    profile.id === activeProfileId ? "active" : "",
+                                    isDragging && isProfileDragging ? "dragging" : "",
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" ")}
+                                  onPointerDown={(event) =>
+                                    handleProfileCardPointerDown(
+                                      event,
+                                      profile,
+                                      index,
+                                    )
+                                  }
+                                  onPointerMove={handleProfileCardPointerMove}
+                                  onPointerUp={(event) =>
+                                    handleProfileCardPointerUp(
+                                      event,
+                                      profile,
+                                      index,
+                                    )
+                                  }
+                                  onPointerCancel={handleProfileCardPointerCancel}
+                                >
+                                  {renderProfileManagerCardContent(profile)}
+                                </button>
+                                {previewProfile && (
+                                  <div
+                                    className="profile-card profile-manager-card profile-manager-card--preview"
+                                    aria-hidden="true"
+                                  >
+                                    {renderProfileManagerCardContent(previewProfile)}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {profileDragGhost && draggedProfile && isProfileDragging && (
+                          <div
+                            className="profile-manager-drag-ghost"
+                            style={{
+                              left: profileDragGhost.x,
+                              top: profileDragGhost.y,
+                            }}
+                            aria-hidden="true"
+                          >
+                            <div className="profile-card profile-manager-card profile-manager-card--ghost">
+                              {renderProfileManagerCardContent(draggedProfile)}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                  <p className="profile-manager-hint">
+                    Arraste para reordenar. Toque para editar.
+                  </p>
+                  <button
+                    type="button"
+                    className="profile-manager-add"
+                    onClick={() => {
+                      const id = `profile-${Date.now().toString(36)}`;
+                      setEditingProfileId(id);
+                      setEditName("Novo perfil");
+                      setEditIcon("⭐");
+                      const snapshot = buildProfileSnapshot(id, "Novo perfil", "⭐");
+                      const currentSnapshot = activeProfile
+                        ? buildProfileSnapshot(activeProfile.id, activeProfile.name, activeProfile.icon)
+                        : null;
+                      const nextProfiles = [
+                        ...(currentSnapshot
+                          ? dashboardProfiles.map((p) =>
+                              p.id === currentSnapshot.id ? currentSnapshot : p,
+                            )
+                          : dashboardProfiles),
+                        snapshot,
+                      ];
+                      persistProfiles(nextProfiles, id, snapshot);
+                    }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                    <span>Novo perfil</span>
+                  </button>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {emojiPickerOpen && (
+          <motion.div
+            className="profile-emoji-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <button
+              type="button"
+              className="profile-emoji-backdrop"
+              aria-label="Fechar selecao de emoji"
+              onClick={closeEmojiPicker}
+            />
+            <motion.div
+              className="profile-emoji-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="profile-emoji-title"
+              initial={{ opacity: 0, scale: 0.95, y: 12 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 12 }}
+              transition={{ duration: 0.15, ease: "easeOut" }}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="profile-config-header">
+                <h3 id="profile-emoji-title">Escolher icone</h3>
+                <button
+                  type="button"
+                  className="profile-config-close"
+                  aria-label="Fechar"
+                  onClick={closeEmojiPicker}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
+              <div className="profile-emoji-preview" aria-hidden="true">
+                <ProfileIcon
+                  icon={emojiPickerDraft}
+                  imageClassName="profile-icon-image profile-icon-image--preview"
+                  fallback={(
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 20c0-3.5 3.1-6.5 7-6.5s7 3 7 6.5"/></svg>
+                  )}
+                />
+              </div>
+              <div className="profile-config-emoji-grid">
+                {PROFILE_EMOJIS.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className={
+                      emojiPickerDraft === emoji
+                        ? "profile-config-emoji selected"
+                        : "profile-config-emoji"
+                    }
+                    onClick={() => {
+                      setEmojiPickerError(null);
+                      setEmojiPickerDraft(emoji);
+                    }}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+                <label
+                  className={[
+                    "profile-config-emoji",
+                    "profile-config-emoji-custom",
+                    isCustomTextProfileIcon(emojiPickerDraft) ? "selected" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  title="Win + . para inserir emoji"
+                >
+                  <input
+                    ref={customEmojiInputRef}
+                    type="text"
+                    className="profile-config-emoji-input"
+                    aria-label="Emoji personalizado"
+                    placeholder="＋"
+                    value={
+                      isCustomTextProfileIcon(emojiPickerDraft)
+                        ? emojiPickerDraft
+                        : ""
+                    }
+                    onChange={(event) => {
+                      setEmojiPickerError(null);
+                      setEmojiPickerDraft(takeProfileEmoji(event.target.value));
+                    }}
+                  />
+                </label>
+                <label
+                  className={[
+                    "profile-config-emoji",
+                    "profile-config-emoji-image",
+                    isProfileIconImage(emojiPickerDraft) ? "selected" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
+                  title="Enviar imagem"
+                >
+                  <input
+                    ref={profileIconImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="profile-config-emoji-file"
+                    aria-label="Enviar imagem"
+                    onChange={(event) => {
+                      void handleProfileIconImageUpload(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="m21 16-5.5-5.5L5 21"/></svg>
+                </label>
+                <button
+                  type="button"
+                  className={
+                    emojiPickerDraft === ""
+                      ? "profile-config-emoji selected"
+                      : "profile-config-emoji"
+                  }
+                  aria-label="Sem icone"
+                  title="Sem icone"
+                  onClick={() => {
+                    setEmojiPickerError(null);
+                    setEmojiPickerDraft("");
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </button>
+              </div>
+              <button
+                type="button"
+                className="profile-config-image-upload"
+                onClick={() => profileIconImageInputRef.current?.click()}
+              >
+                Enviar imagem personalizada
+              </button>
+              {emojiPickerError && (
+                <p className="profile-config-emoji-error">{emojiPickerError}</p>
+              )}
+              <p className="profile-config-emoji-hint">
+                Emoji via Win + . ou envie uma imagem (ate 2 MB)
+              </p>
+              <div className="profile-emoji-actions">
+                <button
+                  type="button"
+                  className="profile-config-cancel-btn"
+                  onClick={closeEmojiPicker}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="profile-config-save-btn"
+                  onClick={confirmEmojiPicker}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </main>
