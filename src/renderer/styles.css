@@ -5073,6 +5073,58 @@ button.task-persistent-pill:hover {
     align-items: flex-end;
     gap: 2px;
   }
+
+  /* Modulo estreito: metricas empilhadas em coluna unica */
+  .system-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: repeat(4, minmax(0, 1fr));
+  }
+
+  .system-grid .system-row {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .system-grid .system-row:last-child {
+    border-bottom: 0;
+  }
+
+  .system-row--metric {
+    position: relative;
+    align-content: center;
+  }
+
+  .system-row--metric .system-row-top,
+  .system-row--metric small {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* A barra de progresso vira o preenchimento de fundo do item */
+  .system-row-track {
+    position: absolute;
+    z-index: 0;
+    inset: 0;
+    height: auto;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .system-row-track > span {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--accent) 12%, transparent),
+      color-mix(in srgb, var(--accent) 32%, transparent)
+    );
+  }
+
+  .system-row--warn .system-row-track > span {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, #f0a060 16%, transparent),
+      color-mix(in srgb, #f08a4b 38%, transparent)
+    );
+  }
 }
 
 .module-edit-controls {
