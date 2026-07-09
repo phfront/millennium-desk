@@ -60,7 +60,7 @@ export const collectModulesInLayout = (node: LayoutNode | null): ModuleId[] => {
 };
 
 /** Limites proporcionais ao arrastar divisores da grid. */
-export const GRID_MIN_ROW_RATIO = 0.2;
+export const GRID_MIN_ROW_RATIO = 0.1;
 export const GRID_MIN_COLUMN_RATIO = 0.1;
 export const GRID_MIN_VIEWPORT_HEIGHT = 480;
 export const WEATHER_LAYOUT_MAX_RATIO = 0.45;

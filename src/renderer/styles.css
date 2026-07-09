@@ -5248,6 +5248,38 @@ button.task-persistent-pill:hover {
   mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Cpath d='M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm5 11H7v-2h10v2z'/%3E%3C/svg%3E");
 }
 
+/* Card estreito em edicao: botoes empilhados na vertical para caber tudo */
+@container (max-width: 220px) {
+  .module-edit-controls {
+    gap: 8px;
+    width: calc(100% - 8px);
+  }
+
+  .module-edit-eyebrow {
+    font-size: 16px;
+  }
+
+  .module-edit-title {
+    display: none;
+  }
+
+  .module-edit-toolbar {
+    flex-direction: column;
+    gap: 8px;
+    padding: 6px;
+  }
+
+  .module-edit-icon-button {
+    width: 44px;
+    height: 44px;
+  }
+
+  .module-edit-icon-button::before {
+    width: 19px;
+    height: 19px;
+  }
+}
+
 .hidden-modules-tray {
   position: absolute;
   z-index: 10;
