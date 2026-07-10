@@ -25,6 +25,11 @@ const formatReset = (isoDate: string | null) => {
   return `reseta ${day} ${time}`;
 };
 
+const SHORT_LABELS: Partial<Record<ClaudeUsageLimit["kind"], string>> = {
+  session: "5h",
+  weekly_all: "7d",
+};
+
 function LimitRow({ limit }: { limit: ClaudeUsageLimit }) {
   const tone = limit.percent >= 80 ? "warn" : "accent";
   const reset = formatReset(limit.resetsAt);
@@ -32,9 +37,9 @@ function LimitRow({ limit }: { limit: ClaudeUsageLimit }) {
   return (
     <div
       className={`claude-limit claude-limit--${tone}`}
-      title={reset ?? undefined}
+      title={[limit.label, reset].filter(Boolean).join(" — ")}
     >
-      <span>{limit.label}</span>
+      <span>{SHORT_LABELS[limit.kind] ?? limit.label}</span>
       <strong>{limit.percent}%</strong>
       <div className="claude-limit-track" aria-hidden>
         <span style={{ transform: `scaleX(${limit.percent / 100})` }} />

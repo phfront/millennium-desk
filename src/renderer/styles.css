@@ -5130,17 +5130,28 @@ button.task-persistent-pill:hover {
 
 .claude-limit-grid {
   display: grid;
-  gap: 10px;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  /* Ultima coluna maior: o nome do modelo e mais largo que 5h/7d */
+  grid-template-columns: 1fr 1fr 1.3fr;
 }
 
+/* Label e porcentagem na mesma linha; a barra preenche o fundo do item. */
 .claude-limit {
-  display: grid;
-  gap: 2px;
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
   min-width: 0;
+  padding: 3px 6px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
 .claude-limit > span {
+  position: relative;
+  z-index: 1;
   overflow: hidden;
   color: var(--muted-fg);
   font-size: 9px;
@@ -5151,35 +5162,54 @@ button.task-persistent-pill:hover {
 }
 
 .claude-limit > strong {
-  font-size: 13px;
+  position: relative;
+  z-index: 1;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.2;
 }
 
 .claude-limit-track {
-  overflow: hidden;
-  height: 4px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  position: absolute;
+  z-index: 0;
+  inset: 0;
 }
 
 .claude-limit-track > span {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: inherit;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent) 80%, white),
-    var(--accent)
+    color-mix(in srgb, var(--accent) 12%, transparent),
+    color-mix(in srgb, var(--accent) 32%, transparent)
   );
   transform-origin: left center;
   transition: transform 450ms ease;
 }
 
 .claude-limit--warn .claude-limit-track > span {
-  background: linear-gradient(90deg, #f0a060, #f08a4b);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, #f0a060 16%, transparent),
+    color-mix(in srgb, #f08a4b 38%, transparent)
+  );
+}
+
+/* Modulo estreito: some o rotulo, sobra a porcentagem sobre a barra */
+@container (max-width: 210px) {
+  .claude-module .claude-limit-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .claude-module .claude-limit {
+    justify-content: center;
+  }
+
+  .claude-module .claude-limit > span {
+    display: none;
+  }
 }
 
 @container (max-width: 260px) {
