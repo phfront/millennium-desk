@@ -58,12 +58,22 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
     minute: "2-digit",
     timeZone,
   }).format(now);
-  const weekday = new Intl.DateTimeFormat("pt-BR", {
-    weekday: "short",
+  const capitalize = (value: string) =>
+    value.charAt(0).toUpperCase() + value.slice(1);
+  const weekday = capitalize(
+    new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone })
+      .format(now)
+      .replace(".", ""),
+  );
+  const fullDate = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
     timeZone,
   })
-    .format(now)
-    .replace(".", "");
+    .formatToParts(now)
+    .map((part) => (part.type === "month" ? capitalize(part.value) : part.value))
+    .join("");
 
   const visual = forecast
     ? getWeatherVisual(forecast.current.weatherCode)
@@ -88,7 +98,10 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
       <div className="weather-place-main">
         <div className="weather-place-time">
           <strong>{time}</strong>
-          <span>{weekday}</span>
+          <span>
+            <span className="weather-place-weekday">{weekday} · </span>
+            {fullDate}
+          </span>
         </div>
         <div className="weather-place-name">
           <strong>{location.name}</strong>

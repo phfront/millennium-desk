@@ -3835,21 +3835,24 @@ button.task-persistent-pill:hover {
 .weather-place-time {
   display: flex;
   align-items: baseline;
-  flex: 0 0 auto;
-  gap: 5px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .weather-place-time strong {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.15;
+  line-height: 1.1;
 }
 
 .weather-place-time span {
+  overflow: hidden;
+  min-width: 0;
   color: var(--weather-muted-fg);
   font-size: 10px;
-  text-transform: capitalize;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .weather-place-temp {
@@ -3867,7 +3870,8 @@ button.task-persistent-pill:hover {
 }
 
 @container (max-width: 250px) {
-  .weather-place-name span {
+  .weather-place-name span,
+  .weather-place-weekday {
     display: none;
   }
 
