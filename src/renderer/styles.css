@@ -5578,8 +5578,9 @@ button.task-persistent-pill:hover {
 }
 
 .quotes-asset-toggle {
-  display: grid;
-  gap: 1px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   padding: 7px 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -5589,13 +5590,19 @@ button.task-persistent-pill:hover {
   text-align: left;
 }
 
+.quotes-asset-toggle-text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
 .quotes-asset-toggle strong {
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.04em;
 }
 
-.quotes-asset-toggle span {
+.quotes-asset-toggle-text > span {
   overflow: hidden;
   color: var(--muted-fg);
   font-size: 10px;

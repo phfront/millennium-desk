@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { QuoteAssetOption } from "../../../shared/contracts";
+import { QuoteAssetIcon } from "./QuoteAssetIcon";
 import {
   QUOTE_ASSETS,
   QUOTE_DISPLAY_CURRENCIES,
@@ -155,8 +156,11 @@ export function QuotesSettingsPanel({
                 }
                 onClick={() => toggleAsset(asset.code)}
               >
-                <strong>{asset.code}</strong>
-                <span>{asset.label}</span>
+                <QuoteAssetIcon code={asset.code} />
+                <span className="quotes-asset-toggle-text">
+                  <strong>{asset.code}</strong>
+                  <span>{asset.label}</span>
+                </span>
               </button>
             );
           })}
