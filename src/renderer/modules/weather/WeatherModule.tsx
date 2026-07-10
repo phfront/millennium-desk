@@ -89,30 +89,32 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
           : location.name
       }
     >
+      <div className="weather-place-top">
+        <div className="weather-place-time">
+          <strong>{time}</strong>
+          <span>{weekday}</span>
+        </div>
+        <div className="weather-place-temp">
+          {forecast ? (
+            <>
+              <WeatherIcon
+                code={forecast.current.weatherCode}
+                isDay={forecast.current.isDay}
+                size={28}
+              />
+              <strong>
+                {round(forecast.current.temperature)}
+                {forecast.temperatureUnit}
+              </strong>
+            </>
+          ) : (
+            <strong>—</strong>
+          )}
+        </div>
+      </div>
       <div className="weather-place-name">
         <strong>{location.name}</strong>
         <span>{formatLocation(location)}</span>
-      </div>
-      <div className="weather-place-time">
-        <strong>{time}</strong>
-        <span>{weekday}</span>
-      </div>
-      <div className="weather-place-temp">
-        {forecast ? (
-          <>
-            <WeatherIcon
-              code={forecast.current.weatherCode}
-              isDay={forecast.current.isDay}
-              size={30}
-            />
-            <strong>
-              {round(forecast.current.temperature)}
-              {forecast.temperatureUnit}
-            </strong>
-          </>
-        ) : (
-          <strong>—</strong>
-        )}
       </div>
     </div>
   );
