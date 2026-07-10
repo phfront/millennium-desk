@@ -373,7 +373,10 @@ export const createEmbeddedWebView = (config: EmbeddedWebViewConfig) => {
       session: embeddedSession,
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false,
+      // Sandbox do SO ligado: conteudo remoto (YouTube/Spotify) nao deve
+      // acessar o filesystem nem com exploit de renderer. Widevine roda em
+      // processo utilitario proprio e nao depende do sandbox do renderer.
+      sandbox: true,
       autoplayPolicy: "no-user-gesture-required",
     },
   });
