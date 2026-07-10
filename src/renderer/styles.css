@@ -3726,7 +3726,7 @@ button.task-persistent-pill:hover {
   flex: 1 0 auto;
   gap: 10px;
   min-width: 0;
-  padding: 7px 14px;
+  padding: 5px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
   background: linear-gradient(
     115deg,
@@ -3749,7 +3749,7 @@ button.task-persistent-pill:hover {
 .weather-place-main {
   display: grid;
   flex: 1;
-  gap: 2px;
+  gap: 0;
   min-width: 0;
 }
 
@@ -3813,6 +3813,7 @@ button.task-persistent-pill:hover {
   align-items: baseline;
   gap: 6px;
   min-width: 0;
+  line-height: 1.2;
 }
 
 .weather-place-name strong {
@@ -3836,15 +3837,16 @@ button.task-persistent-pill:hover {
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1;
 }
 
 .weather-place-date {
   overflow: hidden;
   min-width: 0;
-  color: var(--weather-accent);
+  color: var(--weather-fg);
   font-size: 11px;
   font-weight: 650;
+  line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3870,7 +3872,7 @@ button.task-persistent-pill:hover {
   }
 
   .weather-place {
-    padding: 6px 10px;
+    padding: 4px 10px;
   }
 }
 
