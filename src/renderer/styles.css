@@ -3682,54 +3682,49 @@ button.task-persistent-pill:hover {
 
 /* Outros locais salvos: linhas coladas num unico bloco de vidro,
    separadas apenas pela divisoria — cabem todos sem sobrar espaco. */
-/* Sem overflow:hidden — no grid do stage ele zera a contribuicao minima
-   do item e o bloco colapsa; o arredondamento fica nas proprias linhas. */
-.weather-places {
+/* Modulo de clima em lista: cada linha e um local, coladas sem gaps,
+   com o fundo refletindo o horario e o tempo do proprio local. */
+.weather-list-body {
   display: flex;
+  flex: 1;
   flex-direction: column;
-  width: 100%;
-  min-width: 0;
-  border: 1px solid var(--weather-glass-border);
-  border-radius: 13px;
-  background: var(--weather-glass);
-  backdrop-filter: blur(14px);
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: auto;
 }
 
 .weather-place {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  flex: 1 0 auto;
+  gap: 10px;
   min-width: 0;
-  padding: 3px 10px;
-  border: 0;
-  border-bottom: 1px solid var(--weather-glass-border);
-  background: transparent;
-  color: var(--weather-fg);
-  cursor: pointer;
-  text-align: left;
-}
-
-.weather-place:first-child {
-  border-radius: 12px 12px 0 0;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(
+    115deg,
+    var(--wp-start, var(--surface-muted)),
+    var(--wp-end, var(--surface-muted))
+  );
+  color: var(--wp-fg, var(--text));
 }
 
 .weather-place:last-child {
   border-bottom: 0;
-  border-radius: 0 0 12px 12px;
 }
 
 .weather-place-name {
-  display: flex;
-  align-items: baseline;
+  display: grid;
   flex: 1;
-  gap: 5px;
+  gap: 0;
   min-width: 0;
 }
 
 .weather-place-name strong {
   overflow: hidden;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.01em;
   text-overflow: ellipsis;
@@ -3738,29 +3733,29 @@ button.task-persistent-pill:hover {
 
 .weather-place-name span {
   overflow: hidden;
-  color: var(--weather-muted-fg);
-  font-size: 9px;
+  color: var(--wp-muted, var(--muted-fg));
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .weather-place-time {
-  display: flex;
-  align-items: baseline;
+  display: grid;
   flex: 0 0 auto;
-  gap: 4px;
+  gap: 0;
+  justify-items: end;
 }
 
 .weather-place-time strong {
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.2;
+  line-height: 1.15;
 }
 
 .weather-place-time span {
-  color: var(--weather-muted-fg);
-  font-size: 9px;
+  color: var(--wp-muted, var(--muted-fg));
+  font-size: 10px;
   text-transform: capitalize;
 }
 
@@ -3768,13 +3763,13 @@ button.task-persistent-pill:hover {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 3px;
-  min-width: 52px;
+  gap: 5px;
+  min-width: 62px;
   justify-content: flex-end;
 }
 
 .weather-place-temp strong {
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -3782,6 +3777,10 @@ button.task-persistent-pill:hover {
 @container (max-width: 250px) {
   .weather-place-name span {
     display: none;
+  }
+
+  .weather-place {
+    padding: 6px 10px;
   }
 }
 

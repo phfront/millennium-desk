@@ -514,7 +514,17 @@ if (!window.electronControl) {
       getForecast: async (location, temperatureUnit): Promise<WeatherForecast> => {
         const now = new Date();
         const unitOffset = temperatureUnit === "fahrenheit" ? 40 : 0;
-        const temperature = temperatureUnit === "fahrenheit" ? 73 : 23;
+        const localHour = Number(
+          new Intl.DateTimeFormat("en-US", {
+            hour: "numeric",
+            hour12: false,
+            timeZone: location.timezone,
+          }).format(now),
+        );
+        const isDay = localHour >= 6 && localHour < 18;
+        const weatherCode = [0, 2, 61, 95][location.id % 4];
+        const temperature =
+          (temperatureUnit === "fahrenheit" ? 55 : 12) + (location.id % 17);
         return {
           location,
           temperatureUnit: temperatureUnit === "fahrenheit" ? "°F" : "°C",
@@ -526,8 +536,8 @@ if (!window.electronControl) {
             apparentTemperature: temperature + 1,
             humidity: 68,
             precipitationProbability: 18,
-            weatherCode: 2,
-            isDay: true,
+            weatherCode,
+            isDay,
             windSpeed: 12,
           },
           hourly: Array.from({ length: 24 }, (_, index) => ({
