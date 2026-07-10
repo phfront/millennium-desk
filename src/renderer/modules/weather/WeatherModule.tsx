@@ -96,13 +96,11 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
         <WeatherBackdrop tone={visual.tone} isDay={isDay} compact />
       )}
       <div className="weather-place-main">
-        <div className="weather-place-time">
-          <strong>{time}</strong>
-          <span>
-            <span className="weather-place-weekday">{weekday} · </span>
-            {fullDate}
-          </span>
-        </div>
+        <strong className="weather-place-time">{time}</strong>
+        <span className="weather-place-date">
+          <span className="weather-place-weekday">{weekday} · </span>
+          {fullDate}
+        </span>
         <div className="weather-place-name">
           <strong>{location.name}</strong>
           <span>{formatLocation(location)}</span>
