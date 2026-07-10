@@ -5105,6 +5105,7 @@ button.task-persistent-pill:hover {
 .claude-account-name {
   display: flex;
   align-items: baseline;
+  justify-content: center;
   gap: 6px;
   min-width: 0;
   padding: 2px 10px;
