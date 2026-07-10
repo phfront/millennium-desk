@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from "react";
-import { createRainDrops } from "./rainDrops";
+import { createRainDrops, createSnowFlakes } from "./rainDrops";
 
 const STAR_COORDS = [
   "12% 18%", "28% 42%", "44% 12%", "61% 28%", "78% 8%",
@@ -29,9 +29,13 @@ export function WeatherBackdrop({
   const rainDrops = useMemo(
     () =>
       createRainDrops(
-        compact ? (tone === "storm" ? 52 : 32) : tone === "storm" ? 96 : 60,
+        compact ? (tone === "storm" ? 260 : 140) : tone === "storm" ? 600 : 300,
       ),
     [compact, tone],
+  );
+  const snowFlakes = useMemo(
+    () => (showSnow ? createSnowFlakes(compact ? 144 : 270) : []),
+    [compact, showSnow],
   );
   const starCoords = compact ? STAR_COORDS.slice(0, 8) : STAR_COORDS;
 
@@ -92,12 +96,40 @@ export function WeatherBackdrop({
         </div>
       )}
       {showSnow && (
+        <div className="weather-scene-snow">
+          {snowFlakes.map((flake, index) => (
+            <span
+              key={index}
+              className="weather-snow-flake"
+              style={
+                {
+                  "--d": flake.d,
+                  "--a": flake.a,
+                  "--x": flake.x,
+                  "--o": flake.o,
+                  "--s": flake.s,
+                  "--w": flake.w,
+                  "--wd": flake.wd,
+                  "--wp": flake.wp,
+                } as CSSProperties
+              }
+            />
+          ))}
+        </div>
+      )}
+      {showStormFlash && (
         <>
-          <div className="weather-scene-snow snow-a" />
-          <div className="weather-scene-snow snow-b" />
+          <div className="weather-scene-flash" />
+          <svg className="weather-scene-bolt bolt-a" viewBox="0 0 60 120" aria-hidden="true">
+            <path d="M32 0 L22 40 L34 36 L20 78 L30 74 L16 118" />
+            <path d="M27 52 L12 70" />
+          </svg>
+          <svg className="weather-scene-bolt bolt-b" viewBox="0 0 60 120" aria-hidden="true">
+            <path d="M32 0 L22 40 L34 36 L20 78 L30 74 L16 118" />
+            <path d="M27 52 L12 70" />
+          </svg>
         </>
       )}
-      {showStormFlash && <div className="weather-scene-flash" />}
     </div>
   );
 }
