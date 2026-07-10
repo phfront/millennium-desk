@@ -1,11 +1,12 @@
-import { memo, useEffect, useState, type CSSProperties } from "react";
+import { memo, useEffect, useState } from "react";
 import type {
   TemperatureUnit,
   WeatherForecast,
   WeatherLocation,
 } from "../../../shared/contracts";
+import { WeatherBackdrop } from "./WeatherBackdrop";
 import { WeatherIcon } from "./WeatherIcon";
-import { getWeatherPlacePalette, getWeatherVisual } from "./weatherCodes";
+import { getWeatherVisual } from "./weatherCodes";
 
 const round = (value: number) => Math.round(value);
 
@@ -13,8 +14,8 @@ const formatLocation = (location: WeatherLocation) =>
   [location.region, location.country].filter(Boolean).join(", ");
 
 /**
- * Linha de um local: hora local ao vivo, dia e temperatura, com o fundo
- * refletindo o horario (dia/noite) e o tempo do proprio local.
+ * Linha de um local: hora local ao vivo, dia e temperatura, com a cena
+ * animada refletindo o horario (dia/noite) e o tempo do proprio local.
  */
 const WeatherPlaceRow = memo(function WeatherPlaceRow({
   location,
@@ -67,28 +68,23 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
   const visual = forecast
     ? getWeatherVisual(forecast.current.weatherCode)
     : null;
-  const palette = visual
-    ? getWeatherPlacePalette(visual.tone, forecast?.current.isDay !== false)
-    : null;
-  const style = palette
-    ? ({
-        "--wp-start": palette.start,
-        "--wp-end": palette.end,
-        "--wp-fg": palette.fg,
-        "--wp-muted": palette.mutedFg,
-      } as CSSProperties)
-    : undefined;
+  const isDay = forecast?.current.isDay !== false;
+  const rowClassName = [
+    "weather-place",
+    isDay ? "weather-day" : "weather-night",
+    visual ? `weather-tone-${visual.tone}` : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <div
-      className="weather-place"
-      style={style}
-      title={
-        visual
-          ? `${location.name} — ${visual.label}`
-          : location.name
-      }
+      className={rowClassName}
+      title={visual ? `${location.name} — ${visual.label}` : location.name}
     >
+      {visual && (
+        <WeatherBackdrop tone={visual.tone} isDay={isDay} compact />
+      )}
       <div className="weather-place-top">
         <div className="weather-place-time">
           <strong>{time}</strong>

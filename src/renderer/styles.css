@@ -2927,7 +2927,8 @@ button.task-persistent-pill:hover {
   color: var(--weather-fg);
 }
 
-.weather-body.weather-day {
+.weather-body.weather-day,
+.weather-place.weather-day {
   --weather-fg: #12243a;
   --weather-muted-fg: rgba(18, 36, 58, 0.68);
   --weather-glass: rgba(255, 255, 255, 0.58);
@@ -2956,7 +2957,8 @@ button.task-persistent-pill:hover {
   display: none;
 }
 
-.weather-body.weather-day.weather-tone-clear {
+.weather-body.weather-day.weather-tone-clear,
+.weather-place.weather-day.weather-tone-clear {
   --weather-accent: #c87800;
   --weather-glow: rgba(255, 210, 90, 0.55);
   --weather-bg-start: #5eb3f0;
@@ -2964,7 +2966,8 @@ button.task-persistent-pill:hover {
   --weather-bg-end: #3a8fd4;
 }
 
-.weather-body.weather-day.weather-tone-cloud {
+.weather-body.weather-day.weather-tone-cloud,
+.weather-place.weather-day.weather-tone-cloud {
   --weather-accent: #1a6fad;
   --weather-glow: rgba(180, 215, 245, 0.45);
   --weather-bg-start: #8eb4cc;
@@ -2972,14 +2975,16 @@ button.task-persistent-pill:hover {
   --weather-bg-end: #6a95b5;
 }
 
-.weather-body.weather-day.weather-tone-rain {
+.weather-body.weather-day.weather-tone-rain,
+.weather-place.weather-day.weather-tone-rain {
   --weather-accent: #1a5f8f;
   --weather-glow: rgba(120, 175, 220, 0.4);
   --weather-bg-start: #6a8faa;
   --weather-bg-end: #4d7088;
 }
 
-.weather-body.weather-day.weather-tone-storm {
+.weather-body.weather-day.weather-tone-storm,
+.weather-place.weather-day.weather-tone-storm {
   --weather-accent: #d4c8ff;
   --weather-glow: rgba(140, 120, 200, 0.35);
   --weather-bg-start: #6a6a8a;
@@ -2991,21 +2996,24 @@ button.task-persistent-pill:hover {
   --weather-card: rgba(24, 22, 42, 0.44);
 }
 
-.weather-body.weather-day.weather-tone-snow {
+.weather-body.weather-day.weather-tone-snow,
+.weather-place.weather-day.weather-tone-snow {
   --weather-accent: #3d6f86;
   --weather-glow: rgba(220, 240, 250, 0.5);
   --weather-bg-start: #a8c0d0;
   --weather-bg-end: #88a8b8;
 }
 
-.weather-body.weather-day.weather-tone-fog {
+.weather-body.weather-day.weather-tone-fog,
+.weather-place.weather-day.weather-tone-fog {
   --weather-accent: #3f5562;
   --weather-glow: rgba(200, 210, 215, 0.4);
   --weather-bg-start: #9aa8b0;
   --weather-bg-end: #7a8890;
 }
 
-.weather-body.weather-night {
+.weather-body.weather-night,
+.weather-place.weather-night {
   --weather-fg: #f8fbff;
   --weather-muted-fg: rgba(240, 247, 255, 0.72);
   --weather-bg-start: #17274b;
@@ -3026,7 +3034,8 @@ button.task-persistent-pill:hover {
   display: none;
 }
 
-.weather-body.weather-night.weather-tone-clear {
+.weather-body.weather-night.weather-tone-clear,
+.weather-place.weather-night.weather-tone-clear {
   --weather-accent: #a9b8ff;
   --weather-glow: rgba(105, 126, 230, 0.3);
   --weather-bg-start: #1c2850;
@@ -3034,7 +3043,8 @@ button.task-persistent-pill:hover {
   --weather-card: rgba(25, 33, 65, 0.78);
 }
 
-.weather-body.weather-night.weather-tone-cloud {
+.weather-body.weather-night.weather-tone-cloud,
+.weather-place.weather-night.weather-tone-cloud {
   --weather-accent: #78c4ff;
   --weather-glow: rgba(112, 184, 239, 0.28);
   --weather-bg-start: #243d5a;
@@ -3042,7 +3052,8 @@ button.task-persistent-pill:hover {
   --weather-card: rgba(35, 52, 72, 0.78);
 }
 
-.weather-body.weather-night.weather-tone-rain {
+.weather-body.weather-night.weather-tone-rain,
+.weather-place.weather-night.weather-tone-rain {
   --weather-accent: #66b8ff;
   --weather-glow: rgba(47, 119, 184, 0.38);
   --weather-bg-start: #183652;
@@ -3050,7 +3061,8 @@ button.task-persistent-pill:hover {
   --weather-card: rgba(17, 41, 63, 0.8);
 }
 
-.weather-body.weather-night.weather-tone-storm {
+.weather-body.weather-night.weather-tone-storm,
+.weather-place.weather-night.weather-tone-storm {
   --weather-accent: #b7a7ff;
   --weather-glow: rgba(112, 83, 194, 0.4);
   --weather-bg-start: #292647;
@@ -3058,7 +3070,8 @@ button.task-persistent-pill:hover {
   --weather-card: rgba(35, 31, 61, 0.82);
 }
 
-.weather-body.weather-night.weather-tone-snow {
+.weather-body.weather-night.weather-tone-snow,
+.weather-place.weather-night.weather-tone-snow {
   --weather-accent: #d9f2ff;
   --weather-glow: rgba(205, 236, 249, 0.35);
   --weather-bg-start: #607a8b;
@@ -3066,7 +3079,8 @@ button.task-persistent-pill:hover {
   --weather-card: rgba(74, 98, 113, 0.72);
 }
 
-.weather-body.weather-night.weather-tone-fog {
+.weather-body.weather-night.weather-tone-fog,
+.weather-place.weather-night.weather-tone-fog {
   --weather-accent: #cbd8dc;
   --weather-glow: rgba(190, 207, 213, 0.28);
   --weather-bg-start: #53636c;
@@ -3266,11 +3280,13 @@ button.task-persistent-pill:hover {
   transform-origin: center top;
 }
 
-.weather-body.weather-day .weather-rain-drop path {
+.weather-body.weather-day .weather-rain-drop path,
+.weather-place.weather-day .weather-rain-drop path {
   fill: #6f95a8;
 }
 
-.weather-body.weather-night .weather-rain-drop path {
+.weather-body.weather-night .weather-rain-drop path,
+.weather-place.weather-night .weather-rain-drop path {
   fill: #a1c6cc;
 }
 
@@ -3695,7 +3711,16 @@ button.task-persistent-pill:hover {
 }
 
 .weather-place {
+  --weather-accent: #72bfff;
+  --weather-glow: rgba(72, 160, 255, 0.32);
+  --weather-bg-start: #4a9fd4;
+  --weather-bg-end: #2d7ab5;
+  --weather-bg-shift: #6eb8ea;
+  --weather-fg: #f8fbff;
+  --weather-muted-fg: rgba(240, 247, 255, 0.72);
+  position: relative;
   display: grid;
+  overflow: hidden;
   align-content: center;
   flex: 1 0 auto;
   gap: 2px;
@@ -3704,14 +3729,75 @@ button.task-persistent-pill:hover {
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
   background: linear-gradient(
     115deg,
-    var(--wp-start, var(--surface-muted)),
-    var(--wp-end, var(--surface-muted))
+    var(--weather-bg-start),
+    var(--weather-bg-end)
   );
-  color: var(--wp-fg, var(--text));
+  color: var(--weather-fg);
 }
 
 .weather-place:last-child {
   border-bottom: 0;
+}
+
+.weather-place-top,
+.weather-place-name {
+  position: relative;
+  z-index: 1;
+}
+
+/* Cena animada em miniatura dentro da linha */
+.weather-place .weather-scene-cloud {
+  filter: blur(7px);
+}
+
+.weather-place .weather-scene-cloud.cloud-a {
+  top: 16%;
+  width: 90px;
+  height: 26px;
+}
+
+.weather-place .weather-scene-cloud.cloud-b {
+  top: 48%;
+  width: 120px;
+  height: 32px;
+}
+
+.weather-place .weather-scene-cloud.cloud-c {
+  top: 4%;
+  width: 64px;
+  height: 20px;
+}
+
+.weather-place .weather-scene-orb {
+  top: 12%;
+  right: 26%;
+  width: 34px;
+  height: 34px;
+}
+
+.weather-place .weather-scene-sun {
+  box-shadow: 0 0 24px rgba(255, 210, 90, 0.5);
+}
+
+.weather-place .weather-scene-glow {
+  top: -40%;
+  right: -4%;
+  width: 120px;
+  height: 120px;
+}
+
+.weather-place .weather-scene-mist span {
+  height: 60%;
+  filter: blur(10px);
+}
+
+.weather-place .weather-rain-drop {
+  width: 3px;
+  height: 16px;
+}
+
+.weather-place .weather-scene-snow {
+  background-size: 26px 26px;
 }
 
 .weather-place-top {
@@ -3740,7 +3826,7 @@ button.task-persistent-pill:hover {
 
 .weather-place-name span {
   overflow: hidden;
-  color: var(--wp-muted, var(--muted-fg));
+  color: var(--weather-muted-fg);
   font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3761,7 +3847,7 @@ button.task-persistent-pill:hover {
 }
 
 .weather-place-time span {
-  color: var(--wp-muted, var(--muted-fg));
+  color: var(--weather-muted-fg);
   font-size: 10px;
   text-transform: capitalize;
 }

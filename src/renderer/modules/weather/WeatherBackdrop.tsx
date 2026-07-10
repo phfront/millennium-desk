@@ -13,18 +13,25 @@ const RAIN_DROP_PATH =
 export function WeatherBackdrop({
   tone,
   isDay,
+  compact = false,
 }: {
   tone: "clear" | "cloud" | "rain" | "storm" | "snow" | "fog";
   isDay: boolean;
+  /** Cena reduzida para linhas pequenas: menos gotas e estrelas. */
+  compact?: boolean;
 }) {
   const showRain = tone === "rain" || tone === "storm";
   const showSnow = tone === "snow";
   const showFog = tone === "fog" || tone === "cloud";
   const showStormFlash = tone === "storm";
   const rainDrops = useMemo(
-    () => createRainDrops(tone === "storm" ? 58 : 44),
-    [tone],
+    () =>
+      createRainDrops(
+        compact ? (tone === "storm" ? 26 : 18) : tone === "storm" ? 58 : 44,
+      ),
+    [compact, tone],
   );
+  const starCoords = compact ? STAR_COORDS.slice(0, 8) : STAR_COORDS;
 
   return (
     <div className="weather-scene" aria-hidden="true">
@@ -42,7 +49,7 @@ export function WeatherBackdrop({
       </div>
       {!isDay && (
         <div className="weather-scene-stars">
-          {STAR_COORDS.map((position) => (
+          {starCoords.map((position) => (
             <span
               key={position}
               style={{ left: position.split(" ")[0], top: position.split(" ")[1] }}
