@@ -329,31 +329,57 @@ if (!window.electronControl) {
       }),
     },
     claude: {
-      listSessions: async () => ({
-        sessions: [
+      getUsage: async () => ({
+        accounts: [
           {
-            id: "preview-1",
             account: "arktech",
-            projectName: "electron-control",
-            projectPath: "C:\\projects\\pedro\\electron-control",
-            title: "Modulo de sessoes do Claude no dashboard",
-            gitBranch: "main",
-            lastActivityAt: new Date(Date.now() - 30_000).toISOString(),
-            active: true,
-            contextTokens: 114_000,
-            contextPercent: 57,
+            subscriptionType: "pro",
+            error: null,
+            limits: [
+              {
+                kind: "session" as const,
+                label: "Sessao",
+                percent: 22,
+                resetsAt: new Date(Date.now() + 3 * 3_600_000).toISOString(),
+              },
+              {
+                kind: "weekly_all" as const,
+                label: "Semana",
+                percent: 16,
+                resetsAt: new Date(Date.now() + 4 * 86_400_000).toISOString(),
+              },
+              {
+                kind: "weekly_scoped" as const,
+                label: "Fable",
+                percent: 24,
+                resetsAt: new Date(Date.now() + 4 * 86_400_000).toISOString(),
+              },
+            ],
           },
           {
-            id: "preview-2",
             account: "quadra",
-            projectName: "quadra-frontend",
-            projectPath: "C:\\projects\\quadra\\quadra-frontend",
-            title: "Ajustes no fluxo de pedidos",
-            gitBranch: "main",
-            lastActivityAt: new Date(Date.now() - 90 * 60_000).toISOString(),
-            active: false,
-            contextTokens: 172_000,
-            contextPercent: 86,
+            subscriptionType: "max",
+            error: null,
+            limits: [
+              {
+                kind: "session" as const,
+                label: "Sessao",
+                percent: 87,
+                resetsAt: new Date(Date.now() + 40 * 60_000).toISOString(),
+              },
+              {
+                kind: "weekly_all" as const,
+                label: "Semana",
+                percent: 54,
+                resetsAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+              },
+            ],
+          },
+          {
+            account: "tecpet",
+            subscriptionType: "pro",
+            error: "Token expirado — abra o claude dessa conta.",
+            limits: [],
           },
         ],
       }),

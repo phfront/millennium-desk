@@ -96,21 +96,22 @@ export interface SystemStatus {
   };
 }
 
-export interface ClaudeSession {
-  id: string;
-  account: string;
-  projectName: string;
-  projectPath: string | null;
-  title: string | null;
-  gitBranch: string | null;
-  lastActivityAt: string;
-  active: boolean;
-  contextTokens: number | null;
-  contextPercent: number | null;
+export interface ClaudeUsageLimit {
+  kind: "session" | "weekly_all" | "weekly_scoped";
+  label: string;
+  percent: number;
+  resetsAt: string | null;
 }
 
-export interface ClaudeSessionsSnapshot {
-  sessions: ClaudeSession[];
+export interface ClaudeAccountUsage {
+  account: string;
+  subscriptionType: string | null;
+  error: string | null;
+  limits: ClaudeUsageLimit[];
+}
+
+export interface ClaudeUsageSnapshot {
+  accounts: ClaudeAccountUsage[];
 }
 
 export type DashboardLayoutNode =
@@ -327,7 +328,7 @@ export interface ElectronControlApi {
     getStatus(): Promise<SystemStatus>;
   };
   claude: {
-    listSessions(): Promise<ClaudeSessionsSnapshot>;
+    getUsage(): Promise<ClaudeUsageSnapshot>;
   };
   shortcuts: {
     list(): Promise<ShortcutItem[]>;

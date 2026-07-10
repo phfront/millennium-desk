@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
-import { listClaudeSessions } from "../services/claudeSessionsService";
+import { getClaudeUsage } from "../services/claudeUsageService";
 
 export const registerClaudeIpc = () => {
-  ipcMain.handle("claude:list-sessions", () => listClaudeSessions());
+  ipcMain.handle("claude:get-usage", () => getClaudeUsage());
 };

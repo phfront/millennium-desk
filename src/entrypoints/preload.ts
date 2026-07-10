@@ -54,7 +54,7 @@ const api: ElectronControlApi = {
     getStatus: () => ipcRenderer.invoke("system:get-status"),
   },
   claude: {
-    listSessions: () => ipcRenderer.invoke("claude:list-sessions"),
+    getUsage: () => ipcRenderer.invoke("claude:get-usage"),
   },
   shortcuts: {
     list: () => ipcRenderer.invoke("shortcuts:list"),
