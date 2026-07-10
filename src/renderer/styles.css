@@ -3743,7 +3743,11 @@ button.task-persistent-pill:hover {
 /* Tipografia estilo Apple Weather: texto sempre claro, mesmo nas cenas de dia. */
 .weather-place.weather-day {
   --weather-fg: #ffffff;
-  --weather-muted-fg: rgba(226, 242, 255, 0.82);
+  --weather-muted-fg: rgba(250, 253, 255, 0.95);
+}
+
+.weather-place.weather-night {
+  --weather-muted-fg: rgba(248, 252, 255, 0.92);
 }
 
 /* Cenas de dia mais profundas e com veu escuro sutil p/ contraste do branco. */
