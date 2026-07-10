@@ -3746,6 +3746,50 @@ button.task-persistent-pill:hover {
   --weather-muted-fg: rgba(226, 242, 255, 0.82);
 }
 
+/* Cenas de dia mais profundas e com veu escuro sutil p/ contraste do branco. */
+.weather-place.weather-day::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(9, 30, 56, 0.22),
+    rgba(9, 30, 56, 0.12)
+  );
+  pointer-events: none;
+}
+
+.weather-place.weather-day.weather-tone-clear {
+  --weather-bg-start: #3b92dd;
+  --weather-bg-shift: #65b1ea;
+  --weather-bg-end: #2268ad;
+}
+
+.weather-place.weather-day.weather-tone-cloud {
+  --weather-bg-start: #6f96b3;
+  --weather-bg-shift: #87abc4;
+  --weather-bg-end: #4e7392;
+}
+
+.weather-place.weather-day.weather-tone-rain {
+  --weather-bg-start: #547d99;
+  --weather-bg-shift: #6a90a9;
+  --weather-bg-end: #3a5a75;
+}
+
+.weather-place.weather-day.weather-tone-snow {
+  --weather-bg-start: #86a5bb;
+  --weather-bg-shift: #9db8ca;
+  --weather-bg-end: #5f8095;
+}
+
+.weather-place.weather-day.weather-tone-fog {
+  --weather-bg-start: #7e909c;
+  --weather-bg-shift: #93a3ad;
+  --weather-bg-end: #5c6d78;
+}
+
 .weather-place:last-child {
   border-bottom: 0;
 }
