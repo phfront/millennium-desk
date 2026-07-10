@@ -3680,40 +3680,56 @@ button.task-persistent-pill:hover {
   font-weight: 650;
 }
 
-/* Outros locais salvos: hora local, dia e temperatura; toque promove */
+/* Outros locais salvos: linhas coladas num unico bloco de vidro,
+   separadas apenas pela divisoria — cabem todos sem sobrar espaco. */
+/* Sem overflow:hidden — no grid do stage ele zera a contribuicao minima
+   do item e o bloco colapsa; o arredondamento fica nas proprias linhas. */
 .weather-places {
-  display: grid;
-  gap: 6px;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   min-width: 0;
+  border: 1px solid var(--weather-glass-border);
+  border-radius: 13px;
+  background: var(--weather-glass);
+  backdrop-filter: blur(14px);
 }
 
 .weather-place {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   min-width: 0;
-  padding: 6px 10px;
-  border: 1px solid var(--weather-glass-border);
-  border-radius: 13px;
-  background: var(--weather-glass);
-  backdrop-filter: blur(14px);
+  padding: 3px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--weather-glass-border);
+  background: transparent;
   color: var(--weather-fg);
   cursor: pointer;
   text-align: left;
 }
 
+.weather-place:first-child {
+  border-radius: 12px 12px 0 0;
+}
+
+.weather-place:last-child {
+  border-bottom: 0;
+  border-radius: 0 0 12px 12px;
+}
+
 .weather-place-name {
-  display: grid;
+  display: flex;
+  align-items: baseline;
   flex: 1;
-  gap: 0;
+  gap: 5px;
   min-width: 0;
 }
 
 .weather-place-name strong {
   overflow: hidden;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.01em;
   text-overflow: ellipsis;
@@ -3729,17 +3745,17 @@ button.task-persistent-pill:hover {
 }
 
 .weather-place-time {
-  display: grid;
+  display: flex;
+  align-items: baseline;
   flex: 0 0 auto;
-  justify-items: end;
-  gap: 0;
+  gap: 4px;
 }
 
 .weather-place-time strong {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  line-height: 1.1;
+  line-height: 1.2;
 }
 
 .weather-place-time span {
@@ -3752,13 +3768,13 @@ button.task-persistent-pill:hover {
   display: flex;
   align-items: center;
   flex: 0 0 auto;
-  gap: 4px;
-  min-width: 58px;
+  gap: 3px;
+  min-width: 52px;
   justify-content: flex-end;
 }
 
 .weather-place-temp strong {
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -5378,6 +5394,13 @@ button.task-persistent-pill:hover {
   white-space: nowrap;
 }
 
+.quote-value strong em {
+  color: var(--muted-fg);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 600;
+}
+
 .quote-change {
   font-size: 10px;
   font-weight: 700;
@@ -5408,9 +5431,58 @@ button.task-persistent-pill:hover {
     font-size: 12px;
   }
 
+  .quotes-module .quote-value strong em {
+    display: none;
+  }
+
   .quotes-module .quote-change {
     font-size: 9px;
   }
+}
+
+.quotes-currency-picker {
+  flex-wrap: wrap;
+}
+
+.quotes-asset-grid {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+}
+
+.quotes-asset-toggle {
+  display: grid;
+  gap: 1px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.quotes-asset-toggle strong {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.quotes-asset-toggle span {
+  overflow: hidden;
+  color: var(--muted-fg);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quotes-asset-toggle.selected {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: var(--accent-soft);
+}
+
+.quotes-asset-toggle.selected strong {
+  color: var(--accent);
 }
 
 /* Modulo estreito: some o rotulo, sobra a porcentagem sobre a barra */

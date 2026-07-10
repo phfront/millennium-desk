@@ -11,6 +11,12 @@ import type {
   WeatherLocation,
 } from "../../shared/contracts";
 import { isMediaAppId, type MediaAppId } from "../../shared/mediaApps";
+import {
+  DEFAULT_QUOTE_ASSETS,
+  DEFAULT_QUOTE_DISPLAY_CURRENCIES,
+  isQuoteAssetCode,
+  isQuoteDisplayCurrency,
+} from "../../shared/quotes";
 import { getDatabase, getDatabasePath } from "../database";
 
 const LEGACY_SETTINGS_FILE = "settings.json";
@@ -33,8 +39,26 @@ export const DEFAULT_SETTINGS: AppSettings = {
   activeMediaApp: null,
   hiddenMediaAppIds: [],
   shortcutGrid: { columns: 4, rows: 2 },
+  quoteAssets: DEFAULT_QUOTE_ASSETS,
+  quoteDisplayCurrencies: DEFAULT_QUOTE_DISPLAY_CURRENCIES,
   activeProfileId: DEFAULT_PROFILE_ID,
   dashboardProfiles: [],
+};
+
+const normalizeQuoteAssets = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return DEFAULT_SETTINGS.quoteAssets;
+  const assets = [...new Set(value.filter(isQuoteAssetCode))].slice(0, 8);
+  return assets.length > 0 ? assets : DEFAULT_SETTINGS.quoteAssets;
+};
+
+const normalizeQuoteDisplayCurrencies = (value: unknown): string[] => {
+  if (!Array.isArray(value)) return DEFAULT_SETTINGS.quoteDisplayCurrencies;
+  const currencies = [
+    ...new Set(value.filter(isQuoteDisplayCurrency)),
+  ].slice(0, 2);
+  return currencies.length > 0
+    ? currencies
+    : DEFAULT_SETTINGS.quoteDisplayCurrencies;
 };
 
 const createDefaultSettings = (): AppSettings => ({
@@ -330,6 +354,10 @@ const normalizeSettings = (value: unknown): AppSettings => {
     activeMediaApp,
     hiddenMediaAppIds,
     shortcutGrid,
+    quoteAssets: normalizeQuoteAssets(raw.quoteAssets),
+    quoteDisplayCurrencies: normalizeQuoteDisplayCurrencies(
+      raw.quoteDisplayCurrencies,
+    ),
     activeProfileId: profiles.some((profile) => profile.id === activeProfileId)
       ? activeProfileId
       : profiles[0]?.id ?? DEFAULT_PROFILE_ID,

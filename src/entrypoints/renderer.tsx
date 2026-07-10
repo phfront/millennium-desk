@@ -62,6 +62,8 @@ if (!window.electronControl) {
     activeMediaApp: null,
     hiddenMediaAppIds: [],
     shortcutGrid: { columns: 4, rows: 2 },
+    quoteAssets: ["USD", "EUR", "BTC"],
+    quoteDisplayCurrencies: ["BRL"],
     activeProfileId: "default",
     dashboardProfiles: [
       {
@@ -385,14 +387,53 @@ if (!window.electronControl) {
       }),
     },
     quotes: {
-      get: async () => ({
-        fetchedAt: new Date().toISOString(),
-        quotes: [
-          { code: "USD", label: "Dolar", bid: 5.12, pctChange: -0.14, updatedAt: "" },
-          { code: "EUR", label: "Euro", bid: 5.85, pctChange: -0.23, updatedAt: "" },
-          { code: "BTC", label: "Bitcoin", bid: 331716, pctChange: 1.76, updatedAt: "" },
-        ],
-      }),
+      get: async (assets: string[], displayCurrencies: string[]) => {
+        const RATES_BRL: Record<string, { bid: number; pct: number }> = {
+          USD: { bid: 5.12, pct: -0.14 },
+          EUR: { bid: 5.85, pct: -0.23 },
+          GBP: { bid: 6.82, pct: 0.11 },
+          ARS: { bid: 0.0038, pct: -0.52 },
+          JPY: { bid: 0.034, pct: 0.05 },
+          CHF: { bid: 6.41, pct: 0.02 },
+          CAD: { bid: 3.74, pct: -0.09 },
+          AUD: { bid: 3.36, pct: 0.18 },
+          CNY: { bid: 0.71, pct: 0.01 },
+          BTC: { bid: 331716, pct: 1.76 },
+          ETH: { bid: 17350, pct: 2.31 },
+          XRP: { bid: 11.2, pct: -1.02 },
+          LTC: { bid: 420, pct: 0.6 },
+          DOGE: { bid: 0.62, pct: 3.4 },
+        };
+        const { getQuoteAssetLabel } = await import("../shared/quotes");
+        const displays = displayCurrencies.length
+          ? displayCurrencies
+          : ["BRL"];
+        return {
+          fetchedAt: new Date().toISOString(),
+          quotes: assets.flatMap((code) => {
+            const rate = RATES_BRL[code];
+            if (!rate) return [];
+            const currencies = displays.filter((c) => c !== code);
+            const values = (currencies.length ? currencies : ["BRL"]).flatMap(
+              (currency) =>
+                currency === "BRL"
+                  ? [{ currency, value: rate.bid }]
+                  : RATES_BRL[currency]
+                    ? [{ currency, value: rate.bid / RATES_BRL[currency].bid }]
+                    : [],
+            );
+            return values.length
+              ? [{
+                  code,
+                  label: getQuoteAssetLabel(code),
+                  values,
+                  pctChange: rate.pct,
+                  updatedAt: "",
+                }]
+              : [];
+          }),
+        };
+      },
     },
     shortcuts: {
       list: async () => browserShortcuts,

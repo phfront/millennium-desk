@@ -1,21 +1,30 @@
 import type { QuoteItem, QuotesSnapshot } from "../../shared/contracts";
+import {
+  DEFAULT_QUOTE_ASSETS,
+  DEFAULT_QUOTE_DISPLAY_CURRENCIES,
+  getQuoteAssetLabel,
+  isQuoteAssetCode,
+  isQuoteDisplayCurrency,
+} from "../../shared/quotes";
 
-const QUOTES_URL =
-  "https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL,BTC-BRL";
+const QUOTES_BASE_URL = "https://economia.awesomeapi.com.br/json/last/";
 const CACHE_TTL_MS = 5 * 60_000;
 const ERROR_RETRY_MS = 60_000;
 
-const QUOTE_LABELS: Record<string, string> = {
-  USD: "Dolar",
-  EUR: "Euro",
-  BTC: "Bitcoin",
-};
+interface RateEntry {
+  bid: number;
+  pctChange: number;
+  updatedAt: string;
+}
 
-let cache: { nextFetchAt: number; snapshot: QuotesSnapshot } | null = null;
+const cache = new Map<
+  string,
+  { nextFetchAt: number; snapshot: QuotesSnapshot }
+>();
 
-const parseQuotes = (payload: unknown): QuoteItem[] => {
-  if (!payload || typeof payload !== "object") return [];
-  const quotes: QuoteItem[] = [];
+const parseRates = (payload: unknown): Map<string, RateEntry> => {
+  const rates = new Map<string, RateEntry>();
+  if (!payload || typeof payload !== "object") return rates;
   for (const raw of Object.values(payload as Record<string, unknown>)) {
     const quote = raw as {
       code?: string;
@@ -24,45 +33,106 @@ const parseQuotes = (payload: unknown): QuoteItem[] => {
       create_date?: string;
     };
     const bid = Number(quote.bid);
+    if (!quote.code || !Number.isFinite(bid) || bid <= 0) continue;
     const pctChange = Number(quote.pctChange);
-    if (!quote.code || !Number.isFinite(bid)) continue;
-    quotes.push({
-      code: quote.code,
-      label: QUOTE_LABELS[quote.code] ?? quote.code,
+    rates.set(quote.code, {
       bid,
       pctChange: Number.isFinite(pctChange) ? pctChange : 0,
       updatedAt: quote.create_date ?? "",
     });
   }
-  return quotes;
+  return rates;
 };
 
-export const getQuotes = async (): Promise<QuotesSnapshot> => {
-  if (cache && Date.now() < cache.nextFetchAt) return cache.snapshot;
+export const getQuotes = async (
+  rawAssets: string[],
+  rawDisplayCurrencies: string[],
+): Promise<QuotesSnapshot> => {
+  const assets = (Array.isArray(rawAssets) ? rawAssets : []).filter(
+    isQuoteAssetCode,
+  );
+  const displayCurrencies = (
+    Array.isArray(rawDisplayCurrencies) ? rawDisplayCurrencies : []
+  )
+    .filter(isQuoteDisplayCurrency)
+    .slice(0, 2);
+  const effectiveAssets = assets.length > 0 ? assets : DEFAULT_QUOTE_ASSETS;
+  const effectiveDisplays =
+    displayCurrencies.length > 0
+      ? displayCurrencies
+      : DEFAULT_QUOTE_DISPLAY_CURRENCIES;
+
+  const cacheKey = `${effectiveAssets.join(",")}|${effectiveDisplays.join(",")}`;
+  const cached = cache.get(cacheKey);
+  if (cached && Date.now() < cached.nextFetchAt) return cached.snapshot;
+
+  // Tudo e cotado contra BRL numa unica chamada; exibir em outra moeda
+  // vira cambio cruzado (ex.: BTC em USD = BTC-BRL / USD-BRL).
+  const pairCodes = [
+    ...new Set([
+      ...effectiveAssets,
+      ...effectiveDisplays.filter((currency) => currency !== "BRL"),
+    ]),
+  ];
 
   try {
-    const response = await fetch(QUOTES_URL, {
+    const url = `${QUOTES_BASE_URL}${pairCodes
+      .map((code) => `${code}-BRL`)
+      .join(",")}`;
+    const response = await fetch(url, {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) {
       throw new Error(`Servico de cotacoes indisponivel (${response.status}).`);
     }
-    const quotes = parseQuotes(await response.json());
+    const rates = parseRates(await response.json());
+
+    const quotes: QuoteItem[] = [];
+    for (const asset of effectiveAssets) {
+      const rate = rates.get(asset);
+      if (!rate) continue;
+      const currencies = effectiveDisplays.filter(
+        (currency) => currency !== asset,
+      );
+      const values = (currencies.length > 0 ? currencies : ["BRL"]).flatMap(
+        (currency) => {
+          if (currency === "BRL") {
+            return [{ currency, value: rate.bid }];
+          }
+          const currencyRate = rates.get(currency);
+          return currencyRate
+            ? [{ currency, value: rate.bid / currencyRate.bid }]
+            : [];
+        },
+      );
+      if (values.length === 0) continue;
+      quotes.push({
+        code: asset,
+        label: getQuoteAssetLabel(asset),
+        values,
+        pctChange: rate.pctChange,
+        updatedAt: rate.updatedAt,
+      });
+    }
     if (quotes.length === 0) {
       throw new Error("Resposta de cotacoes vazia.");
     }
+
     const snapshot: QuotesSnapshot = {
       quotes,
       fetchedAt: new Date().toISOString(),
     };
-    cache = { nextFetchAt: Date.now() + CACHE_TTL_MS, snapshot };
+    cache.set(cacheKey, {
+      nextFetchAt: Date.now() + CACHE_TTL_MS,
+      snapshot,
+    });
     return snapshot;
   } catch (error) {
     // Mantem o ultimo dado bom e evita martelar o servico com erro.
-    if (cache) {
-      cache.nextFetchAt = Date.now() + ERROR_RETRY_MS;
-      return cache.snapshot;
+    if (cached) {
+      cached.nextFetchAt = Date.now() + ERROR_RETRY_MS;
+      return cached.snapshot;
     }
     throw error;
   }

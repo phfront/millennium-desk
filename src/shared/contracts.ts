@@ -115,10 +115,16 @@ export interface ClaudeUsageSnapshot {
   accounts: ClaudeAccountUsage[];
 }
 
+export interface QuoteValue {
+  currency: string;
+  value: number;
+}
+
 export interface QuoteItem {
   code: string;
   label: string;
-  bid: number;
+  /** Valores na(s) moeda(s) de exibicao escolhidas, em ordem. */
+  values: QuoteValue[];
   pctChange: number;
   updatedAt: string;
 }
@@ -187,6 +193,10 @@ export interface AppSettings {
   /** Apps ocultos no dock do hub de midia (permanecem estacionados em memoria). */
   hiddenMediaAppIds: MediaAppId[];
   shortcutGrid: ShortcutGridSettings;
+  /** Ativos acompanhados no modulo de cotacoes. */
+  quoteAssets: string[];
+  /** Moedas de exibicao (1 ou 2; a segunda aparece entre parenteses). */
+  quoteDisplayCurrencies: string[];
   activeProfileId: string;
   dashboardProfiles: DashboardProfile[];
 }
@@ -345,7 +355,10 @@ export interface ElectronControlApi {
     getUsage(): Promise<ClaudeUsageSnapshot>;
   };
   quotes: {
-    get(): Promise<QuotesSnapshot>;
+    get(
+      assets: string[],
+      displayCurrencies: string[],
+    ): Promise<QuotesSnapshot>;
   };
   shortcuts: {
     list(): Promise<ShortcutItem[]>;

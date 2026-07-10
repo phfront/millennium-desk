@@ -58,7 +58,11 @@ import {
 import { MediaModule, MediaModuleSettingsPanel } from "./modules/media";
 import { SystemModule } from "./modules/system";
 import { ClaudeModule } from "./modules/claude";
-import { QuotesModule } from "./modules/quotes";
+import { QuotesModule, QuotesSettingsPanel } from "./modules/quotes";
+import {
+  DEFAULT_QUOTE_ASSETS,
+  DEFAULT_QUOTE_DISPLAY_CURRENCIES,
+} from "../shared/quotes";
 import {
   WeatherModule,
   WeatherSettingsPanel,
@@ -216,6 +220,12 @@ export function App() {
   >([]);
   const [weatherTemperatureUnit, setWeatherTemperatureUnit] =
     useState<TemperatureUnit>("celsius");
+  const [quoteAssets, setQuoteAssets] = useState<string[]>(
+    DEFAULT_QUOTE_ASSETS,
+  );
+  const [quoteDisplayCurrencies, setQuoteDisplayCurrencies] = useState<
+    string[]
+  >(DEFAULT_QUOTE_DISPLAY_CURRENCIES);
   const [display, setDisplay] = useState<DisplayInfo | null>(null);
   const [displays, setDisplays] = useState<DisplayInfo[]>([]);
   const [layoutTree, setLayoutTree] = useState<LayoutNode | null>(
@@ -357,6 +367,12 @@ export function App() {
             : [activeLocation],
         );
         setWeatherTemperatureUnit(settings.weatherTemperatureUnit);
+        if (settings.quoteAssets?.length) {
+          setQuoteAssets(settings.quoteAssets);
+        }
+        if (settings.quoteDisplayCurrencies?.length) {
+          setQuoteDisplayCurrencies(settings.quoteDisplayCurrencies);
+        }
         setShortcutGrid(settings.shortcutGrid);
         const validHiddenModules = settings.hiddenModuleIds
           .map((id) => (id === "spotify" ? "media" : id))
@@ -1247,6 +1263,22 @@ export function App() {
     [weatherLocation, weatherSavedLocations, weatherTemperatureUnit],
   );
 
+  const updateQuotesSettings = useCallback(
+    (value: { assets?: string[]; displayCurrencies?: string[] }) => {
+      if (value.assets) setQuoteAssets(value.assets);
+      if (value.displayCurrencies) {
+        setQuoteDisplayCurrencies(value.displayCurrencies);
+      }
+      void window.electronControl.settings.update({
+        ...(value.assets ? { quoteAssets: value.assets } : {}),
+        ...(value.displayCurrencies
+          ? { quoteDisplayCurrencies: value.displayCurrencies }
+          : {}),
+      });
+    },
+    [],
+  );
+
   const changeWeatherLocation = useCallback(
     (nextLocation: WeatherLocation) =>
       updateWeatherSettings({ location: nextLocation }),
@@ -1302,7 +1334,12 @@ export function App() {
       case "claude":
         return <ClaudeModule />;
       case "quotes":
-        return <QuotesModule />;
+        return (
+          <QuotesModule
+            assets={quoteAssets}
+            displayCurrencies={quoteDisplayCurrencies}
+          />
+        );
       case "shortcuts":
         return (
           <ShortcutsModule
@@ -1590,6 +1627,8 @@ export function App() {
                           ? "Midia"
                           : moduleSettings === "shortcuts"
                             ? "Atalhos"
+                            : moduleSettings === "quotes"
+                              ? "Cotacoes"
                           : "Configuracoes"}
                   </h2>
                 </div>
@@ -1794,6 +1833,13 @@ export function App() {
                     </button>
                   </section>
                 </>
+              )}
+              {moduleSettings === "quotes" && (
+                <QuotesSettingsPanel
+                  assets={quoteAssets}
+                  displayCurrencies={quoteDisplayCurrencies}
+                  onChange={updateQuotesSettings}
+                />
               )}
               {moduleSettings === "weather" && (
                 <WeatherSettingsPanel

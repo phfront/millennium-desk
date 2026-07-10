@@ -3,12 +3,12 @@ import type { QuoteItem, QuotesSnapshot } from "../../../shared/contracts";
 
 const REFRESH_INTERVAL_MS = 5 * 60_000;
 
-const formatBid = (quote: QuoteItem) =>
-  quote.bid.toLocaleString("pt-BR", {
+const formatValue = (value: number, currency: string) =>
+  value.toLocaleString("pt-BR", {
     style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: quote.bid >= 1000 ? 0 : 2,
-    maximumFractionDigits: quote.bid >= 1000 ? 0 : 2,
+    currency,
+    minimumFractionDigits: value >= 1000 ? 0 : 2,
+    maximumFractionDigits: value >= 1000 ? 0 : 2,
   });
 
 const formatPct = (pctChange: number) =>
@@ -20,6 +20,7 @@ const formatPct = (pctChange: number) =>
 function QuoteRow({ quote }: { quote: QuoteItem }) {
   const trend =
     quote.pctChange > 0 ? "up" : quote.pctChange < 0 ? "down" : "flat";
+  const [primary, secondary] = quote.values;
 
   return (
     <li className="quote-row" title={quote.label}>
@@ -28,7 +29,12 @@ function QuoteRow({ quote }: { quote: QuoteItem }) {
         <small>{quote.label}</small>
       </div>
       <div className="quote-value">
-        <strong>{formatBid(quote)}</strong>
+        <strong>
+          {formatValue(primary.value, primary.currency)}
+          {secondary && (
+            <em> ({formatValue(secondary.value, secondary.currency)})</em>
+          )}
+        </strong>
         <small className={`quote-change quote-change--${trend}`}>
           {formatPct(quote.pctChange)}
         </small>
@@ -37,13 +43,21 @@ function QuoteRow({ quote }: { quote: QuoteItem }) {
   );
 }
 
-export const QuotesModule = memo(function QuotesModule() {
+export const QuotesModule = memo(function QuotesModule({
+  assets,
+  displayCurrencies,
+}: {
+  assets: string[];
+  displayCurrencies: string[];
+}) {
   const [snapshot, setSnapshot] = useState<QuotesSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadQuotes = useCallback(async () => {
     try {
-      setSnapshot(await window.electronControl.quotes.get());
+      setSnapshot(
+        await window.electronControl.quotes.get(assets, displayCurrencies),
+      );
       setError(null);
     } catch (loadError) {
       setError(
@@ -52,7 +66,7 @@ export const QuotesModule = memo(function QuotesModule() {
           : "Nao foi possivel ler as cotacoes.",
       );
     }
-  }, []);
+  }, [assets, displayCurrencies]);
 
   useEffect(() => {
     void loadQuotes();
