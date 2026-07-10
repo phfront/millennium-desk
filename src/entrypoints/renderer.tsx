@@ -384,6 +384,16 @@ if (!window.electronControl) {
         ],
       }),
     },
+    quotes: {
+      get: async () => ({
+        fetchedAt: new Date().toISOString(),
+        quotes: [
+          { code: "USD", label: "Dolar", bid: 5.12, pctChange: -0.14, updatedAt: "" },
+          { code: "EUR", label: "Euro", bid: 5.85, pctChange: -0.23, updatedAt: "" },
+          { code: "BTC", label: "Bitcoin", bid: 331716, pctChange: 1.76, updatedAt: "" },
+        ],
+      }),
+    },
     shortcuts: {
       list: async () => browserShortcuts,
       save: async (input) => {

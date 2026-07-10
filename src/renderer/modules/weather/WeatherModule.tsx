@@ -81,6 +81,93 @@ const WeatherLocalClock = memo(function WeatherLocalClock({
   );
 });
 
+// Linha compacta de outro local salvo: hora local, dia e temperatura.
+const WeatherPlaceRow = memo(function WeatherPlaceRow({
+  location,
+  temperatureUnit,
+  onSelect,
+}: {
+  location: WeatherLocation;
+  temperatureUnit: TemperatureUnit;
+  onSelect: () => void;
+}) {
+  const [forecast, setForecast] = useState<WeatherForecast | null>(null);
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      window.electronControl.weather
+        .getForecast(location, temperatureUnit)
+        .then((value) => {
+          if (alive) setForecast(value);
+        })
+        .catch(() => {
+          // Sem clima a linha ainda mostra hora e dia do local.
+        });
+    };
+    load();
+    const timer = window.setInterval(load, 30 * 60 * 1000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [location, temperatureUnit]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 10_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const timeZone = location.timezone;
+  const time = new Intl.DateTimeFormat("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone,
+  }).format(now);
+  const weekday = new Intl.DateTimeFormat("pt-BR", {
+    weekday: "short",
+    timeZone,
+  })
+    .format(now)
+    .replace(".", "");
+
+  return (
+    <button
+      type="button"
+      className="weather-place"
+      title={`Mostrar ${location.name}`}
+      onClick={onSelect}
+    >
+      <div className="weather-place-name">
+        <strong>{location.name}</strong>
+        <span>{formatLocation(location)}</span>
+      </div>
+      <div className="weather-place-time">
+        <strong>{time}</strong>
+        <span>{weekday}</span>
+      </div>
+      <div className="weather-place-temp">
+        {forecast ? (
+          <>
+            <WeatherIcon
+              code={forecast.current.weatherCode}
+              isDay={forecast.current.isDay}
+              size={26}
+            />
+            <strong>
+              {round(forecast.current.temperature)}
+              {forecast.temperatureUnit}
+            </strong>
+          </>
+        ) : (
+          <strong>—</strong>
+        )}
+      </div>
+    </button>
+  );
+});
+
 export const WeatherModule = memo(function WeatherModule({
   location,
   savedLocations,
@@ -275,6 +362,26 @@ export const WeatherModule = memo(function WeatherModule({
                   </div>
                 </div>
               </section>
+
+              {pickerLocations.filter(
+                (savedLocation) => savedLocation.id !== forecast.location.id,
+              ).length > 0 && (
+                <section className="weather-places">
+                  {pickerLocations
+                    .filter(
+                      (savedLocation) =>
+                        savedLocation.id !== forecast.location.id,
+                    )
+                    .map((savedLocation) => (
+                      <WeatherPlaceRow
+                        key={savedLocation.id}
+                        location={savedLocation}
+                        temperatureUnit={temperatureUnit}
+                        onSelect={() => onLocationChange(savedLocation)}
+                      />
+                    ))}
+                </section>
+              )}
 
               <div className="weather-metrics">
                 <div>

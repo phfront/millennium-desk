@@ -41,6 +41,7 @@ import { isMediaAppId } from "../shared/mediaApps";
 import { registerTasksIpc } from "../main/ipc/tasksIpc";
 import { registerSystemIpc } from "../main/ipc/systemIpc";
 import { registerClaudeIpc } from "../main/ipc/claudeIpc";
+import { registerQuotesIpc } from "../main/ipc/quotesIpc";
 import { stopSystemStatusWorker } from "../main/systemStatus";
 import { registerShortcutsIpc } from "../main/ipc/shortcutsIpc";
 import { registerWeatherIpc } from "../main/ipc/weatherIpc";
@@ -831,6 +832,7 @@ app.whenReady().then(async () => {
   registerWeatherIpc();
   registerSystemIpc();
   registerClaudeIpc();
+  registerQuotesIpc();
   registerShortcutsIpc();
   registerMediaIpc();
   screen.on("display-added", () => {

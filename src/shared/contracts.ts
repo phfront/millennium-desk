@@ -22,7 +22,8 @@ export type DashboardModuleId =
   | "media"
   | "system"
   | "shortcuts"
-  | "claude";
+  | "claude"
+  | "quotes";
 
 export type ShortcutType =
   | "app"
@@ -112,6 +113,19 @@ export interface ClaudeAccountUsage {
 
 export interface ClaudeUsageSnapshot {
   accounts: ClaudeAccountUsage[];
+}
+
+export interface QuoteItem {
+  code: string;
+  label: string;
+  bid: number;
+  pctChange: number;
+  updatedAt: string;
+}
+
+export interface QuotesSnapshot {
+  quotes: QuoteItem[];
+  fetchedAt: string;
 }
 
 export type DashboardLayoutNode =
@@ -329,6 +343,9 @@ export interface ElectronControlApi {
   };
   claude: {
     getUsage(): Promise<ClaudeUsageSnapshot>;
+  };
+  quotes: {
+    get(): Promise<QuotesSnapshot>;
   };
   shortcuts: {
     list(): Promise<ShortcutItem[]>;

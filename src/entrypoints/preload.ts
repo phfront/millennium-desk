@@ -56,6 +56,9 @@ const api: ElectronControlApi = {
   claude: {
     getUsage: () => ipcRenderer.invoke("claude:get-usage"),
   },
+  quotes: {
+    get: () => ipcRenderer.invoke("quotes:get"),
+  },
   shortcuts: {
     list: () => ipcRenderer.invoke("shortcuts:list"),
     save: (input: SaveShortcutInput) =>
