@@ -34,10 +34,8 @@ function LimitRow({ limit }: { limit: ClaudeUsageLimit }) {
       className={`claude-limit claude-limit--${tone}`}
       title={reset ?? undefined}
     >
-      <div className="claude-limit-top">
-        <span>{limit.label}</span>
-        <strong>{limit.percent}%</strong>
-      </div>
+      <span>{limit.label}</span>
+      <strong>{limit.percent}%</strong>
       <div className="claude-limit-track" aria-hidden>
         <span style={{ transform: `scaleX(${limit.percent / 100})` }} />
       </div>
@@ -55,9 +53,11 @@ function AccountSection({ usage }: { usage: ClaudeAccountUsage }) {
       {usage.error ? (
         <span className="claude-account-error">{usage.error}</span>
       ) : (
-        usage.limits.map((limit) => (
-          <LimitRow key={`${limit.kind}-${limit.label}`} limit={limit} />
-        ))
+        <div className="claude-limit-grid">
+          {usage.limits.map((limit) => (
+            <LimitRow key={`${limit.kind}-${limit.label}`} limit={limit} />
+          ))}
+        </div>
       )}
     </li>
   );
