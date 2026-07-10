@@ -5088,9 +5088,10 @@ button.task-persistent-pill:hover {
 
 .claude-account {
   display: grid;
-  flex: 0 0 auto;
-  gap: 5px;
-  padding: 9px 12px 10px;
+  flex: 1 0 auto;
+  align-content: center;
+  gap: 2px;
+  padding: 3px 10px 4px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -5130,7 +5131,7 @@ button.task-persistent-pill:hover {
 
 .claude-limit-grid {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   /* Ultima coluna maior: o nome do modelo e mais largo que 5h/7d */
   grid-template-columns: 1fr 1fr 1.3fr;
 }
@@ -5144,8 +5145,8 @@ button.task-persistent-pill:hover {
   justify-content: space-between;
   gap: 4px;
   min-width: 0;
-  padding: 3px 6px;
-  border-radius: 7px;
+  padding: 2px 6px;
+  border-radius: 6px;
   background: color-mix(in srgb, var(--accent) 6%, transparent);
 }
 
