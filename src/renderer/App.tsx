@@ -57,6 +57,7 @@ import {
 } from "./modules/tasks";
 import { MediaModule, MediaModuleSettingsPanel } from "./modules/media";
 import { SystemModule } from "./modules/system";
+import { ClaudeModule } from "./modules/claude";
 import {
   WeatherModule,
   WeatherSettingsPanel,
@@ -119,6 +120,7 @@ const MODULE_LABELS: Record<ModuleId, string> = {
   media: "Midia",
   system: "Sistema",
   shortcuts: "Atalhos",
+  claude: "Claude",
 };
 const MODULE_IDS = Object.keys(MODULE_LABELS) as ModuleId[];
 
@@ -1295,6 +1297,8 @@ export function App() {
         );
       case "system":
         return <SystemModule />;
+      case "claude":
+        return <ClaudeModule />;
       case "shortcuts":
         return (
           <ShortcutsModule

@@ -328,6 +328,36 @@ if (!window.electronControl) {
         },
       }),
     },
+    claude: {
+      listSessions: async () => ({
+        sessions: [
+          {
+            id: "preview-1",
+            account: "arktech",
+            projectName: "electron-control",
+            projectPath: "C:\\projects\\pedro\\electron-control",
+            title: "Modulo de sessoes do Claude no dashboard",
+            gitBranch: "main",
+            lastActivityAt: new Date(Date.now() - 30_000).toISOString(),
+            active: true,
+            contextTokens: 114_000,
+            contextPercent: 57,
+          },
+          {
+            id: "preview-2",
+            account: "quadra",
+            projectName: "quadra-frontend",
+            projectPath: "C:\\projects\\quadra\\quadra-frontend",
+            title: "Ajustes no fluxo de pedidos",
+            gitBranch: "main",
+            lastActivityAt: new Date(Date.now() - 90 * 60_000).toISOString(),
+            active: false,
+            contextTokens: 172_000,
+            contextPercent: 86,
+          },
+        ],
+      }),
+    },
     shortcuts: {
       list: async () => browserShortcuts,
       save: async (input) => {

@@ -30,7 +30,7 @@ export interface LayoutDivider {
 const normalizeLegacyModuleId = (id: string): ModuleId | null => {
   if (id === "spotify") return "media";
   if (id === "youtube") return null;
-  return ["tasks", "weather", "media", "system", "shortcuts"].includes(id)
+  return ["tasks", "weather", "media", "system", "shortcuts", "claude"].includes(id)
     ? (id as ModuleId)
     : null;
 };

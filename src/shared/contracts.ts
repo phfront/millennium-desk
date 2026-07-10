@@ -21,7 +21,8 @@ export type DashboardModuleId =
   | "weather"
   | "media"
   | "system"
-  | "shortcuts";
+  | "shortcuts"
+  | "claude";
 
 export type ShortcutType =
   | "app"
@@ -93,6 +94,23 @@ export interface SystemStatus {
     readBytesPerSec: number;
     writeBytesPerSec: number;
   };
+}
+
+export interface ClaudeSession {
+  id: string;
+  account: string;
+  projectName: string;
+  projectPath: string | null;
+  title: string | null;
+  gitBranch: string | null;
+  lastActivityAt: string;
+  active: boolean;
+  contextTokens: number | null;
+  contextPercent: number | null;
+}
+
+export interface ClaudeSessionsSnapshot {
+  sessions: ClaudeSession[];
 }
 
 export type DashboardLayoutNode =
@@ -307,6 +325,9 @@ export interface ElectronControlApi {
   };
   system: {
     getStatus(): Promise<SystemStatus>;
+  };
+  claude: {
+    listSessions(): Promise<ClaudeSessionsSnapshot>;
   };
   shortcuts: {
     list(): Promise<ShortcutItem[]>;

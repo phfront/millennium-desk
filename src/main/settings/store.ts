@@ -73,7 +73,8 @@ const normalizeDashboardModuleId = (
     value === "weather" ||
     value === "media" ||
     value === "system" ||
-    value === "shortcuts"
+    value === "shortcuts" ||
+    value === "claude"
   ) {
     return value;
   }

@@ -5055,6 +5055,164 @@ button.task-persistent-pill:hover {
   text-align: center;
 }
 
+.claude-module {
+  container-type: inline-size;
+}
+
+.claude-module .module-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0;
+  min-height: 0;
+  padding: 0;
+  overflow: auto;
+}
+
+.claude-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.claude-active-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #21b58f 16%, var(--surface));
+  color: #21b58f;
+  font-size: 10px;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.claude-session-list {
+  display: flex;
+  overflow-y: auto;
+  flex: 1;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-height: 0;
+}
+
+.claude-session {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.claude-session:last-child {
+  border-bottom: 0;
+}
+
+.claude-session--active {
+  background: color-mix(in srgb, #21b58f 6%, transparent);
+}
+
+.claude-session-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.claude-session-label {
+  display: flex;
+  overflow: hidden;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.claude-session-label strong {
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.claude-session-project {
+  overflow: hidden;
+  color: var(--muted-fg);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.claude-session-dot {
+  align-self: center;
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #21b58f;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #21b58f 25%, transparent);
+}
+
+.claude-session-value {
+  display: flex;
+  align-items: baseline;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.claude-session-value small {
+  color: var(--muted-fg);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+.claude-session-value strong {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.claude-session-track {
+  overflow: hidden;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+}
+
+.claude-session-track > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 80%, white),
+    var(--accent)
+  );
+  transform-origin: left center;
+  transition: transform 450ms ease;
+}
+
+.claude-session--warn .claude-session-track > span {
+  background: linear-gradient(90deg, #f0a060, #f08a4b);
+}
+
+@container (max-width: 240px) {
+  .claude-module .claude-session-value small {
+    display: none;
+  }
+}
+
+@container (max-width: 170px) {
+  .claude-module .claude-session-project {
+    display: none;
+  }
+}
+
 @container (max-width: 260px) {
   .system-module .module-heading .eyebrow {
     display: none;
