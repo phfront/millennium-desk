@@ -29,7 +29,7 @@ export function WeatherBackdrop({
   const rainDrops = useMemo(
     () =>
       createRainDrops(
-        compact ? (tone === "storm" ? 26 : 18) : tone === "storm" ? 58 : 44,
+        compact ? (tone === "storm" ? 52 : 32) : tone === "storm" ? 96 : 60,
       ),
     [compact, tone],
   );
