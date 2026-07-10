@@ -66,6 +66,7 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
     ? getWeatherVisual(forecast.current.weatherCode)
     : null;
   const today = forecast?.daily[0];
+  const displayName = location.label?.trim() || location.name;
   const isDay = forecast?.current.isDay !== false;
   const rowClassName = [
     "weather-place",
@@ -78,14 +79,14 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
   return (
     <div
       className={rowClassName}
-      title={visual ? `${location.name} — ${visual.label}` : location.name}
+      title={visual ? `${displayName} — ${visual.label}` : displayName}
     >
       {visual && (
         <WeatherBackdrop tone={visual.tone} isDay={isDay} compact />
       )}
       <div className="weather-place-top">
         <div className="weather-place-id">
-          <strong className="weather-place-name">{location.name}</strong>
+          <strong className="weather-place-name">{displayName}</strong>
           <span className="weather-place-time">
             {time} · {date}
           </span>

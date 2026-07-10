@@ -157,7 +157,11 @@ const normalizeWeatherLocation = (value: unknown): WeatherLocation | null => {
   ) {
     return null;
   }
-  return raw as WeatherLocation;
+  const location = { ...raw } as WeatherLocation;
+  if (typeof location.label !== "string" || location.label.trim() === "") {
+    delete location.label;
+  }
+  return location;
 };
 
 const normalizePreferredDisplay = (value: unknown): PreferredDisplay | null => {

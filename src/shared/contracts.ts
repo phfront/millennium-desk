@@ -159,6 +159,8 @@ export interface PreferredDisplay {
 export interface WeatherLocation {
   id: number;
   name: string;
+  /** Apelido definido pelo usuario; substitui name apenas na exibicao. */
+  label?: string;
   region: string;
   country: string;
   latitude: number;

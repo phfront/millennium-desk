@@ -29,6 +29,8 @@ export function WeatherSettingsPanel({
   const [results, setResults] = useState<WeatherLocation[]>([]);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [draftLabel, setDraftLabel] = useState("");
 
   useEffect(() => {
     const normalized = query.trim();
@@ -63,6 +65,30 @@ export function WeatherSettingsPanel({
     setResults([]);
   };
 
+  const startRenaming = (target: WeatherLocation) => {
+    setEditingId(target.id);
+    setDraftLabel(target.label ?? target.name);
+  };
+
+  const commitRename = () => {
+    if (editingId === null) return;
+    const trimmed = draftLabel.trim();
+    const nextSavedLocations = savedLocations.map((item) => {
+      if (item.id !== editingId) return item;
+      const { label: _label, ...rest } = item;
+      return trimmed && trimmed !== item.name
+        ? { ...rest, label: trimmed }
+        : rest;
+    });
+    onChange({
+      location:
+        nextSavedLocations.find((item) => item.id === location.id) ?? location,
+      savedLocations: nextSavedLocations,
+      temperatureUnit,
+    });
+    setEditingId(null);
+  };
+
   const removeLocation = (id: number) => {
     const nextSavedLocations = savedLocations.filter((item) => item.id !== id);
     if (nextSavedLocations.length === 0) return;
@@ -91,18 +117,47 @@ export function WeatherSettingsPanel({
                   key={savedLocation.id}
                   className={active ? "weather-saved-location active" : "weather-saved-location"}
                 >
+                  {editingId === savedLocation.id ? (
+                    <div className="weather-saved-location-rename">
+                      <input
+                        autoFocus
+                        value={draftLabel}
+                        placeholder={savedLocation.name}
+                        onChange={(event) => setDraftLabel(event.target.value)}
+                        onBlur={commitRename}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") commitRename();
+                          if (event.key === "Escape") setEditingId(null);
+                        }}
+                      />
+                      <span>{formatLocation(savedLocation)}</span>
+                    </div>
+                  ) : (
+                    <button
+                      className="weather-saved-location-select"
+                      onClick={() =>
+                        onChange({
+                          location: savedLocation,
+                          savedLocations,
+                          temperatureUnit,
+                        })
+                      }
+                    >
+                      <strong>{savedLocation.label ?? savedLocation.name}</strong>
+                      <span>
+                        {savedLocation.label
+                          ? `${savedLocation.name} · ${formatLocation(savedLocation)}`
+                          : formatLocation(savedLocation)}
+                      </span>
+                    </button>
+                  )}
                   <button
-                    className="weather-saved-location-select"
-                    onClick={() =>
-                      onChange({
-                        location: savedLocation,
-                        savedLocations,
-                        temperatureUnit,
-                      })
-                    }
+                    className="weather-saved-location-rename-toggle"
+                    aria-label={`Renomear ${savedLocation.name}`}
+                    title="Renomear exibição"
+                    onClick={() => startRenaming(savedLocation)}
                   >
-                    <strong>{savedLocation.name}</strong>
-                    <span>{formatLocation(savedLocation)}</span>
+                    ✎
                   </button>
                   {savedLocations.length > 1 && (
                     <button
