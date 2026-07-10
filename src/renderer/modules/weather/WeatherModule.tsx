@@ -279,6 +279,26 @@ export const WeatherModule = memo(function WeatherModule({
 
           {forecast && (
             <>
+              {pickerLocations.filter(
+                (savedLocation) => savedLocation.id !== forecast.location.id,
+              ).length > 0 && (
+                <section className="weather-places">
+                  {pickerLocations
+                    .filter(
+                      (savedLocation) =>
+                        savedLocation.id !== forecast.location.id,
+                    )
+                    .map((savedLocation) => (
+                      <WeatherPlaceRow
+                        key={savedLocation.id}
+                        location={savedLocation}
+                        temperatureUnit={temperatureUnit}
+                        onSelect={() => onLocationChange(savedLocation)}
+                      />
+                    ))}
+                </section>
+              )}
+
               <section
                 className={
                   pickerOpen ? "weather-hero is-open" : "weather-hero"
@@ -362,26 +382,6 @@ export const WeatherModule = memo(function WeatherModule({
                   </div>
                 </div>
               </section>
-
-              {pickerLocations.filter(
-                (savedLocation) => savedLocation.id !== forecast.location.id,
-              ).length > 0 && (
-                <section className="weather-places">
-                  {pickerLocations
-                    .filter(
-                      (savedLocation) =>
-                        savedLocation.id !== forecast.location.id,
-                    )
-                    .map((savedLocation) => (
-                      <WeatherPlaceRow
-                        key={savedLocation.id}
-                        location={savedLocation}
-                        temperatureUnit={temperatureUnit}
-                        onSelect={() => onLocationChange(savedLocation)}
-                      />
-                    ))}
-                </section>
-              )}
 
               <div className="weather-metrics">
                 <div>
