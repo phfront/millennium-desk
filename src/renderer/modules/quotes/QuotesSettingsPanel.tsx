@@ -21,6 +21,9 @@ export function QuotesSettingsPanel({
     displayCurrencies?: string[];
   }) => void;
 }) {
+  const primary = displayCurrencies[0] ?? "BRL";
+  const secondary = displayCurrencies[1] ?? null;
+
   const toggleAsset = (code: string) => {
     const next = assets.includes(code)
       ? assets.filter((asset) => asset !== code)
@@ -29,46 +32,61 @@ export function QuotesSettingsPanel({
     onChange({ assets: next });
   };
 
-  const toggleCurrency = (currency: string) => {
-    let next: string[];
-    if (displayCurrencies.includes(currency)) {
-      next = displayCurrencies.filter((item) => item !== currency);
-    } else if (displayCurrencies.length < 2) {
-      next = [...displayCurrencies, currency];
-    } else {
-      // Com duas selecionadas, troca a secundaria e preserva a principal.
-      next = [displayCurrencies[0], currency];
-    }
-    if (next.length === 0) return;
-    onChange({ displayCurrencies: next });
+  const choosePrimary = (currency: string) => {
+    if (currency === primary) return;
+    // Escolher a atual secundaria como principal inverte as duas.
+    const nextSecondary = currency === secondary ? primary : secondary;
+    onChange({
+      displayCurrencies: nextSecondary
+        ? [currency, nextSecondary]
+        : [currency],
+    });
+  };
+
+  const chooseSecondary = (currency: string | null) => {
+    onChange({
+      displayCurrencies: currency ? [primary, currency] : [primary],
+    });
   };
 
   return (
     <>
       <section className="setting-group">
-        <h3>Exibir em</h3>
-        <p className="muted">
-          Ate duas moedas — a principal primeiro, a secundaria aparece entre
-          parenteses.
-        </p>
-        <div className="segmented quotes-currency-picker">
-          {QUOTE_DISPLAY_CURRENCIES.map((currency) => {
-            const order = displayCurrencies.indexOf(currency);
-            return (
-              <button
-                key={currency}
-                className={order >= 0 ? "selected" : ""}
-                onClick={() => toggleCurrency(currency)}
-              >
-                {order >= 0 && (
-                  <span className="quotes-currency-order">
-                    {order === 0 ? "principal" : "( )"}
-                  </span>
-                )}
-                {CURRENCY_LABELS[currency] ?? currency}
-              </button>
-            );
-          })}
+        <h3>Moeda principal</h3>
+        <div className="segmented">
+          {QUOTE_DISPLAY_CURRENCIES.map((currency) => (
+            <button
+              key={currency}
+              className={primary === currency ? "selected" : ""}
+              onClick={() => choosePrimary(currency)}
+            >
+              {CURRENCY_LABELS[currency] ?? currency}
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className="setting-group">
+        <h3>Moeda secundaria</h3>
+        <p className="muted">Aparece menor, acima do valor principal.</p>
+        <div className="segmented">
+          <button
+            className={secondary === null ? "selected" : ""}
+            onClick={() => chooseSecondary(null)}
+          >
+            Nenhuma
+          </button>
+          {QUOTE_DISPLAY_CURRENCIES.filter(
+            (currency) => currency !== primary,
+          ).map((currency) => (
+            <button
+              key={currency}
+              className={secondary === currency ? "selected" : ""}
+              onClick={() => chooseSecondary(currency)}
+            >
+              {CURRENCY_LABELS[currency] ?? currency}
+            </button>
+          ))}
         </div>
       </section>
 

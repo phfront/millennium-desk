@@ -5485,11 +5485,11 @@ button.task-persistent-pill:hover {
   white-space: nowrap;
 }
 
-.quote-value strong em {
+.quote-secondary {
   color: var(--muted-fg);
   font-size: 11px;
-  font-style: normal;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .quote-change {
@@ -5522,36 +5522,13 @@ button.task-persistent-pill:hover {
     font-size: 12px;
   }
 
-  .quotes-module .quote-value strong em {
-    display: none;
+  .quotes-module .quote-secondary {
+    font-size: 10px;
   }
 
   .quotes-module .quote-change {
     font-size: 9px;
   }
-}
-
-.quotes-currency-picker {
-  flex-wrap: wrap;
-}
-
-.quotes-currency-picker button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  justify-content: center;
-}
-
-.quotes-currency-order {
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  white-space: nowrap;
 }
 
 .quotes-asset-grid {

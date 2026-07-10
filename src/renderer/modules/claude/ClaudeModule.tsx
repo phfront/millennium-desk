@@ -40,21 +40,32 @@ const formatResetTime = (isoDate: string | null) => {
   });
 };
 
+const formatResetWeekday = (isoDate: string | null) => {
+  if (!isoDate) return null;
+  const date = new Date(isoDate);
+  if (Number.isNaN(date.getTime())) return null;
+  return date
+    .toLocaleDateString("pt-BR", { weekday: "short" })
+    .replace(".", "");
+};
+
 function LimitRow({ limit }: { limit: ClaudeUsageLimit }) {
   const tone = limit.percent >= 80 ? "warn" : "accent";
   const reset = formatReset(limit.resetsAt);
   const shortLabel = SHORT_LABELS[limit.kind] ?? limit.label;
-  const sessionReset =
-    limit.kind === "session" ? formatResetTime(limit.resetsAt) : null;
+  const resetHint =
+    limit.kind === "session"
+      ? formatResetTime(limit.resetsAt)
+      : limit.kind === "weekly_all"
+        ? formatResetWeekday(limit.resetsAt)
+        : null;
 
   return (
     <div
       className={`claude-limit claude-limit--${tone}`}
       title={[limit.label, reset].filter(Boolean).join(" — ")}
     >
-      <span>
-        {sessionReset ? `${shortLabel} (${sessionReset})` : shortLabel}
-      </span>
+      <span>{resetHint ? `${shortLabel} (${resetHint})` : shortLabel}</span>
       <strong>{limit.percent}%</strong>
       <div className="claude-limit-track" aria-hidden>
         <span style={{ transform: `scaleX(${limit.percent / 100})` }} />

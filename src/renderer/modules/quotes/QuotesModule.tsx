@@ -29,12 +29,12 @@ function QuoteRow({ quote }: { quote: QuoteItem }) {
         <small>{quote.label}</small>
       </div>
       <div className="quote-value">
-        <strong>
-          {formatValue(primary.value, primary.currency)}
-          {secondary && (
-            <em> ({formatValue(secondary.value, secondary.currency)})</em>
-          )}
-        </strong>
+        {secondary && (
+          <small className="quote-secondary">
+            {formatValue(secondary.value, secondary.currency)}
+          </small>
+        )}
+        <strong>{formatValue(primary.value, primary.currency)}</strong>
         <small className={`quote-change quote-change--${trend}`}>
           {formatPct(quote.pctChange)}
         </small>
