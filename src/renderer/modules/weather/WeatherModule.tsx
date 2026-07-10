@@ -10,9 +10,6 @@ import { getWeatherVisual } from "./weatherCodes";
 
 const round = (value: number) => Math.round(value);
 
-const formatLocation = (location: WeatherLocation) =>
-  [location.region, location.country].filter(Boolean).join(", ");
-
 /**
  * Linha de um local: hora local ao vivo, dia e temperatura, com a cena
  * animada refletindo o horario (dia/noite) e o tempo do proprio local.
@@ -48,7 +45,7 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
   }, [location, temperatureUnit]);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 10_000);
+    const timer = window.setInterval(() => setNow(new Date()), 1_000);
     return () => window.clearInterval(timer);
   }, []);
 
@@ -56,6 +53,7 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
   const time = new Intl.DateTimeFormat("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
     timeZone,
   }).format(now);
   const capitalize = (value: string) =>
@@ -96,32 +94,31 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
         <WeatherBackdrop tone={visual.tone} isDay={isDay} compact />
       )}
       <div className="weather-place-main">
-        <strong className="weather-place-time">{time}</strong>
+        <div className="weather-place-time">
+          {forecast && (
+            <WeatherIcon
+              code={forecast.current.weatherCode}
+              isDay={forecast.current.isDay}
+              size={22}
+            />
+          )}
+          <strong>{time}</strong>
+        </div>
         <span className="weather-place-date">
           <span className="weather-place-weekday">{weekday} · </span>
           {fullDate}
         </span>
-        <div className="weather-place-name">
-          <strong>{location.name}</strong>
-          <span>{formatLocation(location)}</span>
-        </div>
       </div>
       <div className="weather-place-temp">
         {forecast ? (
-          <>
-            <strong>
-              {round(forecast.current.temperature)}
-              {forecast.temperatureUnit}
-            </strong>
-            <WeatherIcon
-              code={forecast.current.weatherCode}
-              isDay={forecast.current.isDay}
-              size={24}
-            />
-          </>
+          <strong>
+            {round(forecast.current.temperature)}
+            {forecast.temperatureUnit}
+          </strong>
         ) : (
           <strong>—</strong>
         )}
+        <span className="weather-place-name">{location.name}</span>
       </div>
     </div>
   );
