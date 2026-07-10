@@ -30,9 +30,15 @@ export function QuotesSettingsPanel({
   };
 
   const toggleCurrency = (currency: string) => {
-    const next = displayCurrencies.includes(currency)
-      ? displayCurrencies.filter((item) => item !== currency)
-      : [...displayCurrencies, currency].slice(-2);
+    let next: string[];
+    if (displayCurrencies.includes(currency)) {
+      next = displayCurrencies.filter((item) => item !== currency);
+    } else if (displayCurrencies.length < 2) {
+      next = [...displayCurrencies, currency];
+    } else {
+      // Com duas selecionadas, troca a secundaria e preserva a principal.
+      next = [displayCurrencies[0], currency];
+    }
     if (next.length === 0) return;
     onChange({ displayCurrencies: next });
   };
@@ -42,20 +48,27 @@ export function QuotesSettingsPanel({
       <section className="setting-group">
         <h3>Exibir em</h3>
         <p className="muted">
-          Ate duas moedas — a segunda aparece entre parenteses.
+          Ate duas moedas — a principal primeiro, a secundaria aparece entre
+          parenteses.
         </p>
         <div className="segmented quotes-currency-picker">
-          {QUOTE_DISPLAY_CURRENCIES.map((currency) => (
-            <button
-              key={currency}
-              className={
-                displayCurrencies.includes(currency) ? "selected" : ""
-              }
-              onClick={() => toggleCurrency(currency)}
-            >
-              {CURRENCY_LABELS[currency] ?? currency}
-            </button>
-          ))}
+          {QUOTE_DISPLAY_CURRENCIES.map((currency) => {
+            const order = displayCurrencies.indexOf(currency);
+            return (
+              <button
+                key={currency}
+                className={order >= 0 ? "selected" : ""}
+                onClick={() => toggleCurrency(currency)}
+              >
+                {order >= 0 && (
+                  <span className="quotes-currency-order">
+                    {order === 0 ? "principal" : "( )"}
+                  </span>
+                )}
+                {CURRENCY_LABELS[currency] ?? currency}
+              </button>
+            );
+          })}
         </div>
       </section>
 

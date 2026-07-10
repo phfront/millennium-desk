@@ -85,32 +85,32 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
       {visual && (
         <WeatherBackdrop tone={visual.tone} isDay={isDay} compact />
       )}
-      <div className="weather-place-top">
+      <div className="weather-place-main">
         <div className="weather-place-time">
           <strong>{time}</strong>
           <span>{weekday}</span>
         </div>
-        <div className="weather-place-temp">
-          {forecast ? (
-            <>
-              <WeatherIcon
-                code={forecast.current.weatherCode}
-                isDay={forecast.current.isDay}
-                size={28}
-              />
-              <strong>
-                {round(forecast.current.temperature)}
-                {forecast.temperatureUnit}
-              </strong>
-            </>
-          ) : (
-            <strong>—</strong>
-          )}
+        <div className="weather-place-name">
+          <strong>{location.name}</strong>
+          <span>{formatLocation(location)}</span>
         </div>
       </div>
-      <div className="weather-place-name">
-        <strong>{location.name}</strong>
-        <span>{formatLocation(location)}</span>
+      <div className="weather-place-temp">
+        {forecast ? (
+          <>
+            <strong>
+              {round(forecast.current.temperature)}
+              {forecast.temperatureUnit}
+            </strong>
+            <WeatherIcon
+              code={forecast.current.weatherCode}
+              isDay={forecast.current.isDay}
+              size={24}
+            />
+          </>
+        ) : (
+          <strong>—</strong>
+        )}
       </div>
     </div>
   );

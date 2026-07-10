@@ -3719,11 +3719,12 @@ button.task-persistent-pill:hover {
   --weather-fg: #f8fbff;
   --weather-muted-fg: rgba(240, 247, 255, 0.72);
   position: relative;
-  display: grid;
+  display: flex;
   overflow: hidden;
-  align-content: center;
+  align-items: center;
+  justify-content: space-between;
   flex: 1 0 auto;
-  gap: 2px;
+  gap: 10px;
   min-width: 0;
   padding: 7px 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.16);
@@ -3739,10 +3740,17 @@ button.task-persistent-pill:hover {
   border-bottom: 0;
 }
 
-.weather-place-top,
-.weather-place-name {
+.weather-place-main,
+.weather-place-temp {
   position: relative;
   z-index: 1;
+}
+
+.weather-place-main {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
 }
 
 /* Cena animada em miniatura dentro da linha */
@@ -3800,14 +3808,6 @@ button.task-persistent-pill:hover {
   background-size: 26px 26px;
 }
 
-.weather-place-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-
 .weather-place-name {
   display: flex;
   align-items: baseline;
@@ -3853,17 +3853,17 @@ button.task-persistent-pill:hover {
 }
 
 .weather-place-temp {
-  display: flex;
-  align-items: center;
+  display: grid;
   flex: 0 0 auto;
-  gap: 5px;
-  justify-content: flex-end;
+  gap: 1px;
+  justify-items: center;
 }
 
 .weather-place-temp strong {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
 }
 
 @container (max-width: 250px) {
@@ -5533,6 +5533,25 @@ button.task-persistent-pill:hover {
 
 .quotes-currency-picker {
   flex-wrap: wrap;
+}
+
+.quotes-currency-picker button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  justify-content: center;
+}
+
+.quotes-currency-order {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .quotes-asset-grid {
