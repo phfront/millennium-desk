@@ -27,9 +27,9 @@ export const QUOTE_DISPLAY_CURRENCIES = ["BRL", "USD", "EUR"] as const;
 export const DEFAULT_QUOTE_ASSETS = ["USD", "EUR", "BTC"];
 export const DEFAULT_QUOTE_DISPLAY_CURRENCIES = ["BRL"];
 
+/** Qualquer par X-BRL da AwesomeAPI e aceito; a busca descobre os codigos. */
 export const isQuoteAssetCode = (value: unknown): value is string =>
-  typeof value === "string" &&
-  QUOTE_ASSETS.some((asset) => asset.code === value);
+  typeof value === "string" && /^[A-Z0-9]{2,8}$/.test(value);
 
 export const isQuoteDisplayCurrency = (value: unknown): value is string =>
   typeof value === "string" &&

@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
+import type { QuoteAssetOption } from "../../../shared/contracts";
 import {
   QUOTE_ASSETS,
   QUOTE_DISPLAY_CURRENCIES,
+  getQuoteAssetLabel,
 } from "../../../shared/quotes";
 
 const CURRENCY_LABELS: Record<string, string> = {
@@ -23,6 +26,31 @@ export function QuotesSettingsPanel({
 }) {
   const primary = displayCurrencies[0] ?? "BRL";
   const secondary = displayCurrencies[1] ?? null;
+  const [search, setSearch] = useState("");
+  const [results, setResults] = useState<QuoteAssetOption[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const query = search.trim();
+    if (query.length < 2) {
+      setResults([]);
+      setSearchError(null);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      window.electronControl.quotes
+        .searchAssets(query)
+        .then((found) => {
+          setResults(found);
+          setSearchError(null);
+        })
+        .catch(() => {
+          setResults([]);
+          setSearchError("Falha ao buscar moedas.");
+        });
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   const toggleAsset = (code: string) => {
     const next = assets.includes(code)
@@ -92,8 +120,31 @@ export function QuotesSettingsPanel({
 
       <section className="setting-group">
         <h3>Ativos</h3>
+        <input
+          type="search"
+          className="quotes-asset-search"
+          placeholder="Buscar moeda ou cripto (ex.: peso, solana, MXN)..."
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        {searchError && <p className="muted">{searchError}</p>}
+        {search.trim().length >= 2 && !searchError && results.length === 0 && (
+          <p className="muted">Nada encontrado para "{search.trim()}".</p>
+        )}
         <div className="quotes-asset-grid">
-          {QUOTE_ASSETS.map((asset) => {
+          {(search.trim().length >= 2
+            ? results
+            : [
+                ...QUOTE_ASSETS,
+                // Selecionados fora do catalogo padrao continuam visiveis
+                ...assets
+                  .filter(
+                    (code) =>
+                      !QUOTE_ASSETS.some((asset) => asset.code === code),
+                  )
+                  .map((code) => ({ code, label: getQuoteAssetLabel(code) })),
+              ]
+          ).map((asset) => {
             const active = assets.includes(asset.code);
             return (
               <button

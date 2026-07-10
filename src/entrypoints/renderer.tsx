@@ -434,6 +434,22 @@ if (!window.electronControl) {
           }),
         };
       },
+      searchAssets: async (query: string) => {
+        const { QUOTE_ASSETS } = await import("../shared/quotes");
+        const extras = [
+          { code: "ILS", label: "Novo Shekel Israelense" },
+          { code: "MXN", label: "Peso Mexicano" },
+          { code: "SOL", label: "Solana" },
+          { code: "ADA", label: "Cardano" },
+        ];
+        const q = query.trim().toLowerCase();
+        if (q.length < 2) return [];
+        return [...QUOTE_ASSETS, ...extras].filter(
+          (asset) =>
+            asset.code.toLowerCase().includes(q) ||
+            asset.label.toLowerCase().includes(q),
+        );
+      },
     },
     shortcuts: {
       list: async () => browserShortcuts,

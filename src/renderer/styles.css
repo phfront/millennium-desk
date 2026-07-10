@@ -5531,6 +5531,20 @@ button.task-persistent-pill:hover {
   }
 }
 
+.quotes-asset-search {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.quotes-asset-search::placeholder {
+  color: var(--muted-fg);
+}
+
 .quotes-asset-grid {
   display: grid;
   gap: 6px;

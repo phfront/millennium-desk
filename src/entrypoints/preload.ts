@@ -59,6 +59,8 @@ const api: ElectronControlApi = {
   quotes: {
     get: (assets: string[], displayCurrencies: string[]) =>
       ipcRenderer.invoke("quotes:get", assets, displayCurrencies),
+    searchAssets: (query: string) =>
+      ipcRenderer.invoke("quotes:search-assets", query),
   },
   shortcuts: {
     list: () => ipcRenderer.invoke("shortcuts:list"),

@@ -134,6 +134,11 @@ export interface QuotesSnapshot {
   fetchedAt: string;
 }
 
+export interface QuoteAssetOption {
+  code: string;
+  label: string;
+}
+
 export type DashboardLayoutNode =
   | { type: "module"; id: DashboardModuleId }
   | {
@@ -359,6 +364,7 @@ export interface ElectronControlApi {
       assets: string[],
       displayCurrencies: string[],
     ): Promise<QuotesSnapshot>;
+    searchAssets(query: string): Promise<QuoteAssetOption[]>;
   };
   shortcuts: {
     list(): Promise<ShortcutItem[]>;
