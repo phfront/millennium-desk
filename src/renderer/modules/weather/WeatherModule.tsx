@@ -5,7 +5,6 @@ import type {
   WeatherLocation,
 } from "../../../shared/contracts";
 import { WeatherBackdrop } from "./WeatherBackdrop";
-import { WeatherIcon } from "./WeatherIcon";
 import { getWeatherVisual } from "./weatherCodes";
 
 const round = (value: number) => Math.round(value);
@@ -56,26 +55,17 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
     second: "2-digit",
     timeZone,
   }).format(now);
-  const capitalize = (value: string) =>
-    value.charAt(0).toUpperCase() + value.slice(1);
-  const weekday = capitalize(
-    new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone })
-      .format(now)
-      .replace(".", ""),
-  );
-  const fullDate = new Intl.DateTimeFormat("pt-BR", {
+  const date = new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
-    month: "long",
+    month: "2-digit",
     year: "numeric",
     timeZone,
-  })
-    .formatToParts(now)
-    .map((part) => (part.type === "month" ? capitalize(part.value) : part.value))
-    .join("");
+  }).format(now);
 
   const visual = forecast
     ? getWeatherVisual(forecast.current.weatherCode)
     : null;
+  const today = forecast?.daily[0];
   const isDay = forecast?.current.isDay !== false;
   const rowClassName = [
     "weather-place",
@@ -93,32 +83,24 @@ const WeatherPlaceRow = memo(function WeatherPlaceRow({
       {visual && (
         <WeatherBackdrop tone={visual.tone} isDay={isDay} compact />
       )}
-      <div className="weather-place-main">
-        <div className="weather-place-time">
-          {forecast && (
-            <WeatherIcon
-              code={forecast.current.weatherCode}
-              isDay={forecast.current.isDay}
-              size={22}
-            />
-          )}
-          <strong>{time}</strong>
+      <div className="weather-place-top">
+        <div className="weather-place-id">
+          <strong className="weather-place-name">{location.name}</strong>
+          <span className="weather-place-time">
+            {time} · {date}
+          </span>
         </div>
-        <span className="weather-place-date">
-          <span className="weather-place-weekday">{weekday} · </span>
-          {fullDate}
-        </span>
+        <strong className="weather-place-temp">
+          {forecast ? `${round(forecast.current.temperature)}°` : "—"}
+        </strong>
       </div>
-      <div className="weather-place-temp">
-        {forecast ? (
-          <strong>
-            {round(forecast.current.temperature)}
-            {forecast.temperatureUnit}
-          </strong>
-        ) : (
-          <strong>—</strong>
+      <div className="weather-place-bottom">
+        <span className="weather-place-cond">{visual?.label}</span>
+        {today && (
+          <span className="weather-place-range">
+            ↑{round(today.temperatureMax)}° ↓{round(today.temperatureMin)}°
+          </span>
         )}
-        <span className="weather-place-name">{location.name}</span>
       </div>
     </div>
   );

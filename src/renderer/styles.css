@@ -3704,9 +3704,9 @@ button.task-persistent-pill:hover {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 0;
+  gap: 8px;
   min-height: 0;
-  padding: 0;
+  padding: 8px 10px;
   overflow: auto;
 }
 
@@ -3721,13 +3721,13 @@ button.task-persistent-pill:hover {
   position: relative;
   display: flex;
   overflow: hidden;
-  align-items: center;
+  flex-direction: column;
   justify-content: space-between;
   flex: 1 0 auto;
-  gap: 10px;
+  gap: 12px;
   min-width: 0;
-  padding: 5px 14px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+  padding: 10px 14px;
+  border-radius: 14px;
   background: linear-gradient(
     115deg,
     var(--weather-bg-start),
@@ -3736,21 +3736,39 @@ button.task-persistent-pill:hover {
   color: var(--weather-fg);
 }
 
-.weather-place:last-child {
-  border-bottom: 0;
-}
-
-.weather-place-main,
-.weather-place-temp {
+.weather-place-top,
+.weather-place-bottom {
   position: relative;
   z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.weather-place-main {
+.weather-place-top {
+  align-items: flex-start;
+}
+
+.weather-place-id {
   display: grid;
-  flex: 1;
-  gap: 0;
+  gap: 1px;
   min-width: 0;
+}
+
+.weather-place-bottom {
+  align-items: baseline;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.weather-place-cond {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weather-place-range {
+  flex: 0 0 auto;
 }
 
 /* Cena animada em miniatura dentro da linha */
@@ -3810,33 +3828,16 @@ button.task-persistent-pill:hover {
 
 .weather-place-name {
   overflow: hidden;
-  max-width: 140px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
+  font-size: 17px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .weather-place-time {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-}
-
-.weather-place-time strong {
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.weather-place-date {
   overflow: hidden;
-  min-width: 0;
-  color: var(--weather-fg);
   font-size: 11px;
   font-weight: 650;
   line-height: 1.2;
@@ -3845,26 +3846,16 @@ button.task-persistent-pill:hover {
 }
 
 .weather-place-temp {
-  display: grid;
   flex: 0 0 auto;
-  gap: 1px;
-  justify-items: center;
-}
-
-.weather-place-temp strong {
-  font-size: 21px;
-  font-weight: 750;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
+  font-size: 32px;
+  font-weight: 320;
+  letter-spacing: -0.02em;
+  line-height: 1;
 }
 
 @container (max-width: 250px) {
-  .weather-place-weekday {
-    display: none;
-  }
-
   .weather-place {
-    padding: 4px 10px;
+    padding: 8px 12px;
   }
 }
 
