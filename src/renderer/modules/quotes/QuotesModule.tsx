@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useState } from "react";
 import type { QuoteItem, QuotesSnapshot } from "../../../shared/contracts";
+import { QuoteAssetIcon } from "./QuoteAssetIcon";
 
 const REFRESH_INTERVAL_MS = 5 * 60_000;
 
@@ -24,6 +25,7 @@ function QuoteRow({ quote }: { quote: QuoteItem }) {
 
   return (
     <li className="quote-row" title={quote.label}>
+      <QuoteAssetIcon code={quote.code} />
       <div className="quote-code">
         <strong>{quote.code}</strong>
         <small>{quote.label}</small>

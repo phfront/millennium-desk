@@ -5449,8 +5449,28 @@ button.task-persistent-pill:hover {
   border-bottom: 0;
 }
 
+.quote-icon {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.quote-icon--fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-fg);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 .quote-code {
   display: grid;
+  flex: 1;
   gap: 1px;
   min-width: 0;
 }
@@ -5512,6 +5532,12 @@ button.task-persistent-pill:hover {
 @container (max-width: 190px) {
   .quotes-module .quote-code small {
     display: none;
+  }
+
+  .quotes-module .quote-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 8px;
   }
 
   .quotes-module .quote-row {
