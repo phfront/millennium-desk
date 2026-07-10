@@ -24,6 +24,8 @@ export function WeatherBackdrop({
   const showSnow = tone === "snow";
   const showFog = tone === "fog" || tone === "cloud";
   const showStormFlash = tone === "storm";
+  // Chovendo nao ha sol nem lua: so nuvens pesadas, como no app da Apple.
+  const showOrb = !showRain;
   const rainDrops = useMemo(
     () =>
       createRainDrops(
@@ -36,12 +38,14 @@ export function WeatherBackdrop({
   return (
     <div className="weather-scene" aria-hidden="true">
       <div className="weather-scene-sky" />
-      <div
-        className={
-          isDay ? "weather-scene-orb weather-scene-sun" : "weather-scene-orb weather-scene-moon"
-        }
-      />
-      <div className="weather-scene-glow" />
+      {showOrb && (
+        <div
+          className={
+            isDay ? "weather-scene-orb weather-scene-sun" : "weather-scene-orb weather-scene-moon"
+          }
+        />
+      )}
+      {showOrb && <div className="weather-scene-glow" />}
       <div className="weather-scene-clouds">
         <span className="weather-scene-cloud cloud-a" />
         <span className="weather-scene-cloud cloud-b" />

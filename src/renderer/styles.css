@@ -2980,6 +2980,7 @@ button.task-persistent-pill:hover {
   --weather-accent: #1a5f8f;
   --weather-glow: rgba(120, 175, 220, 0.4);
   --weather-bg-start: #6a8faa;
+  --weather-bg-shift: #7b9cb4;
   --weather-bg-end: #4d7088;
 }
 
@@ -2988,6 +2989,7 @@ button.task-persistent-pill:hover {
   --weather-accent: #d4c8ff;
   --weather-glow: rgba(140, 120, 200, 0.35);
   --weather-bg-start: #6a6a8a;
+  --weather-bg-shift: #78789a;
   --weather-bg-end: #4a4a68;
   --weather-fg: #f2f4ff;
   --weather-muted-fg: rgba(242, 244, 255, 0.76);
@@ -3001,6 +3003,7 @@ button.task-persistent-pill:hover {
   --weather-accent: #3d6f86;
   --weather-glow: rgba(220, 240, 250, 0.5);
   --weather-bg-start: #a8c0d0;
+  --weather-bg-shift: #b8ccd9;
   --weather-bg-end: #88a8b8;
 }
 
@@ -3009,6 +3012,7 @@ button.task-persistent-pill:hover {
   --weather-accent: #3f5562;
   --weather-glow: rgba(200, 210, 215, 0.4);
   --weather-bg-start: #9aa8b0;
+  --weather-bg-shift: #a8b4bc;
   --weather-bg-end: #7a8890;
 }
 
@@ -3164,6 +3168,20 @@ button.task-persistent-pill:hover {
 .weather-night .weather-scene-cloud {
   background: color-mix(in srgb, #9eb8d8 55%, transparent);
   opacity: 0.38;
+}
+
+/* Chuva e tempestade: nuvens pesadas e acinzentadas, sem cara de dia limpo. */
+.weather-tone-rain .weather-scene-cloud,
+.weather-tone-storm .weather-scene-cloud {
+  background: color-mix(in srgb, #a7b1bc 82%, transparent);
+  opacity: 0.82;
+  filter: blur(12px);
+}
+
+.weather-night.weather-tone-rain .weather-scene-cloud,
+.weather-night.weather-tone-storm .weather-scene-cloud {
+  background: color-mix(in srgb, #51606f 72%, transparent);
+  opacity: 0.62;
 }
 
 .weather-scene-cloud.cloud-a {
