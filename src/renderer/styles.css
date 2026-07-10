@@ -3704,9 +3704,9 @@ button.task-persistent-pill:hover {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   min-height: 0;
-  padding: 8px 10px;
+  padding: 0;
   overflow: auto;
 }
 
@@ -3724,16 +3724,20 @@ button.task-persistent-pill:hover {
   flex-direction: column;
   justify-content: space-between;
   flex: 1 0 auto;
-  gap: 12px;
+  gap: 3px;
   min-width: 0;
-  padding: 10px 14px;
-  border-radius: 14px;
+  padding: 5px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
   background: linear-gradient(
     115deg,
     var(--weather-bg-start),
     var(--weather-bg-end)
   );
   color: var(--weather-fg);
+}
+
+.weather-place:last-child {
+  border-bottom: 0;
 }
 
 .weather-place-top,
@@ -3855,7 +3859,7 @@ button.task-persistent-pill:hover {
 
 @container (max-width: 250px) {
   .weather-place {
-    padding: 8px 12px;
+    padding: 4px 10px;
   }
 }
 
