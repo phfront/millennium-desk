@@ -36,7 +36,6 @@ const normalizeLegacyModuleId = (id: string): ModuleId | null => {
     "media",
     "system",
     "shortcuts",
-    "claude",
     "quotes",
   ].includes(id)
     ? (id as ModuleId)

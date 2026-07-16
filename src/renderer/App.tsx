@@ -57,7 +57,6 @@ import {
 } from "./modules/tasks";
 import { MediaModule, MediaModuleSettingsPanel } from "./modules/media";
 import { SystemModule } from "./modules/system";
-import { ClaudeModule } from "./modules/claude";
 import { QuotesModule, QuotesSettingsPanel } from "./modules/quotes";
 import {
   DEFAULT_QUOTE_ASSETS,
@@ -125,7 +124,6 @@ const MODULE_LABELS: Record<ModuleId, string> = {
   media: "Midia",
   system: "Sistema",
   shortcuts: "Atalhos",
-  claude: "Claude",
   quotes: "Cotacoes",
 };
 const MODULE_IDS = Object.keys(MODULE_LABELS) as ModuleId[];
@@ -1331,8 +1329,6 @@ export function App() {
         );
       case "system":
         return <SystemModule />;
-      case "claude":
-        return <ClaudeModule />;
       case "quotes":
         return (
           <QuotesModule

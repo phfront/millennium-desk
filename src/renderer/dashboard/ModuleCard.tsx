@@ -12,7 +12,6 @@ export type ModuleId =
   | "media"
   | "system"
   | "shortcuts"
-  | "claude"
   | "quotes";
 
 const DROP_LABELS: Record<DropPlacement, string> = {
@@ -34,7 +33,6 @@ const MODULE_EDIT_META: Record<
   media: { eyebrow: "SMART TV", title: "Midia" },
   system: { eyebrow: "PERFORMANCE", title: "Sistema" },
   shortcuts: { eyebrow: "ACOES RAPIDAS", title: "Atalhos" },
-  claude: { eyebrow: "CLAUDE CODE", title: "Sessoes" },
   quotes: { eyebrow: "MERCADO", title: "Cotacoes" },
 };
 

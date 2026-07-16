@@ -98,7 +98,6 @@ const normalizeDashboardModuleId = (
     value === "media" ||
     value === "system" ||
     value === "shortcuts" ||
-    value === "claude" ||
     value === "quotes"
   ) {
     return value;

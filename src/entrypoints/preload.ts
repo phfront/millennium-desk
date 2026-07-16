@@ -53,9 +53,6 @@ const api: ElectronControlApi = {
   system: {
     getStatus: () => ipcRenderer.invoke("system:get-status"),
   },
-  claude: {
-    getUsage: () => ipcRenderer.invoke("claude:get-usage"),
-  },
   quotes: {
     get: (assets: string[], displayCurrencies: string[]) =>
       ipcRenderer.invoke("quotes:get", assets, displayCurrencies),

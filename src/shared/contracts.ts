@@ -22,7 +22,6 @@ export type DashboardModuleId =
   | "media"
   | "system"
   | "shortcuts"
-  | "claude"
   | "quotes";
 
 export type ShortcutType =
@@ -95,24 +94,6 @@ export interface SystemStatus {
     readBytesPerSec: number;
     writeBytesPerSec: number;
   };
-}
-
-export interface ClaudeUsageLimit {
-  kind: "session" | "weekly_all" | "weekly_scoped";
-  label: string;
-  percent: number;
-  resetsAt: string | null;
-}
-
-export interface ClaudeAccountUsage {
-  account: string;
-  subscriptionType: string | null;
-  error: string | null;
-  limits: ClaudeUsageLimit[];
-}
-
-export interface ClaudeUsageSnapshot {
-  accounts: ClaudeAccountUsage[];
 }
 
 export interface QuoteValue {
@@ -357,9 +338,6 @@ export interface ElectronControlApi {
   };
   system: {
     getStatus(): Promise<SystemStatus>;
-  };
-  claude: {
-    getUsage(): Promise<ClaudeUsageSnapshot>;
   };
   quotes: {
     get(

@@ -330,62 +330,6 @@ if (!window.electronControl) {
         },
       }),
     },
-    claude: {
-      getUsage: async () => ({
-        accounts: [
-          {
-            account: "arktech",
-            subscriptionType: "pro",
-            error: null,
-            limits: [
-              {
-                kind: "session" as const,
-                label: "Sessao",
-                percent: 22,
-                resetsAt: new Date(Date.now() + 3 * 3_600_000).toISOString(),
-              },
-              {
-                kind: "weekly_all" as const,
-                label: "Semana",
-                percent: 16,
-                resetsAt: new Date(Date.now() + 4 * 86_400_000).toISOString(),
-              },
-              {
-                kind: "weekly_scoped" as const,
-                label: "Fable",
-                percent: 24,
-                resetsAt: new Date(Date.now() + 4 * 86_400_000).toISOString(),
-              },
-            ],
-          },
-          {
-            account: "quadra",
-            subscriptionType: "max",
-            error: null,
-            limits: [
-              {
-                kind: "session" as const,
-                label: "Sessao",
-                percent: 87,
-                resetsAt: new Date(Date.now() + 40 * 60_000).toISOString(),
-              },
-              {
-                kind: "weekly_all" as const,
-                label: "Semana",
-                percent: 54,
-                resetsAt: new Date(Date.now() + 2 * 86_400_000).toISOString(),
-              },
-            ],
-          },
-          {
-            account: "tecpet",
-            subscriptionType: "pro",
-            error: "Token expirado — abra o claude dessa conta.",
-            limits: [],
-          },
-        ],
-      }),
-    },
     quotes: {
       get: async (assets: string[], displayCurrencies: string[]) => {
         const RATES_BRL: Record<string, { bid: number; pct: number }> = {
