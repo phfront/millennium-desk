@@ -1937,7 +1937,7 @@ button.task-persistent-pill:hover {
 
 /* Linha compacta, com o recuo lateral igual ao vertical. */
 .task-list.is-dense {
-  --row-pad: 4px;
+  --row-pad: 6px;
 }
 
 /* A linha compacta encolhe a caixa, nao o texto: 14px se mantem legivel
