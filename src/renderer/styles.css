@@ -1940,10 +1940,12 @@ button.task-persistent-pill:hover {
   --row-pad: 4px;
 }
 
+/* A linha compacta encolhe a caixa, nao o texto: 14px se mantem legivel
+   dentro dos 32px e evita o salto de corpo ao entrar em edicao, ja que o
+   .task-edit-input herda a fonte da linha. */
 .task-list.is-dense .task {
   min-height: 32px;
   border-radius: 10px;
-  font-size: 13px;
 }
 
 .task-list.is-dense .task:has(.task-tags-row:not(:empty)) {
