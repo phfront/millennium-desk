@@ -1638,6 +1638,7 @@ button {
 }
 
 .task-list {
+  --row-pad: 7px;
   display: grid;
   gap: 10px;
 }
@@ -1648,7 +1649,7 @@ button {
   align-items: center;
   width: 100%;
   min-height: 46px;
-  padding: 7px 12px;
+  padding: var(--row-pad);
   border: 1px solid transparent;
   border-radius: 14px;
   color: var(--text);
@@ -1904,6 +1905,154 @@ button.task-persistent-pill:hover {
   flex: 1;
   height: 1px;
   background: var(--border);
+}
+
+/* -------------------------------------------------------------------------
+   Densidade da lista de tarefas.
+   Cada modificador vem de um toggle no modal do modulo e e independente dos
+   outros; a combinacao e escolha do usuario. Em modo de edicao a linha ganha
+   os botoes mover/excluir/recorrente em position:absolute, entao o recuo da
+   direita so pode ser liberado quando esses botoes nao estao na arvore.
+   ------------------------------------------------------------------------- */
+
+/* Tag na propria linha, em vez de ancorada no canto inferior direito. */
+.task-list.is-inline-tags .task-tags-row {
+  position: static;
+  flex: 0 0 auto;
+  margin-left: 8px;
+  max-width: none;
+}
+
+.task-list.is-inline-tags .task-main {
+  padding-right: 0;
+}
+
+.task-list.is-inline-tags .task:has(.task-delete) .task-main {
+  padding-right: 68px;
+}
+
+.task-list.is-inline-tags .task:has(.task-tags-row:not(:empty)) {
+  min-height: 46px;
+}
+
+/* Linha compacta, com o recuo lateral igual ao vertical. */
+.task-list.is-dense {
+  --row-pad: 4px;
+}
+
+.task-list.is-dense .task {
+  min-height: 32px;
+  border-radius: 10px;
+  font-size: 13px;
+}
+
+.task-list.is-dense .task:has(.task-tags-row:not(:empty)) {
+  min-height: 32px;
+}
+
+.task-list.is-dense .task-main {
+  gap: 8px;
+}
+
+.task-list.is-dense .task-toggle {
+  flex: 0 0 18px;
+  width: 18px;
+  min-width: 18px;
+  height: 18px;
+  min-height: 18px;
+  border-radius: 6px;
+}
+
+.task-list.is-dense .task.done .task-toggle::after {
+  font-size: 11px;
+}
+
+.task-list.is-dense .task-persistent-pill {
+  padding: 1px 6px;
+  font-size: 11px;
+}
+
+/* Lista continua: uma superficie so, com separadores de 1px. */
+.task-list.is-flat {
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.task-list.is-flat .task {
+  border-radius: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+}
+
+.task-list.is-flat .task:first-child {
+  border-top: 0;
+}
+
+.task-list.is-flat .task.task-toggleable:hover {
+  background: var(--accent-soft);
+}
+
+.task-list.is-flat .task-group-divider {
+  padding: 6px var(--row-pad);
+  background: color-mix(in srgb, var(--border) 55%, transparent);
+}
+
+/* Texto em uma linha; o title do elemento guarda o texto inteiro. */
+.task-list.is-truncated .task-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Divisor de grupo sem a regua ocupando altura. */
+.task-list.is-compact-headers .task-group-divider {
+  gap: 8px;
+}
+
+.task-list.is-compact-headers .task-group-divider::before {
+  display: none;
+}
+
+/* Check e tag na primeira linha, texto sozinho na segunda em largura total.
+   display:contents sobe .task-toggle e .task-body para o grid da linha, o que
+   evita mexer na arvore do TSX. So vale onde existe tag: sem ela, a segunda
+   linha deixaria o check sozinho num vazio. */
+.task-list.is-stacked .task:has(.task-tags-row:not(:empty)) {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 1px;
+}
+
+.task-list.is-stacked .task:has(.task-tags-row:not(:empty)) .task-main {
+  display: contents;
+}
+
+.task-list.is-stacked .task:has(.task-tags-row:not(:empty)) .task-toggle {
+  grid-area: 1 / 1;
+}
+
+.task-list.is-stacked .task:has(.task-tags-row:not(:empty)) .task-tags-row {
+  position: static;
+  grid-area: 1 / 2;
+  justify-self: start;
+  margin: 0;
+  max-width: none;
+}
+
+.task-list.is-stacked .task:has(.task-tags-row:not(:empty)) .task-body {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  width: 100%;
+}
+
+/* Em edicao os botoes flutuantes ocupam a direita da primeira linha. */
+.task-list.is-stacked .task:has(.task-delete) {
+  padding-right: calc(var(--row-pad) + 68px);
 }
 
 .task-composer-persistent {
@@ -6333,6 +6482,20 @@ button.task-persistent-pill:hover {
   color: var(--text);
   font-weight: 600;
   line-height: 1.25;
+}
+
+/* Variante com legenda: o rotulo explica o que a opcao troca por altura. */
+.module-setting-list-stacked label span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.module-setting-list-stacked label span small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .module-setting-list input {

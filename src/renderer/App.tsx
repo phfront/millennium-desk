@@ -207,6 +207,12 @@ export function App() {
   const [taskSettings, setTaskSettings] = useState<TaskModuleSettings>({
     pendingFirst: true,
     showProgress: true,
+    inlineTags: true,
+    denseRows: true,
+    flatList: true,
+    truncateText: true,
+    compactHeaders: true,
+    textBelow: true,
   });
   const [taskTags, setTaskTags] = useState<TaskTag[]>([]);
   const [taskTagsError, setTaskTagsError] = useState<string | null>(null);
@@ -372,6 +378,9 @@ export function App() {
           setQuoteDisplayCurrencies(settings.quoteDisplayCurrencies);
         }
         setShortcutGrid(settings.shortcutGrid);
+        if (settings.taskList) {
+          setTaskSettings(settings.taskList);
+        }
         const validHiddenModules = settings.hiddenModuleIds
           .map((id) => (id === "spotify" ? "media" : id))
           .filter((id): id is ModuleId => MODULE_IDS.includes(id as ModuleId));
@@ -583,6 +592,11 @@ export function App() {
     setShortcutGrid(normalized);
     await window.electronControl.settings.update({ shortcutGrid: normalized });
     await loadShortcuts();
+  };
+
+  const updateTaskSettings = (next: TaskModuleSettings) => {
+    setTaskSettings(next);
+    void window.electronControl.settings.update({ taskList: next });
   };
 
   const createTaskTag = (name: string, color: string) => {
@@ -1771,7 +1785,7 @@ export function App() {
                   settings={taskSettings}
                   tags={taskTags}
                   tagError={taskTagsError}
-                  onChange={setTaskSettings}
+                  onChange={updateTaskSettings}
                   onCreateTag={createTaskTag}
                   onUpdateTag={updateTaskTag}
                   onDeleteTag={deleteTaskTag}

@@ -39,6 +39,16 @@ export const DEFAULT_SETTINGS: AppSettings = {
   activeMediaApp: null,
   hiddenMediaAppIds: [],
   shortcutGrid: { columns: 4, rows: 2 },
+  taskList: {
+    pendingFirst: true,
+    showProgress: true,
+    inlineTags: true,
+    denseRows: true,
+    flatList: true,
+    truncateText: true,
+    compactHeaders: true,
+    textBelow: true,
+  },
   quoteAssets: DEFAULT_QUOTE_ASSETS,
   quoteDisplayCurrencies: DEFAULT_QUOTE_DISPLAY_CURRENCIES,
   activeProfileId: DEFAULT_PROFILE_ID,
@@ -223,6 +233,22 @@ const normalizeShortcutGrid = (value: unknown): AppSettings["shortcutGrid"] => {
   };
 };
 
+const normalizeTaskList = (value: unknown): AppSettings["taskList"] => {
+  const raw = (value ?? {}) as Partial<AppSettings["taskList"]>;
+  const pick = (key: keyof AppSettings["taskList"]) =>
+    typeof raw[key] === "boolean" ? raw[key] : DEFAULT_SETTINGS.taskList[key];
+  return {
+    pendingFirst: pick("pendingFirst"),
+    showProgress: pick("showProgress"),
+    inlineTags: pick("inlineTags"),
+    denseRows: pick("denseRows"),
+    flatList: pick("flatList"),
+    truncateText: pick("truncateText"),
+    compactHeaders: pick("compactHeaders"),
+    textBelow: pick("textBelow"),
+  };
+};
+
 const normalizeProfileId = (value: unknown): string | null => {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -357,6 +383,7 @@ const normalizeSettings = (value: unknown): AppSettings => {
     activeMediaApp,
     hiddenMediaAppIds,
     shortcutGrid,
+    taskList: normalizeTaskList(raw.taskList),
     quoteAssets: normalizeQuoteAssets(raw.quoteAssets),
     quoteDisplayCurrencies: normalizeQuoteDisplayCurrencies(
       raw.quoteDisplayCurrencies,

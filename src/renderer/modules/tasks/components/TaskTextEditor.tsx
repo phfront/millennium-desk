@@ -45,8 +45,13 @@ export function TaskTextEditor({
     }
   };
 
+  // O title cobre o caso truncado, em que a linha nao mostra o texto inteiro.
   if (readOnly) {
-    return <span className="task-text">{item.text}</span>;
+    return (
+      <span className="task-text" title={item.text}>
+        {item.text}
+      </span>
+    );
   }
 
   if (editing) {
@@ -76,6 +81,7 @@ export function TaskTextEditor({
     <button
       type="button"
       className="task-text"
+      title={item.text}
       onClick={() => setEditing(true)}
     >
       {item.text}

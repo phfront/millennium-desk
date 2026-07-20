@@ -149,6 +149,25 @@ export interface WeatherLocation {
   timezone: string;
 }
 
+export interface TaskListSettings {
+  /** Ordena pendentes antes das concluidas dentro de cada grupo. */
+  pendingFirst: boolean;
+  /** Mostra a barra de progresso do dia. */
+  showProgress: boolean;
+  /** Tags na propria linha do texto, em vez de ancoradas no canto. */
+  inlineTags: boolean;
+  /** Linha compacta: altura menor, recuo simetrico e checkbox reduzido. */
+  denseRows: boolean;
+  /** Lista continua com separadores, em vez de um cartao por tarefa. */
+  flatList: boolean;
+  /** Trunca o texto em uma linha (o texto completo fica no title). */
+  truncateText: boolean;
+  /** Divisor de grupo compacto, sem a regua ocupando altura. */
+  compactHeaders: boolean;
+  /** Nas linhas com tag, texto vai para a segunda linha em largura total. */
+  textBelow: boolean;
+}
+
 export interface DashboardProfile {
   id: string;
   name: string;
@@ -181,6 +200,8 @@ export interface AppSettings {
   /** Apps ocultos no dock do hub de midia (permanecem estacionados em memoria). */
   hiddenMediaAppIds: MediaAppId[];
   shortcutGrid: ShortcutGridSettings;
+  /** Preferencias visuais e de ordenacao do modulo de tarefas. */
+  taskList: TaskListSettings;
   /** Ativos acompanhados no modulo de cotacoes. */
   quoteAssets: string[];
   /** Moedas de exibicao (1 ou 2; a segunda aparece entre parenteses). */

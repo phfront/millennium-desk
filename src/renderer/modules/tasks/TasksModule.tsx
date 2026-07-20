@@ -64,6 +64,18 @@ export const TasksModule = memo(function TasksModule({
     filteredItems.filter((item) => item.persistent),
   );
   const visibleItems = [...datedItems, ...persistentItems];
+  // Cada opcao de densidade e um modificador isolado no .task-list.
+  const densityClassName = [
+    "task-list",
+    settings.inlineTags && "is-inline-tags",
+    settings.denseRows && "is-dense",
+    settings.flatList && "is-flat",
+    settings.truncateText && "is-truncated",
+    settings.compactHeaders && "is-compact-headers",
+    settings.textBelow && "is-stacked",
+  ]
+    .filter(Boolean)
+    .join(" ");
   // Separador antes da primeira recorrente, apenas quando os dois grupos existem.
   const persistentDividerId =
     datedItems.length > 0 && persistentItems.length > 0
@@ -369,7 +381,7 @@ export const TasksModule = memo(function TasksModule({
             <motion.span animate={{ width: `${progressPercent}%` }} />
           </div>
         )}
-        <div className="task-list">
+        <div className={densityClassName}>
           {loading && <div className="empty-tasks">Carregando tarefas...</div>}
           <AnimatePresence initial={false}>
             {!loading &&

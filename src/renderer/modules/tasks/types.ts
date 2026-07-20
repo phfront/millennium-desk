@@ -1,4 +1,3 @@
-export interface TaskModuleSettings {
-  pendingFirst: boolean;
-  showProgress: boolean;
-}
+import type { TaskListSettings } from "../../../shared/contracts";
+
+export type TaskModuleSettings = TaskListSettings;
