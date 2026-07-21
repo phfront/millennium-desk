@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { TaskItem, TaskTag } from "../../../shared/contracts";
 import { DatePicker } from "../../components/DatePicker";
 import {
@@ -40,10 +41,25 @@ export const TasksModule = memo(function TasksModule({
     item: TaskItem;
     date: string;
   } | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    item: TaskItem;
+    x: number;
+    y: number;
+  } | null>(null);
   const [items, setItems] = useState<TaskItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
+  const moduleRef = useRef<HTMLDivElement>(null);
+  // Toque longo abre o menu; refs guardam o timer e suprimem o clique final.
+  const longPressTimer = useRef<number | null>(null);
+  const longPressOrigin = useRef<{ x: number; y: number } | null>(null);
+  const suppressClickRef = useRef(false);
+  // Portal na raiz .app: escapa do stacking do modulo, mas mantem o tema/vars.
+  const portalTarget = useMemo(
+    () => document.querySelector<HTMLElement>(".app") ?? document.body,
+    [],
+  );
   const tagsById = new Map(tags.map((tag) => [tag.id, tag]));
   const isPast = selectedDate < today;
   const isToday = selectedDate === today;
@@ -245,9 +261,77 @@ export const TasksModule = memo(function TasksModule({
     }, "Falha ao mover tarefa.");
   };
 
+  const moveTaskToNextDay = (item: TaskItem) => {
+    void runTaskMutation(async () => {
+      await window.electronControl.tasks.update({
+        id: item.id,
+        date: shiftDateKey(selectedDate, 1),
+      });
+      // O dia seguinte nunca e a data em vista, entao a tarefa sai da lista.
+      return items.filter((entry) => entry.id !== item.id);
+    }, "Falha ao mover tarefa.");
+  };
+
+  const openContextMenu = (item: TaskItem, x: number, y: number) => {
+    if (editingList || isPast) return;
+    // Modulos de midia sao WebContentsView nativos, sempre acima do DOM. Para o
+    // menu nunca ficar por tras deles, confino ele ao retangulo do modulo.
+    const menuWidth = 224;
+    const menuHeight = 240;
+    const rect = moduleRef.current?.getBoundingClientRect();
+    const minX = rect ? rect.left + 8 : 8;
+    const maxX = (rect ? rect.right : window.innerWidth) - menuWidth - 8;
+    const minY = rect ? rect.top + 8 : 8;
+    const maxY = (rect ? rect.bottom : window.innerHeight) - menuHeight - 8;
+    setContextMenu({
+      item,
+      x: Math.max(minX, Math.min(x, maxX)),
+      y: Math.max(minY, Math.min(y, maxY)),
+    });
+  };
+
+  const cancelLongPress = () => {
+    if (longPressTimer.current !== null) {
+      window.clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    longPressOrigin.current = null;
+  };
+
+  const startLongPress = (item: TaskItem, x: number, y: number) => {
+    cancelLongPress();
+    longPressOrigin.current = { x, y };
+    longPressTimer.current = window.setTimeout(() => {
+      suppressClickRef.current = true;
+      openContextMenu(item, x, y);
+      cancelLongPress();
+    }, 500);
+  };
+
+  useEffect(() => {
+    if (!contextMenu) return;
+    const close = () => setContextMenu(null);
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (!target?.closest("[data-task-context-menu]")) close();
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") close();
+    };
+    window.addEventListener("pointerdown", handlePointerDown);
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", close);
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown);
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", close);
+    };
+  }, [contextMenu]);
+
   useEffect(() => {
     setEditingList(false);
     setMovingTask(null);
+    setContextMenu(null);
     setNewTaskText("");
     setNewTaskCursor(0);
     setNewTaskTagIds([]);
@@ -273,7 +357,7 @@ export const TasksModule = memo(function TasksModule({
   }, [filtersOpen]);
 
   return (
-    <div className="module-content tasks-module">
+    <div className="module-content tasks-module" ref={moduleRef}>
       <div className="module-heading">
         <div>
           <span className="eyebrow">Todoist</span>
@@ -401,8 +485,30 @@ export const TasksModule = memo(function TasksModule({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96 }}
                 onClick={() => {
+                  if (suppressClickRef.current) {
+                    suppressClickRef.current = false;
+                    return;
+                  }
                   if (!editingList && !isPast) toggleTaskDone(item);
                 }}
+                onContextMenu={(event) => {
+                  if (editingList || isPast) return;
+                  event.preventDefault();
+                  openContextMenu(item, event.clientX, event.clientY);
+                }}
+                onPointerDown={(event) => {
+                  if (event.pointerType === "touch") {
+                    startLongPress(item, event.clientX, event.clientY);
+                  }
+                }}
+                onPointerMove={(event) => {
+                  if (!longPressOrigin.current) return;
+                  const dx = event.clientX - longPressOrigin.current.x;
+                  const dy = event.clientY - longPressOrigin.current.y;
+                  if (Math.hypot(dx, dy) > 10) cancelLongPress();
+                }}
+                onPointerUp={cancelLongPress}
+                onPointerCancel={cancelLongPress}
               >
                 <div className="task-main">
                   <button
@@ -671,6 +777,83 @@ export const TasksModule = memo(function TasksModule({
           </div>
         )}
       </div>
+      {createPortal(
+        <AnimatePresence>
+          {contextMenu && (
+            <motion.div
+            key="task-context-menu"
+            data-task-context-menu
+            className="task-context-menu"
+            role="menu"
+            aria-label="Ações da tarefa"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            transition={{ duration: 0.12, ease: "easeOut" }}
+          >
+            <div className="task-context-menu-title">{contextMenu.item.text}</div>
+            <button
+              type="button"
+              role="menuitem"
+              className="task-context-menu-item"
+              onClick={() => {
+                toggleTaskDone(contextMenu.item);
+                setContextMenu(null);
+              }}
+            >
+              {contextMenu.item.done ? "Desmarcar" : "Marcar como concluída"}
+            </button>
+            {!contextMenu.item.persistent && (
+              <button
+                type="button"
+                role="menuitem"
+                className="task-context-menu-item"
+                onClick={() => {
+                  moveTaskToNextDay(contextMenu.item);
+                  setContextMenu(null);
+                }}
+              >
+                Mover para o dia seguinte
+              </button>
+            )}
+            {!contextMenu.item.persistent && (
+              <button
+                type="button"
+                role="menuitem"
+                className="task-context-menu-item"
+                onClick={() => {
+                  setMovingTask({
+                    item: contextMenu.item,
+                    date: shiftDateKey(selectedDate, 1),
+                  });
+                  setContextMenu(null);
+                }}
+              >
+                Mover para…
+              </button>
+            )}
+            <div className="task-context-menu-divider" role="separator" />
+            <button
+              type="button"
+              role="menuitem"
+              className="task-context-menu-item is-danger"
+              onClick={() => {
+                const target = contextMenu.item;
+                setContextMenu(null);
+                void runTaskMutation(async () => {
+                  await window.electronControl.tasks.delete(target.id);
+                  return items.filter((entry) => entry.id !== target.id);
+                }, "Falha ao excluir tarefa.");
+              }}
+            >
+              Excluir
+            </button>
+          </motion.div>
+          )}
+        </AnimatePresence>,
+        portalTarget,
+      )}
       <AnimatePresence>
         {movingTask && (
           <motion.div
