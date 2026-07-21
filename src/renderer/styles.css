@@ -1655,6 +1655,13 @@ button {
   color: var(--text);
   text-align: left;
   background: var(--surface-muted);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.task-edit-input {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 .task:has(.task-tags-row:not(:empty)) {
@@ -2194,6 +2201,59 @@ button.task-persistent-pill:hover {
   border-color: transparent;
   color: white;
   background: var(--accent);
+}
+
+.task-context-menu {
+  position: fixed;
+  z-index: 40;
+  display: grid;
+  gap: 2px;
+  width: 224px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  transform-origin: top left;
+}
+
+.task-context-menu-title {
+  overflow: hidden;
+  padding: 6px 10px 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-context-menu-item {
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  color: var(--text);
+  font-size: 14px;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.task-context-menu-item:hover {
+  background: var(--surface-muted);
+}
+
+.task-context-menu-item.is-danger {
+  color: #e06c75;
+}
+
+.task-context-menu-item.is-danger:hover {
+  background: rgba(224, 108, 117, 0.12);
+}
+
+.task-context-menu-divider {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--border);
 }
 
 .add-task {
