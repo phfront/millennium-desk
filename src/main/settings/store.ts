@@ -48,6 +48,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     truncateText: true,
     compactHeaders: true,
     textBelow: true,
+    tagsRight: false,
   },
   quoteAssets: DEFAULT_QUOTE_ASSETS,
   quoteDisplayCurrencies: DEFAULT_QUOTE_DISPLAY_CURRENCIES,
@@ -246,6 +247,7 @@ const normalizeTaskList = (value: unknown): AppSettings["taskList"] => {
     truncateText: pick("truncateText"),
     compactHeaders: pick("compactHeaders"),
     textBelow: pick("textBelow"),
+    tagsRight: pick("tagsRight"),
   };
 };
 

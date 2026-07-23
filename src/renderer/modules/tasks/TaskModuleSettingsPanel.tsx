@@ -16,6 +16,7 @@ const DENSITY_TOGGLES: [ToggleKey, string, string][] = [
   ["truncateText", "Texto em uma linha", "Corta com reticencias; o texto inteiro fica no title"],
   ["compactHeaders", "Divisor compacto", "Grupo sem a regua ocupando altura"],
   ["textBelow", "Texto embaixo da tag", "Segunda linha em largura total; custa altura"],
+  ["tagsRight", "Tag na direita", "Ancora a tag no canto direito da linha"],
 ];
 
 export function TaskModuleSettingsPanel({

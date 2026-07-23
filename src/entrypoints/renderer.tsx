@@ -71,6 +71,7 @@ if (!window.electronControl) {
       truncateText: true,
       compactHeaders: true,
       textBelow: true,
+      tagsRight: false,
     },
     quoteAssets: ["USD", "EUR", "BTC"],
     quoteDisplayCurrencies: ["BRL"],

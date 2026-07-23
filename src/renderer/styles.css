@@ -2064,6 +2064,17 @@ button.task-persistent-pill:hover {
   padding-right: calc(var(--row-pad) + 68px);
 }
 
+/* Tag ancorada no canto direito da linha. No layout empilhado a tag desliza
+   para o fim da primeira linha; na tag em linha, empurro pela margem. */
+.task-list.is-tags-right.is-stacked
+  .task:has(.task-tags-row:not(:empty)) .task-tags-row {
+  justify-self: end;
+}
+
+.task-list.is-tags-right.is-inline-tags .task-tags-row {
+  margin-left: auto;
+}
+
 .task-composer-persistent {
   flex: 0 0 44px;
   width: 44px;

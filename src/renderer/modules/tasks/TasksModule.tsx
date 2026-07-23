@@ -89,6 +89,7 @@ export const TasksModule = memo(function TasksModule({
     settings.truncateText && "is-truncated",
     settings.compactHeaders && "is-compact-headers",
     settings.textBelow && "is-stacked",
+    settings.tagsRight && "is-tags-right",
   ]
     .filter(Boolean)
     .join(" ");

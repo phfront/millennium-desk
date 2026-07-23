@@ -166,6 +166,8 @@ export interface TaskListSettings {
   compactHeaders: boolean;
   /** Nas linhas com tag, texto vai para a segunda linha em largura total. */
   textBelow: boolean;
+  /** Ancora a tag no canto direito da linha, em vez do inicio. */
+  tagsRight: boolean;
 }
 
 export interface DashboardProfile {

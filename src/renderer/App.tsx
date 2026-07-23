@@ -213,6 +213,7 @@ export function App() {
     truncateText: true,
     compactHeaders: true,
     textBelow: true,
+    tagsRight: false,
   });
   const [taskTags, setTaskTags] = useState<TaskTag[]>([]);
   const [taskTagsError, setTaskTagsError] = useState<string | null>(null);
