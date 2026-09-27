@@ -146,6 +146,16 @@ export const MediaModule = memo(function MediaModule({
               />
             </div>
           )}
+          {!editMode && (
+            <button
+              type="button"
+              className="media-fullscreen-button"
+              aria-label={mediaFullscreen ? "Sair do fullscreen" : "Fullscreen"}
+              aria-pressed={mediaFullscreen}
+              title={mediaFullscreen ? "Sair do fullscreen" : "Fullscreen"}
+              onClick={() => onMediaFullscreenChange(!mediaFullscreen)}
+            />
+          )}
         </nav>
       </div>
     </div>
