@@ -3,6 +3,9 @@ import type { PreferredDisplay } from "../shared/contracts";
 
 export const syncLaunchAtStartup = (enabled: boolean) => {
   if (process.platform !== "win32" && process.platform !== "darwin") return;
+  // Em dev o execPath e o electron.exe do node_modules: registrar isso na
+  // inicializacao do sistema abriria o Electron puro no login.
+  if (!app.isPackaged) return;
 
   app.setLoginItemSettings({
     openAtLogin: enabled,
