@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import type { AppSettings } from "../../shared/contracts";
 import { syncLaunchAtStartup } from "../launchBehavior";
 import { syncHiddenMediaApps } from "../mediaHub";
+import { syncShelloSettings } from "../shelloView";
 import { getSettings, getSettingsPath, updateSettings } from "../settings/store";
 
 const applySettingsSideEffects = (
@@ -14,6 +15,10 @@ const applySettingsSideEffects = (
 
   if ("hiddenMediaAppIds" in patch) {
     syncHiddenMediaApps();
+  }
+
+  if ("shello" in patch) {
+    syncShelloSettings();
   }
 };
 

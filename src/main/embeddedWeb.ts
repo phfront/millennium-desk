@@ -327,6 +327,8 @@ export type EmbeddedWebViewConfig = {
   spotifyIdentity?: SpotifyIdentityController;
   isTrustedNavigation: (url: string) => boolean;
   label: string;
+  /** Finge pagina sempre visivel (players de video). Padrao: ligado. */
+  playbackKeepalive?: boolean;
   onBeforeInputEvent?: (
     event: Electron.Event,
     input: Electron.Input,
@@ -462,7 +464,7 @@ export const createEmbeddedWebView = (config: EmbeddedWebViewConfig) => {
   }
 
   const injectPageScripts = () => {
-    injectPlaybackKeepalive(view);
+    if (config.playbackKeepalive !== false) injectPlaybackKeepalive(view);
     config.spotifyIdentity?.injectInto(view);
   };
 
@@ -509,6 +511,17 @@ export const createEmbeddedWebView = (config: EmbeddedWebViewConfig) => {
 };
 
 let lastFrontEmbeddedView: WebContentsView | null = null;
+
+// addChildView poe a view por cima das outras. Quem precisa ficar sempre na frente (a gaveta
+// do Shello) se reergue quando outra view sobe.
+const raisedListeners = new Set<() => void>();
+export const onEmbeddedViewRaised = (listener: () => void) => {
+  raisedListeners.add(listener);
+  return () => raisedListeners.delete(listener);
+};
+const notifyEmbeddedViewRaised = () => {
+  for (const listener of raisedListeners) listener();
+};
 const lastEmbeddedWebBounds = new WeakMap<
   WebContentsView,
   Electron.Rectangle
@@ -620,6 +633,7 @@ export const setEmbeddedWebViewVisible = (
     view.setVisible(true);
     view.webContents.setAudioMuted(false);
     notifyEmbeddedWebViewResize(view);
+    notifyEmbeddedViewRaised();
     return;
   }
 
@@ -703,6 +717,7 @@ export const syncEmbeddedWebViewBounds = (
   if (lastFrontEmbeddedView !== view) {
     parent.addChildView(view);
     lastFrontEmbeddedView = view;
+    notifyEmbeddedViewRaised();
   }
 
   if (sizeChanged) {

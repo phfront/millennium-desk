@@ -12,6 +12,8 @@ import type {
   DashboardProfile,
   DisplayInfo,
   SaveShortcutInput,
+  ShelloSettings,
+  ShelloState,
   ShortcutItem,
   ShortcutGridSettings,
   TemperatureUnit,
@@ -19,6 +21,7 @@ import type {
   ThemePreference,
   WeatherLocation,
 } from "../shared/contracts";
+import { DEFAULT_SHELLO_SETTINGS } from "../shared/shello";
 import {
   DEFAULT_MEDIA_APP_ID,
   isMediaAppId,
@@ -57,6 +60,8 @@ import {
 } from "./modules/tasks";
 import { MediaModule, MediaModuleSettingsPanel } from "./modules/media";
 import { SystemModule } from "./modules/system";
+import { ShelloModule } from "./modules/shello/ShelloModule";
+import { ShelloSettingsPanel } from "./modules/shello/ShelloSettingsPanel";
 import { QuotesModule, QuotesSettingsPanel } from "./modules/quotes";
 import {
   DEFAULT_QUOTE_ASSETS,
@@ -125,6 +130,7 @@ const MODULE_LABELS: Record<ModuleId, string> = {
   system: "Sistema",
   shortcuts: "Atalhos",
   quotes: "Cotacoes",
+  shello: "Shello",
 };
 const MODULE_IDS = Object.keys(MODULE_LABELS) as ModuleId[];
 
@@ -245,6 +251,19 @@ export function App() {
     ),
   });
   const mediaSlotRef = useRef<HTMLDivElement>(null);
+  const shelloSlotRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLElement>(null);
+  const [shelloSettings, setShelloSettings] = useState<ShelloSettings>(
+    DEFAULT_SHELLO_SETTINGS,
+  );
+  const [shelloState, setShelloState] = useState<ShelloState>({
+    waiting: 0,
+    offline: false,
+    drawerOpen: false,
+  });
+  const [shelloEditPreview, setShelloEditPreview] = useState<string | null>(
+    null,
+  );
   const [mediaLayoutMode, setMediaLayoutMode] = useState<SpotifyLayoutMode>(
     () => inferSpotifyLayoutForWidth(window.innerWidth * 0.25),
   );
@@ -288,6 +307,17 @@ export function App() {
     editMode ||
     hiddenModules.includes("media") ||
     !mediaInGrid;
+  const shelloDrawerMode = shelloSettings.mode === "drawer";
+  const shelloInGrid =
+    !shelloDrawerMode && renderedLayouts.some((layout) => layout.id === "shello");
+  // Paineis e menus ficam embaixo das views nativas: o Shello some enquanto estao abertos
+  const shelloVisible =
+    !overlayOpen &&
+    !profileMenuOpen &&
+    !editingProfiles &&
+    !emojiPickerOpen &&
+    !editMode &&
+    (shelloDrawerMode || (shelloInGrid && !mediaModuleFullscreen));
   const embeddedLayoutSignature = renderedLayouts
     .map(
       (module) =>
@@ -379,6 +409,7 @@ export function App() {
           setQuoteDisplayCurrencies(settings.quoteDisplayCurrencies);
         }
         setShortcutGrid(settings.shortcutGrid);
+        setShelloSettings(settings.shello ?? DEFAULT_SHELLO_SETTINGS);
         if (settings.taskList) {
           setTaskSettings(settings.taskList);
         }
@@ -722,6 +753,80 @@ export function App() {
     if (!mediaSurfaceHidden) requestAnimationFrame(syncMediaBounds);
   }, [mediaSurfaceHidden, syncMediaBounds]);
 
+  // Shello: na grade, a view ocupa o slot do modulo; na gaveta, o main a encaixa na borda
+  // direita da area da grade (e poe a aba ao lado)
+  const syncShello = useCallback(() => {
+    const element = shelloDrawerMode ? canvasRef.current : shelloSlotRef.current;
+    const rect = element?.getBoundingClientRect();
+    void window.electronControl.shello.sync({
+      mode: shelloDrawerMode ? "drawer" : "grid",
+      visible: shelloVisible && !!rect && rect.width > 1 && rect.height > 1,
+      bounds: rect
+        ? { x: rect.x, y: rect.y, width: rect.width, height: rect.height }
+        : null,
+    });
+  }, [shelloDrawerMode, shelloVisible]);
+
+  useLayoutEffect(() => {
+    syncShello();
+    const element = shelloDrawerMode ? canvasRef.current : shelloSlotRef.current;
+    const observer = new ResizeObserver(syncShello);
+    if (element) observer.observe(element);
+    window.addEventListener("resize", syncShello);
+    // A grade anima ao mudar: confere de novo depois que assenta
+    const settledTimer = window.setTimeout(syncShello, 220);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", syncShello);
+      window.clearTimeout(settledTimer);
+    };
+  }, [
+    syncShello,
+    shelloDrawerMode,
+    embeddedLayoutSignature,
+    fullscreen,
+    mediaModuleFullscreen,
+  ]);
+
+  useEffect(() => {
+    void window.electronControl.shello.getState().then(setShelloState);
+    return window.electronControl.shello.onState(setShelloState);
+  }, []);
+
+  // Gaveta aberta: tocar em qualquer parte do Desk (fora dela) fecha
+  useEffect(() => {
+    if (!shelloState.drawerOpen) return;
+    const close = () => void window.electronControl.shello.setDrawerOpen(false);
+    window.addEventListener("pointerdown", close);
+    return () => window.removeEventListener("pointerdown", close);
+  }, [shelloState.drawerOpen]);
+
+  const reloadShello = useCallback(
+    () => void window.electronControl.shello.reload(),
+    [],
+  );
+
+  // Gaveta: o modulo sai da grade. Grade: volta para ela (no fim; o lugar se ajusta em Editar)
+  const updateShelloSettings = (patch: Partial<ShelloSettings>) => {
+    const next = { ...shelloSettings, ...patch };
+    setShelloSettings(next);
+    void window.electronControl.settings.update({ shello: next });
+    if (patch.mode === "drawer") {
+      setLayoutTree((current) => removeModule(current, "shello"));
+      setHiddenModules((current) =>
+        current.includes("shello") ? current : [...current, "shello"],
+      );
+    }
+    if (patch.mode === "grid" && shelloSettings.mode === "drawer") {
+      setLayoutTree((current) =>
+        collectModulesInLayout(current).includes("shello")
+          ? current
+          : appendModule(current, "shello"),
+      );
+      setHiddenModules((current) => current.filter((id) => id !== "shello"));
+    }
+  };
+
   const changeMediaApp = useCallback((appId: MediaAppId) => {
     setActiveMediaApp(appId);
     void window.electronControl.media.setActiveApp(appId);
@@ -891,6 +996,10 @@ export function App() {
     () => openModuleSettings("media"),
     [openModuleSettings],
   );
+  const openShelloSettings = useCallback(
+    () => openModuleSettings("shello"),
+    [openModuleSettings],
+  );
   const openShortcutsSettingsDefault = useCallback(
     () => openShortcutSettings(),
     [openShortcutSettings],
@@ -910,6 +1019,9 @@ export function App() {
       ? null
       : await window.electronControl.media.capturePreview();
     setMediaEditPreview(mediaPreview);
+    setShelloEditPreview(
+      shelloInGrid ? await window.electronControl.shello.capturePreview() : null,
+    );
     setEditMode(true);
   };
 
@@ -920,6 +1032,7 @@ export function App() {
     });
     setEditMode(false);
     setMediaEditPreview(null);
+    setShelloEditPreview(null);
   };
 
   const hideModule = (id: ModuleId) => {
@@ -1360,8 +1473,26 @@ export function App() {
             onAddAtSlot={openShortcutSettings}
           />
         );
+      case "shello":
+        return (
+          <ShelloModule
+            slotRef={shelloSlotRef}
+            editMode={options.editMode}
+            editPreview={shelloEditPreview}
+            offline={shelloState.offline}
+            drawerMode={shelloDrawerMode}
+            url={shelloSettings.url}
+            onRetry={reloadShello}
+            onConfigure={openShelloSettings}
+          />
+        );
     }
   };
+
+  // No modo gaveta o Shello nao entra na grade: fica fora da bandeja de modulos ocultos
+  const trayModules = hiddenModules.filter(
+    (id) => !(id === "shello" && shelloDrawerMode),
+  );
 
   if (theme === null || accentColor === null) {
     return (
@@ -1522,7 +1653,10 @@ export function App() {
         </header>
       )}
 
-      <section className={editMode ? "canvas editing" : "canvas"}>
+      <section
+        ref={canvasRef}
+        className={editMode ? "canvas editing" : "canvas"}
+      >
         {renderedLayouts.map((layout) => (
           <ModuleCard
             key={layout.id}
@@ -1568,10 +1702,10 @@ export function App() {
             <button className="edit-tray-done" onClick={exitEditMode}>
               Concluir
             </button>
-            {hiddenModules.length > 0 && (
+            {trayModules.length > 0 && (
               <div className="hidden-modules-section">
                 <div className="hidden-modules-list">
-                  {hiddenModules.map((id) => (
+                  {trayModules.map((id) => (
                     <button key={id} onClick={() => showModule(id)}>
                       <span>+</span>
                       {MODULE_LABELS[id]}
@@ -1640,6 +1774,8 @@ export function App() {
                             ? "Atalhos"
                             : moduleSettings === "quotes"
                               ? "Cotacoes"
+                              : moduleSettings === "shello"
+                                ? "Shello"
                           : "Configuracoes"}
                   </h2>
                 </div>
@@ -1772,6 +1908,15 @@ export function App() {
                   </select>
                 </label>
               </section>}
+
+              {(!moduleSettings || moduleSettings === "shello") && (
+                <ShelloSettingsPanel
+                  settings={shelloSettings}
+                  state={shelloState}
+                  onChange={updateShelloSettings}
+                  onReload={reloadShello}
+                />
+              )}
 
               {!moduleSettings && <section className="setting-group">
                 <h3>Diagnostico</h3>

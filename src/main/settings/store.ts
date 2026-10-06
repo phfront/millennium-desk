@@ -17,6 +17,10 @@ import {
   isQuoteAssetCode,
   isQuoteDisplayCurrency,
 } from "../../shared/quotes";
+import {
+  DEFAULT_SHELLO_SETTINGS,
+  normalizeShelloSettings,
+} from "../../shared/shello";
 import { getDatabase, getDatabasePath } from "../database";
 
 const LEGACY_SETTINGS_FILE = "settings.json";
@@ -54,6 +58,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   quoteDisplayCurrencies: DEFAULT_QUOTE_DISPLAY_CURRENCIES,
   activeProfileId: DEFAULT_PROFILE_ID,
   dashboardProfiles: [],
+  shello: DEFAULT_SHELLO_SETTINGS,
 };
 
 const normalizeQuoteAssets = (value: unknown): string[] => {
@@ -109,7 +114,8 @@ const normalizeDashboardModuleId = (
     value === "media" ||
     value === "system" ||
     value === "shortcuts" ||
-    value === "quotes"
+    value === "quotes" ||
+    value === "shello"
   ) {
     return value;
   }
@@ -394,6 +400,7 @@ const normalizeSettings = (value: unknown): AppSettings => {
       ? activeProfileId
       : profiles[0]?.id ?? DEFAULT_PROFILE_ID,
     dashboardProfiles: profiles,
+    shello: normalizeShelloSettings(raw.shello),
   };
 };
 

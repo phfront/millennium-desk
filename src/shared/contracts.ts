@@ -22,7 +22,8 @@ export type DashboardModuleId =
   | "media"
   | "system"
   | "shortcuts"
-  | "quotes";
+  | "quotes"
+  | "shello";
 
 export type ShortcutType =
   | "app"
@@ -216,6 +217,36 @@ export interface AppSettings {
   quoteDisplayCurrencies: string[];
   activeProfileId: string;
   dashboardProfiles: DashboardProfile[];
+  /** Painel do Claude Code (Shello / Claude Web) exibido no Desk. */
+  shello: ShelloSettings;
+}
+
+/**
+ * grid: o Resumo do Shello como modulo da grade.
+ * drawer: o app completo numa gaveta lateral, aberta pela aba na borda.
+ */
+export type ShelloDisplayMode = "grid" | "drawer";
+
+export interface ShelloSettings {
+  mode: ShelloDisplayMode;
+  /** Endereco do servidor do Shello neste PC (so loopback). */
+  url: string;
+}
+
+/** Estado da view do Shello, enviado pelo processo principal. */
+export interface ShelloState {
+  /** Sessoes esperando resposta (vem do titulo da pagina, "(n) Claude Web"). */
+  waiting: number;
+  /** Servidor fora do ar: a view some e o modulo mostra o aviso. */
+  offline: boolean;
+  drawerOpen: boolean;
+}
+
+export interface ShelloSurface {
+  mode: ShelloDisplayMode;
+  /** Retangulo do slot do modulo (grid) ou da area da grade (drawer). */
+  bounds: ViewBounds | null;
+  visible: boolean;
 }
 
 export interface WeatherCurrent {
@@ -426,6 +457,14 @@ export interface ElectronControlApi {
     getPowerState(): Promise<MediaPowerState>;
     onPowerStateChanged(callback: (state: MediaPowerState) => void): () => void;
     onPowerOnRequest(callback: (appId: MediaAppId) => void): () => void;
+  };
+  shello: {
+    sync(surface: ShelloSurface): Promise<void>;
+    setDrawerOpen(open: boolean): Promise<void>;
+    reload(): Promise<void>;
+    capturePreview(): Promise<string | null>;
+    getState(): Promise<ShelloState>;
+    onState(callback: (state: ShelloState) => void): () => void;
   };
   window: {
     toggleFullscreen(): Promise<boolean>;

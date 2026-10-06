@@ -109,6 +109,7 @@ if (!window.electronControl) {
         shortcutGrid: { columns: 4, rows: 2 },
       },
     ],
+    shello: { mode: "grid", url: "http://127.0.0.1:7681" },
   });
 
   const readBrowserSettings = (): AppSettings => {
@@ -598,6 +599,14 @@ if (!window.electronControl) {
       }),
       onPowerStateChanged: () => () => undefined,
       onPowerOnRequest: () => () => undefined,
+    },
+    shello: {
+      sync: async () => undefined,
+      setDrawerOpen: async () => undefined,
+      reload: async () => undefined,
+      capturePreview: async () => null,
+      getState: async () => ({ waiting: 0, offline: false, drawerOpen: false }),
+      onState: () => () => undefined,
     },
     window: {
       toggleFullscreen: async () => false,

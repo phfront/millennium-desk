@@ -9,6 +9,8 @@ import type {
   LogQuery,
   MediaPowerState,
   SaveShortcutInput,
+  ShelloState,
+  ShelloSurface,
   TemperatureUnit,
   UpdateTagInput,
   UpdateTaskInput,
@@ -150,6 +152,21 @@ const api: ElectronControlApi = {
       ipcRenderer.on("media:power-on-request", listener);
       return () =>
         ipcRenderer.removeListener("media:power-on-request", listener);
+    },
+  },
+  shello: {
+    sync: (surface: ShelloSurface) => ipcRenderer.invoke("shello:sync", surface),
+    setDrawerOpen: (open: boolean) =>
+      ipcRenderer.invoke("shello:set-drawer-open", open),
+    reload: () => ipcRenderer.invoke("shello:reload"),
+    capturePreview: () =>
+      ipcRenderer.invoke("shello:capture-preview") as Promise<string | null>,
+    getState: () => ipcRenderer.invoke("shello:get-state") as Promise<ShelloState>,
+    onState: (callback: (state: ShelloState) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, state: ShelloState) =>
+        callback(state);
+      ipcRenderer.on("shello:state", listener);
+      return () => ipcRenderer.removeListener("shello:state", listener);
     },
   },
   window: {

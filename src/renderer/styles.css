@@ -2879,6 +2879,103 @@ button.task-rollover-pill:hover {
   color: #a3a3a8;
 }
 
+/* Shello: o slot recebe a view nativa; o aviso aparece quando ela nao esta ali */
+.shello-module {
+  padding: 0;
+}
+
+.shello-slot {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #0f1115;
+}
+
+.shello-notice {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  padding: 24px;
+  color: #e6e8ec;
+  text-align: center;
+}
+
+.shello-notice > span:not(.shello-notice-mark) {
+  max-width: 34ch;
+  color: #8b92a1;
+  font-size: 13px;
+}
+
+.shello-notice-mark {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 4px;
+  border-radius: 13px;
+  color: #1a0f0a;
+  background: #d97757;
+  font: 800 16px "Cascadia Code", Consolas, monospace;
+}
+
+.shello-notice-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.shello-notice-actions button {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #2a2f3a;
+  border-radius: 10px;
+  color: #e6e8ec;
+  background: #181b22;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.shello-notice-actions button:first-child {
+  border-color: transparent;
+  color: #1a0f0a;
+  background: #d97757;
+}
+
+.shello-mode-segmented {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.shello-url-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.shello-url-field input {
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  background: var(--surface);
+  font: 500 14px "Cascadia Code", Consolas, monospace;
+}
+
+.shello-url-error {
+  margin: -6px 0 0;
+  color: #f07178;
+  font-size: 13px;
+}
+
+.setting-action strong.shello-status-off {
+  color: #f07178;
+}
+
 .media-dock {
   --media-dock-size: 76px;
   display: flex;

@@ -28,6 +28,7 @@ import {
   setMediaHubActiveApp,
   setMediaRuntimeGate,
 } from "../main/mediaHub";
+import { disposeShello, initShello, registerShelloIpc } from "../main/shelloView";
 import { registerLogsIpc, setLogsMainWindowGetter } from "../main/ipc/logsIpc";
 import { registerSettingsIpc } from "../main/ipc/settingsIpc";
 import {
@@ -666,6 +667,14 @@ const createWindow = async () => {
     getMainWindow: () => mainWindow,
     onBeforeInputEvent: handleEmbeddedInputShortcut,
   });
+  // No Shello o Esc interrompe o Claude: nao pode virar "sair da tela cheia"
+  initShello({
+    getMainWindow: () => mainWindow,
+    onBeforeInputEvent: (event, input) => {
+      if (isEscapeInput(input)) return;
+      handleEmbeddedInputShortcut(event, input);
+    },
+  });
   if (isMediaAppId(settings.activeMediaApp)) {
     setMediaHubActiveApp(settings.activeMediaApp);
   }
@@ -776,6 +785,7 @@ const createWindow = async () => {
     mediaControlsMenuOpen = false;
     mediaFullscreenOverlayActive = false;
     youtubeView = null;
+    disposeShello();
     mainWindow = null;
   });
 };
@@ -935,6 +945,7 @@ app.whenReady().then(async () => {
   registerQuotesIpc();
   registerShortcutsIpc();
   registerMediaIpc();
+  registerShelloIpc();
   screen.on("display-added", () => {
     if (!mainWindow) return;
     const settings = getSettings();
