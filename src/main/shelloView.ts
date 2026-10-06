@@ -100,9 +100,11 @@ const ensureView = () => {
   created.setBackgroundColor("#0f1115");
   const contents = created.webContents;
 
-  // Links de fora (docs, PR, preview de porta) abrem no navegador do sistema
+  // Janela pedida pelo Shello (o botao de painel completo do Resumo) vira o modal; links de
+  // fora (docs, PR, preview de porta) abrem no navegador do sistema
   contents.setWindowOpenHandler(({ url }) => {
-    if (/^https?:\/\//i.test(url) && !isTrusted(url)) void shell.openExternal(url);
+    if (isTrusted(url)) openModal(url);
+    else openExternalLink(url);
     return { action: "deny" };
   });
   contents.on("did-fail-load", (_event, errorCode, _description, _url, isMainFrame) => {
@@ -126,6 +128,100 @@ const ensureView = () => {
 
   view = created;
   return created;
+};
+
+const openExternalLink = (url: string) => {
+  if (/^https?:\/\//i.test(url) && !isTrusted(url)) void shell.openExternal(url);
+};
+
+// ---------- modal: o app completo por cima de tudo ----------
+// Aberto pelo Resumo (window.open). Mesma particao, entao ja entra logado. O fundo escuro e
+// uma view nativa (cobre a Smart TV): tocar nele ou no x fecha. Esc continua indo para o Shello.
+
+const MODAL_MARGIN = 40;
+const MODAL_MAX_WIDTH = 1320;
+
+let modal: WebContentsView | null = null;
+let backdrop: WebContentsView | null = null;
+let modalOpen = false;
+const resizeHooked = new WeakSet<Electron.BrowserWindow>();
+
+const BACKDROP_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: rgba(6, 7, 10, .64); cursor: pointer; }
+button { position: fixed; top: 14px; right: 18px; width: 44px; height: 44px; border-radius: 12px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, .16); background: rgba(24, 27, 34, .92); color: #e6e8ec;
+  font: 500 24px/1 system-ui, sans-serif; }
+button:hover { background: rgba(40, 44, 54, .95); }
+p { position: fixed; left: 0; right: 0; bottom: 10px; margin: 0; text-align: center;
+  color: rgba(230, 232, 236, .55); font: 13px system-ui, sans-serif; }
+</style></head><body><button title="Fechar" aria-label="Fechar">&times;</button><p>Toque fora para fechar</p>
+<script>document.body.onclick = () => { document.title = "close " + Date.now(); };</script></body></html>`;
+
+const positionModal = () => {
+  const window = context?.getMainWindow();
+  if (!modalOpen || !window || !modal || !backdrop) return;
+  const { width, height } = window.getContentBounds();
+  const modalWidth = Math.min(MODAL_MAX_WIDTH, width - MODAL_MARGIN * 2);
+  place(backdrop, { x: 0, y: 0, width, height }, { raise: true });
+  place(
+    modal,
+    {
+      x: Math.round((width - modalWidth) / 2),
+      y: MODAL_MARGIN,
+      width: Math.max(1, modalWidth),
+      height: Math.max(1, height - MODAL_MARGIN * 2),
+    },
+    { raise: true },
+  );
+};
+
+const closeModal = () => {
+  modalOpen = false;
+  detach(modal);
+  detach(backdrop);
+};
+
+const openModal = (url: string) => {
+  const window = context?.getMainWindow();
+  if (!window) return;
+  if (!modal || modal.webContents.isDestroyed()) {
+    modal = createEmbeddedWebView({
+      partition: "persist:shello",
+      homeUrl: url,
+      isTrustedNavigation: isTrusted,
+      label: "Shello (modal)",
+      playbackKeepalive: false,
+      onBeforeInputEvent: context?.onBeforeInputEvent,
+    });
+    modal.setBackgroundColor("#0f1115");
+    modal.webContents.setWindowOpenHandler(({ url: target }) => {
+      openExternalLink(target);
+      return { action: "deny" };
+    });
+  }
+  if (!backdrop || backdrop.webContents.isDestroyed()) {
+    backdrop = new WebContentsView({
+      webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false },
+    });
+    backdrop.setBackgroundColor("#00000000");
+    backdrop.webContents.on("page-title-updated", (_event, title) => {
+      if (title.startsWith("close ")) closeModal();
+    });
+    backdrop.webContents.on("will-navigate", (event) => event.preventDefault());
+    backdrop.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    void backdrop.webContents
+      .loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(BACKDROP_HTML)}`)
+      .catch(() => {});
+  }
+  if (!resizeHooked.has(window)) {
+    resizeHooked.add(window);
+    window.on("resize", positionModal);
+  }
+  if (state.drawerOpen) setState({ drawerOpen: false });
+  modalOpen = true;
+  apply();
+  positionModal();
+  modal.webContents.focus();
 };
 
 const ensureUrl = () => {
@@ -263,14 +359,20 @@ const apply = () => {
     },
     { raise: true },
   );
+  // A aba acabou de subir: o modal aberto volta para cima dela
+  if (modalOpen) positionModal();
 };
 
-// A Smart TV sobe para a frente quando muda de tamanho: a gaveta volta para cima dela
+// A Smart TV sobe para a frente quando muda de tamanho: a gaveta (e o modal, acima de tudo)
+// voltam para cima dela
 const raiseDrawer = () => {
-  if (surface.mode !== "drawer") return;
   const parent = getParent();
   if (!parent) return;
-  for (const target of [view, handle]) {
+  const onTop = [
+    ...(surface.mode === "drawer" ? [view, handle] : []),
+    ...(modalOpen ? [backdrop, modal] : []),
+  ];
+  for (const target of onTop) {
     if (target && attached.has(target)) parent.addChildView(target);
   }
 };
@@ -293,13 +395,16 @@ export const syncShelloSettings = () => {
 
 export const disposeShello = () => {
   clearRetry();
+  closeModal();
   detach(view);
   detach(handle);
-  for (const target of [view, handle]) {
+  for (const target of [view, handle, modal, backdrop]) {
     if (target && !target.webContents.isDestroyed()) target.webContents.close();
   }
   view = null;
   handle = null;
+  modal = null;
+  backdrop = null;
   loadedUrl = null;
   surface = { ...surface, visible: false };
   state = { waiting: 0, offline: false, drawerOpen: false };
