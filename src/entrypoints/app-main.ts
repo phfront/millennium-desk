@@ -20,6 +20,8 @@ import {
 import {
   initMediaHub,
   goHomeActiveMediaApp,
+  isMediaAppRunning,
+  powerOffMediaApp,
   registerMediaIpc,
   reloadActiveMediaApp,
   resolveMediaHubDevToolsTarget,
@@ -37,7 +39,11 @@ import {
 import { registerDisplayLogging } from "../main/logs/displayLogging";
 import { registerErrorLogging } from "../main/logs/errorLogging";
 import { ensureWidevineReady } from "../main/widevineComponents";
-import { isMediaAppId } from "../shared/mediaApps";
+import {
+  getMediaAppDefinition,
+  isMediaAppId,
+  type MediaAppId,
+} from "../shared/mediaApps";
 import { registerTasksIpc } from "../main/ipc/tasksIpc";
 import { registerSystemIpc } from "../main/ipc/systemIpc";
 import { registerQuotesIpc } from "../main/ipc/quotesIpc";
@@ -67,6 +73,30 @@ let mediaFullscreenOverlayActive = false;
 let mediaFullscreenExitOverlay: BrowserWindow | null = null;
 let mediaControlsOverlay: BrowserWindow | null = null;
 let mediaControlsMenuOpen = false;
+
+type MediaMenuItem = {
+  action: string;
+  label: string;
+  icon: "fullscreen" | "refresh" | "home" | "power";
+};
+
+const MEDIA_MENU_WIDTH = 210;
+const MEDIA_MENU_ITEM_HEIGHT = 42;
+const MEDIA_MENU_GAP = 6;
+// Padding do body (8 + 8) + padding do .menu (8 + 8) + folga da borda.
+const MEDIA_MENU_CHROME = 38;
+
+const getMediaMenuHeight = (itemCount: number) =>
+  MEDIA_MENU_CHROME +
+  itemCount * MEDIA_MENU_ITEM_HEIGHT +
+  Math.max(0, itemCount - 1) * MEDIA_MENU_GAP;
+
+const escapeMenuHtml = (value: string) =>
+  value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 
 const isEscapeInput = (input: Electron.Input) =>
   input.key === "Escape" || input.key === "Esc" || input.code === "Escape";
@@ -256,7 +286,7 @@ const ensureMediaControlsOverlay = () => {
 
 const loadMediaControlsOverlay = (
   overlay: BrowserWindow,
-  mediaFullscreen: boolean,
+  items: MediaMenuItem[],
 ) =>
   overlay.loadURL(
     `data:text/html;charset=utf-8,${encodeURIComponent(`
@@ -334,6 +364,25 @@ const loadMediaControlsOverlay = (
             .refresh .icon::before {
               mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6v5h-5'/%3E%3Cpath d='M4 18v-5h5'/%3E%3Cpath d='M6.1 9a7 7 0 0 1 11.7-2.6L20 11'/%3E%3Cpath d='M17.9 15a7 7 0 0 1-11.7 2.6L4 13'/%3E%3C/svg%3E");
             }
+            .power {
+              color: #ffb4ab;
+            }
+            .power .icon {
+              color: #ff8a80;
+              border-color: rgba(255, 138, 128, 0.22);
+              background: rgba(255, 138, 128, 0.1);
+            }
+            .power.on {
+              color: #b9f6ca;
+            }
+            .power.on .icon {
+              color: #69f0ae;
+              border-color: rgba(105, 240, 174, 0.22);
+              background: rgba(105, 240, 174, 0.1);
+            }
+            .power .icon::before {
+              mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v9'/%3E%3Cpath d='M6.4 6.6a8 8 0 1 0 11.2 0'/%3E%3C/svg%3E");
+            }
             .home .icon::before {
               mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m3 11 9-8 9 8'/%3E%3Cpath d='M5 10v10h14V10'/%3E%3Cpath d='M9 20v-6h6v6'/%3E%3C/svg%3E");
             }
@@ -341,9 +390,12 @@ const loadMediaControlsOverlay = (
         </head>
         <body>
           <div class="menu">
-            <button class="fullscreen" data-action="fullscreen"><span class="icon"></span>${mediaFullscreen ? "Sair do fullscreen" : "Fullscreen"}</button>
-            <button class="refresh" data-action="refresh"><span class="icon"></span>Refresh</button>
-            <button class="home" data-action="home"><span class="icon"></span>Home</button>
+            ${items
+              .map(
+                (item) =>
+                  `<button class="${item.icon}${item.action.startsWith("power-on:") ? " on" : ""}" data-action="${escapeMenuHtml(item.action)}"><span class="icon"></span>${escapeMenuHtml(item.label)}</button>`,
+              )
+              .join("")}
           </div>
           <script>
             const { ipcRenderer } = require("electron");
@@ -358,9 +410,10 @@ const loadMediaControlsOverlay = (
     `)}`,
   );
 
-const showMediaControlsOverlay = (
-  mediaFullscreen: boolean,
+const showMediaMenuOverlay = (
+  items: MediaMenuItem[],
   anchor: ViewBounds,
+  align: "end" | "center",
 ): boolean => {
   if (!mainWindow) return false;
   const overlay = ensureMediaControlsOverlay();
@@ -372,14 +425,18 @@ const showMediaControlsOverlay = (
   }
 
   const windowBounds = mainWindow.getBounds();
-  const overlayWidth = 210;
-  const overlayHeight = 176;
+  const overlayWidth = MEDIA_MENU_WIDTH;
+  const overlayHeight = getMediaMenuHeight(items.length);
   const margin = 8;
+  const preferredX =
+    align === "center"
+      ? anchor.x + anchor.width / 2 - overlayWidth / 2
+      : anchor.x + anchor.width - overlayWidth;
   const x = Math.round(
     windowBounds.x +
       Math.min(
         windowBounds.width - overlayWidth - margin,
-        Math.max(margin, anchor.x + anchor.width - overlayWidth),
+        Math.max(margin, preferredX),
       ),
   );
   const y = Math.round(
@@ -387,11 +444,37 @@ const showMediaControlsOverlay = (
       Math.max(margin, anchor.y - overlayHeight - margin),
   );
   overlay.setBounds({ x, y, width: overlayWidth, height: overlayHeight });
-  void loadMediaControlsOverlay(overlay, mediaFullscreen).then(() => {
+  void loadMediaControlsOverlay(overlay, items).then(() => {
     mediaControlsMenuOpen = true;
     overlay.show();
   });
   return true;
+};
+
+const showMediaControlsOverlay = (
+  mediaFullscreen: boolean,
+  anchor: ViewBounds,
+) =>
+  showMediaMenuOverlay(
+    [
+      {
+        action: "fullscreen",
+        label: mediaFullscreen ? "Sair do fullscreen" : "Fullscreen",
+        icon: "fullscreen",
+      },
+      { action: "refresh", label: "Refresh", icon: "refresh" },
+      { action: "home", label: "Home", icon: "home" },
+    ],
+    anchor,
+    "end",
+  );
+
+const showMediaAppMenu = (appId: MediaAppId, anchor: ViewBounds) => {
+  const { label } = getMediaAppDefinition(appId);
+  const item: MediaMenuItem = isMediaAppRunning(appId)
+    ? { action: `power-off:${appId}`, label: `Desligar ${label}`, icon: "power" }
+    : { action: `power-on:${appId}`, label: `Ligar ${label}`, icon: "power" };
+  return showMediaMenuOverlay([item], anchor, "center");
 };
 
 const resolveEmbeddedDevToolsTarget = () =>
@@ -738,6 +821,14 @@ ipcMain.handle(
     showMediaControlsOverlay(mediaFullscreen, anchor),
 );
 
+ipcMain.handle(
+  "media:show-app-menu",
+  (_event, appId: MediaAppId, anchor: ViewBounds) => {
+    if (!isMediaAppId(appId)) return false;
+    return showMediaAppMenu(appId, anchor);
+  },
+);
+
 ipcMain.on("media:controls-action", (_event, action: string) => {
   hideMediaControlsOverlay();
   if (action === "fullscreen") {
@@ -750,6 +841,17 @@ ipcMain.on("media:controls-action", (_event, action: string) => {
   }
   if (action === "home") {
     goHomeActiveMediaApp();
+    return;
+  }
+  const [kind, appId] = action.split(":");
+  if (!isMediaAppId(appId)) return;
+  if (kind === "power-off") {
+    powerOffMediaApp(appId);
+    return;
+  }
+  if (kind === "power-on") {
+    // Ligar = abrir pelo dock; o renderer e quem persiste o app ativo.
+    mainWindow?.webContents.send("media:power-on-request", appId);
   }
 });
 

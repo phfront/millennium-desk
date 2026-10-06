@@ -7,6 +7,7 @@ import type {
   ElectronControlApi,
   LogEntry,
   LogQuery,
+  MediaPowerState,
   SaveShortcutInput,
   TemperatureUnit,
   UpdateTagInput,
@@ -129,6 +130,26 @@ const api: ElectronControlApi = {
       ipcRenderer.on("media:controls-menu-closed", listener);
       return () =>
         ipcRenderer.removeListener("media:controls-menu-closed", listener);
+    },
+    showAppMenu: (appId: MediaAppId, anchor: ViewBounds) =>
+      ipcRenderer.invoke("media:show-app-menu", appId, anchor) as Promise<boolean>,
+    powerOffApp: (appId: MediaAppId) =>
+      ipcRenderer.invoke("media:power-off-app", appId) as Promise<void>,
+    getPowerState: () =>
+      ipcRenderer.invoke("media:get-power-state") as Promise<MediaPowerState>,
+    onPowerStateChanged: (callback: (state: MediaPowerState) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, state: MediaPowerState) =>
+        callback(state);
+      ipcRenderer.on("media:power-state-changed", listener);
+      return () =>
+        ipcRenderer.removeListener("media:power-state-changed", listener);
+    },
+    onPowerOnRequest: (callback: (appId: MediaAppId) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, appId: MediaAppId) =>
+        callback(appId);
+      ipcRenderer.on("media:power-on-request", listener);
+      return () =>
+        ipcRenderer.removeListener("media:power-on-request", listener);
     },
   },
   window: {

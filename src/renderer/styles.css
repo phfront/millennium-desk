@@ -2926,6 +2926,58 @@ button.task-rollover-pill:hover {
   opacity: 1;
 }
 
+/* Ligado em segundo plano: o webview segue aberto (pode estar tocando). */
+.media-dock-button.running {
+  opacity: 0.6;
+}
+
+.media-dock-button.running::after {
+  content: "";
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.7);
+  transform: translateX(-50%);
+}
+
+.media-dock-button.powered-off {
+  opacity: 0.55;
+  filter: grayscale(0.7);
+}
+
+.media-power-off {
+  justify-items: center;
+  gap: 12px;
+  background: #0b0b0c;
+}
+
+.media-power-off .media-power-off-icon {
+  width: 56px;
+  height: 56px;
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.media-power-on-button {
+  min-height: 40px;
+  padding: 0 22px;
+  border: 1px solid rgba(105, 240, 174, 0.3);
+  border-radius: 999px;
+  color: #b9f6ca;
+  font: inherit;
+  font-weight: 650;
+  background: rgba(105, 240, 174, 0.1);
+  cursor: pointer;
+}
+
+.media-power-on-button:hover {
+  background: rgba(105, 240, 174, 0.18);
+}
+
 .media-dock-button[data-app="youtube"],
 .media-dock-button[data-app="netflix"],
 .media-dock-button[data-app="globoplay"] {

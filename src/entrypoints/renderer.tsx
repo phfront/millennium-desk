@@ -590,6 +590,14 @@ if (!window.electronControl) {
       onFullscreenOverlayExit: () => () => undefined,
       onFullscreenMenuToggle: () => () => undefined,
       onControlsMenuClosed: () => () => undefined,
+      showAppMenu: async () => false,
+      powerOffApp: async () => undefined,
+      getPowerState: async () => ({
+        runningAppIds: [],
+        activeAppPoweredOff: false,
+      }),
+      onPowerStateChanged: () => () => undefined,
+      onPowerOnRequest: () => () => undefined,
     },
     window: {
       toggleFullscreen: async () => false,

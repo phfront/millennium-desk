@@ -25,7 +25,7 @@ import {
   type MediaAppDefinition,
   type MediaAppId,
 } from "../shared/mediaApps";
-import type { ViewBounds } from "../shared/contracts";
+import type { MediaPowerState, ViewBounds } from "../shared/contracts";
 
 type MediaHubContext = {
   getMainWindow: () => Electron.BrowserWindow | null;
@@ -44,6 +44,8 @@ let context: MediaHubContext | null = null;
 let hubVisible = false;
 let activeAppId: MediaAppId = DEFAULT_MEDIA_APP_ID;
 let slotBounds: Electron.Rectangle | null = null;
+// App ativo desligado pelo usuario: o slot fica vazio ate ele religar.
+let activeAppPoweredOff = false;
 const runtimes = new Map<MediaAppId, MediaAppRuntime>();
 const savedMediaUrls = new Map<MediaAppId, string>();
 
@@ -55,6 +57,17 @@ const MAX_PARKED_RUNTIMES = 2;
 const PARKED_RUNTIME_TTL_MS = 5 * 60_000;
 const runtimeLastActiveAt = new Map<MediaAppId, number>();
 let parkedSweepTimer: NodeJS.Timeout | null = null;
+
+const getMediaPowerState = (): MediaPowerState => ({
+  runningAppIds: [...runtimes.keys()],
+  activeAppPoweredOff,
+});
+
+const broadcastMediaPowerState = () => {
+  const window = context?.getMainWindow();
+  if (!window || window.webContents.isDestroyed()) return;
+  window.webContents.send("media:power-state-changed", getMediaPowerState());
+};
 
 const touchRuntime = (appId: MediaAppId) => {
   runtimeLastActiveAt.set(appId, Date.now());
@@ -207,6 +220,7 @@ const disposeMediaApp = (appId: MediaAppId) => {
   );
   runtimes.delete(appId);
   runtimeLastActiveAt.delete(appId);
+  broadcastMediaPowerState();
 };
 
 const suspendMediaApp = parkMediaApp;
@@ -265,6 +279,7 @@ const ensureMediaApp = (appId: MediaAppId) => {
   runtimes.set(appId, runtime);
   touchRuntime(appId);
   syncParkedSweepTimer();
+  broadcastMediaPowerState();
   return runtime;
 };
 
@@ -285,6 +300,10 @@ const showActiveMediaApp = () => {
 
   unloadHiddenMediaApps();
   suspendInactiveMediaApps();
+  if (activeAppPoweredOff) {
+    evictParkedRuntimes();
+    return;
+  }
 
   const runtime = ensureMediaApp(activeAppId);
   touchRuntime(activeAppId);
@@ -321,6 +340,7 @@ export const unloadHiddenMediaApps = () => {
   );
   if (nextActive !== activeAppId) {
     activeAppId = nextActive;
+    activeAppPoweredOff = false;
   }
 };
 
@@ -329,6 +349,17 @@ export const syncHiddenMediaApps = () => {
   if (hubVisible && slotBounds) {
     showActiveMediaApp();
   }
+};
+
+/** Fecha o webview do app (para o audio e libera memoria); a URL fica salva. */
+export const powerOffMediaApp = (appId: MediaAppId) => {
+  if (!isMediaAppId(appId)) return;
+  disposeMediaApp(appId);
+  if (appId === activeAppId) {
+    activeAppPoweredOff = true;
+  }
+  syncParkedSweepTimer();
+  broadcastMediaPowerState();
 };
 
 export const getActiveMediaHubView = () => {
@@ -349,6 +380,12 @@ export const disposeMediaHub = () => {
 export const registerMediaIpc = () => {
   ipcMain.handle("media:list-apps", () => MEDIA_APPS);
 
+  ipcMain.handle("media:get-power-state", () => getMediaPowerState());
+
+  ipcMain.handle("media:power-off-app", (_event, appId: MediaAppId) => {
+    powerOffMediaApp(appId);
+  });
+
   ipcMain.handle("media:get-active-app", () => activeAppId);
 
   ipcMain.handle("media:set-active-app", (_event, appId: MediaAppId) => {
@@ -358,6 +395,11 @@ export const registerMediaIpc = () => {
 
     const previousAppId = activeAppId;
     activeAppId = appId;
+    // Escolher um app no dock sempre o liga (inclusive o ativo desligado).
+    if (activeAppPoweredOff) {
+      activeAppPoweredOff = false;
+      broadcastMediaPowerState();
+    }
 
     if (previousAppId !== appId) {
       suspendMediaApp(previousAppId);
@@ -498,6 +540,8 @@ export const setMediaHubActiveApp = (appId: MediaAppId) => {
   if (!isMediaAppId(appId)) return;
   activeAppId = appId;
 };
+
+export const isMediaAppRunning = (appId: MediaAppId) => runtimes.has(appId);
 
 export const resolveMediaHubDevToolsTarget = (
   youtubeView: WebContentsView | null,

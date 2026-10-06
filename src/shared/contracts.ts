@@ -130,6 +130,12 @@ export type DashboardLayoutNode =
       second: DashboardLayoutNode;
     };
 
+/** Apps da Smart TV com webview aberto (tocando ou estacionados). */
+export interface MediaPowerState {
+  runningAppIds: MediaAppId[];
+  activeAppPoweredOff: boolean;
+}
+
 export interface PreferredDisplay {
   id: number;
   label: string;
@@ -415,6 +421,11 @@ export interface ElectronControlApi {
     onFullscreenOverlayExit(callback: () => void): () => void;
     onFullscreenMenuToggle(callback: () => void): () => void;
     onControlsMenuClosed(callback: () => void): () => void;
+    showAppMenu(appId: MediaAppId, anchor: ViewBounds): Promise<boolean>;
+    powerOffApp(appId: MediaAppId): Promise<void>;
+    getPowerState(): Promise<MediaPowerState>;
+    onPowerStateChanged(callback: (state: MediaPowerState) => void): () => void;
+    onPowerOnRequest(callback: (appId: MediaAppId) => void): () => void;
   };
   window: {
     toggleFullscreen(): Promise<boolean>;
