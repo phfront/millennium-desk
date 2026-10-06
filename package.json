@@ -22,7 +22,8 @@
     "evs:sign-dev": "py -3 -m castlabs_evs.vmp sign-pkg node_modules/electron/dist",
     "typecheck": "tsc --noEmit",
     "lint": "tsc --noEmit",
-    "icons:generate": "node scripts/generate-icon.mjs"
+    "icons:generate": "node scripts/generate-icon.mjs",
+    "docs:serve": "node scripts/serve-docs.mjs"
   },
   "author": "Pedro",
   "license": "MIT",

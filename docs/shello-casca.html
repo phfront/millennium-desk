@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casca · Shello no Millennium Desk</title>
+<!--
+  Casca de teste: o layout do Desk com o Shello (Claude Web) de verdade nos iframes.
+  As visões são construídas lá no Shello; aqui só se escolhe onde cada uma aparece.
+
+  Como abrir:
+    1. No data/config.json do Claude Web:  "frameAncestors": ["http://127.0.0.1:5280"]
+       e reinicie o Claude Web (sem isso ele recusa o iframe).
+    2. Aqui no Desk:  npm run docs:serve   →  http://127.0.0.1:5280/
+    3. No primeiro quadro que pedir login, cole o token do .env do Claude Web
+       e clique em "Recarregar quadros".
+-->
+<style>
+  :root {
+    --desk-bg: #1b1b1d;
+    --desk-col: #1f1f21;
+    --desk-card: #242427;
+    --desk-tile: #262628;
+    --desk-line: #333336;
+    --desk-fg: #ececee;
+    --desk-muted: #9a9aa0;
+    --sh-bg: #0f1115;
+    --sh-accent: #d97757;
+    --ok: #7fd18b;
+    --warn: #e5c07b;
+    --mono: "Cascadia Code", Consolas, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #0c0c0d; color: var(--desk-fg); font-family: Inter, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
+  button, input { font: inherit; color: inherit; }
+
+  .mockbar { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; background: #111113; border-bottom: 1px solid #2a2a2d; }
+  .mockbar h1 { margin: 0 8px 0 0; font-size: 15px; font-weight: 700; }
+  .mockbar h1 span { color: var(--sh-accent); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tab { height: 34px; padding: 0 14px; border: 1px solid #2f2f33; border-radius: 17px; background: #1a1a1c; cursor: pointer; font-size: 13px; font-weight: 600; color: #c9c9ce; }
+  .tab:hover { background: #222225; }
+  .tab[aria-selected="true"] { color: #fff; border-color: var(--sh-accent); background: color-mix(in srgb, var(--sh-accent) 18%, #1a1a1c); }
+  .tab .k { margin-right: 6px; color: #77777d; font-size: 11px; }
+  .spacer { flex: 1; }
+  .url { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #9a9aa0; }
+  .url input { width: 190px; height: 32px; padding: 0 10px; border: 1px solid #2f2f33; border-radius: 9px; background: #1a1a1c; font-family: var(--mono); font-size: 12px; }
+  .btn { height: 32px; padding: 0 12px; border: 1px solid #2f2f33; border-radius: 9px; background: #1f1f22; cursor: pointer; font-size: 12.5px; font-weight: 600; }
+  .btn:hover { background: #29292d; }
+  .hint { max-width: 1200px; margin: 12px auto 0; padding: 0 16px; font-size: 13px; color: #9a9aa0; }
+  .hint code { font-family: var(--mono); color: #e6c3b5; }
+
+  .wrap { padding: 12px 16px 40px; }
+  .viewport { position: relative; margin: 0 auto; overflow: hidden; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .stage { position: absolute; top: 0; left: 0; width: 1916px; height: 1192px; transform-origin: 0 0; background: var(--desk-bg); overflow: hidden; }
+
+  /* ---------- Desk (estático, como no print) ---------- */
+  .left { position: absolute; left: 0; top: 0; width: 381px; height: 1192px; background: var(--desk-col); border-right: 1px solid #29292c; padding: 18px 24px 22px 23px; display: flex; flex-direction: column; gap: 16px; }
+  .date-row { display: flex; gap: 11px; }
+  .pillbox { height: 55px; border: 1px solid var(--desk-line); border-radius: 16px; background: #232326; display: flex; align-items: center; justify-content: center; color: #d6d6da; }
+  .pillbox.date { flex: 1; justify-content: space-between; padding: 0 18px; font-size: 19px; }
+  .pillbox.sq { width: 55px; font-size: 20px; }
+  .tasks { border: 1px solid var(--desk-line); border-radius: 12px; background: var(--desk-card); overflow: hidden; flex: none; }
+  .task { height: 68px; padding: 8px 10px; border-bottom: 1px solid var(--desk-line); position: relative; }
+  .task:last-child { border-bottom: 0; }
+  .task .cb { width: 20px; height: 20px; border: 1.5px solid #4a4a4f; border-radius: 4px; }
+  .task .t { margin-top: 6px; font-size: 19px; color: #e4e4e8; }
+  .task .tag { position: absolute; right: 9px; top: 10px; width: 28px; height: 18px; border-radius: 9px; border: 1px solid #2e6b3a; color: #5fd47a; font-size: 10px; display: grid; place-items: center; background: #1b2a1f; }
+  .left-slot { flex: 1; min-height: 0; display: flex; }
+
+  .weather { position: absolute; left: 382px; top: 0; width: 306px; height: 235px; display: grid; grid-template-rows: repeat(3, 1fr); gap: 1px; background: #111; }
+  .wx { position: relative; padding: 6px 12px; color: #fff; background: linear-gradient(135deg, #6d8aa8, #3f5873); }
+  .wx:nth-child(2) { background: linear-gradient(135deg, #5f7590, #33465e); }
+  .wx b { font-size: 20px; display: block; line-height: 1.1; }
+  .wx small { font-size: 12px; opacity: .85; display: block; }
+  .wx .deg { position: absolute; right: 12px; top: 2px; font-size: 38px; font-weight: 300; }
+
+  .shortcuts { position: absolute; left: 689px; top: 0; width: 685px; height: 235px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 1px; background: #111; }
+  .sc { background: var(--desk-tile); display: grid; place-items: center; color: #5a5a5f; font-size: 40px; font-weight: 200; }
+  .sc.calc { background: #2ec24f; font-size: 64px; }
+  .sc.cam { background: radial-gradient(circle, #f3f3f3, #a9a9a9); font-size: 60px; color: #111; }
+  .sc.strip { grid-column: 1 / 4; grid-row: 2; display: block; }
+
+  .quotes { position: absolute; left: 1375px; top: 0; width: 295px; height: 235px; background: #232325; display: grid; grid-template-rows: repeat(3, 1fr); }
+  .q { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #303033; font-size: 12px; }
+  .q:last-child { border-bottom: 0; }
+  .q .flag { width: 28px; height: 28px; border-radius: 50%; background: #3b6fd1; flex: none; }
+  .q:nth-child(2) .flag { background: #f7931a; } .q:nth-child(3) .flag { background: #c8102e; }
+  .q .r { margin-left: auto; text-align: right; }
+  .q .r b { display: block; font-size: 15px; }
+  .q .neg { color: #f07178; } .q .pos { color: #7fd18b; }
+
+  .system { position: absolute; left: 1671px; top: 0; width: 245px; height: 235px; background: #1d1d1f; display: grid; grid-template-rows: repeat(5, 1fr); font-size: 13px; font-weight: 700; }
+  .sys { position: relative; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; border-bottom: 1px solid #2c2c2f; }
+  .sys i { position: absolute; inset: 0 auto 0 0; background: #1f4d2a; }
+  .sys span { position: relative; }
+
+  .media { position: absolute; left: 382px; top: 236px; width: 1534px; height: 956px; display: flex; flex-direction: column; background: #0b0b0c; }
+  .screen { position: relative; flex: 1; overflow: hidden; }
+  .video { position: absolute; inset: 0; background:
+      radial-gradient(ellipse 30% 45% at 52% 58%, #2b2523 0 60%, transparent 61%),
+      radial-gradient(ellipse 12% 16% at 51% 32%, #7a5546 0 70%, transparent 71%),
+      linear-gradient(160deg, #6c6fb8 0%, #4a4b8a 35%, #3a2d40 70%, #5b3a33 100%); }
+  .video .ov { position: absolute; left: 24px; bottom: 22px; padding: 6px 12px; border-radius: 8px; background: rgba(0,0,0,.55); font-size: 14px; }
+  .pip { position: absolute; right: 22px; top: 22px; width: 340px; height: 191px; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 34px rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.12); cursor: pointer; z-index: 5; }
+  .pip .video .ov { font-size: 11px; left: 10px; bottom: 10px; padding: 3px 8px; }
+
+  .dock { height: 95px; display: flex; border-top: 1px solid #2a2a2d; flex: none; }
+  .dk { position: relative; flex: 1; display: grid; place-items: center; border-right: 1px solid rgba(0,0,0,.25); opacity: .35; cursor: pointer; }
+  .dk.active { opacity: 1; }
+  .dk.running { opacity: .6; }
+  .dk.running::after { content: ""; position: absolute; bottom: 8px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: #fff; }
+  .dk.yt { background: linear-gradient(180deg, #2a2a2a, #101010); }
+  .dk.sp { background: linear-gradient(180deg, #169c46, #0a4d24); }
+  .dk.tw { background: linear-gradient(180deg, #9146ff, #5b2db8); }
+  .dk.sh { background: linear-gradient(180deg, #e08a6c, #9c4a2f); }
+  .dk .ic { font-size: 30px; font-weight: 800; color: #fff; }
+  .dk.yt .ic { width: 52px; height: 36px; border-radius: 9px; background: #f00; display: grid; place-items: center; font-size: 16px; }
+  .dk.sp .ic { width: 50px; height: 50px; border-radius: 50%; background: #1ed760; color: #0a4d24; display: grid; place-items: center; font-size: 22px; }
+  .dk.sh .ic { font-family: var(--mono); letter-spacing: -2px; }
+  .dk-ctrl { width: 190px; flex: none; display: flex; align-items: center; justify-content: space-around; background: #1c1d22; font-size: 24px; color: #d8d8dc; }
+
+  /* ---------- quadros do Shello ---------- */
+  .frame { width: 100%; height: 100%; border: 0; display: block; background: var(--sh-bg); }
+  .left-slot .frame { border: 1px solid var(--desk-line); border-radius: 12px; }
+  .screen .frame { position: absolute; inset: 0; }
+  .drawer { position: absolute; top: 236px; right: 0; width: 720px; height: 861px; z-index: 6; box-shadow: -18px 0 48px rgba(0,0,0,.55); transition: transform .25s ease; }
+  .drawer.closed { transform: translateX(100%); }
+  .handle { position: absolute; top: 50%; left: -46px; width: 46px; height: 120px; margin-top: -60px; border-radius: 12px 0 0 12px; background: var(--sh-accent); color: #1a0f0a; display: grid; place-items: center; cursor: pointer; font-family: var(--mono); font-weight: 800; writing-mode: vertical-rl; letter-spacing: 2px; }
+</style>
+</head>
+<body>
+
+<header class="mockbar">
+  <h1>Casca · <span>Shello</span> no Desk</h1>
+  <div class="tabs" id="tabs"></div>
+  <div class="spacer"></div>
+  <label class="url">Shello <input id="base" spellcheck="false"></label>
+  <button class="btn" id="reload">Recarregar quadros</button>
+</header>
+<p class="hint">
+  Quadro em branco ou recusado: falta <code>"frameAncestors": ["http://127.0.0.1:5280"]</code> no
+  <code>data/config.json</code> do Claude Web (e reiniciá-lo). Pedindo login: cole o token do <code>.env</code>
+  num quadro e recarregue os outros. As teclas 1 a 5 trocam de opção.
+</p>
+
+<div class="wrap">
+  <div class="viewport" id="viewport"><div class="stage" id="stage"></div></div>
+</div>
+
+<script>
+// Onde cada visão do Shello aparece. "resumo" é a aba compacta do modo embutido (?embed#resumo):
+// em altura baixa ela vira faixa sozinha. "app" é o painel inteiro.
+const OPTIONS = [
+  { id: "combo", key: 1, label: "Coluna + app na TV", left: "resumo", tv: "app", dock: true },
+  { id: "column", key: 2, label: "Só coluna esquerda", left: "resumo" },
+  { id: "dock", key: 3, label: "App no dock da TV", tv: "app", dock: true },
+  { id: "strip", key: 4, label: "Faixa nos atalhos", strip: "resumo" },
+  { id: "drawer", key: 5, label: "Gaveta lateral", drawer: "app" },
+];
+const VIEWS = { resumo: "/?embed#resumo", app: "/" };
+const TASKS = ["Cadeira Bianca", "Pesquisar NOBREAK", "Voo de volta da família", "Robo aspirador", "Voo de ida da família", "CANCELAR CODEX"];
+
+const $ = (sel) => document.querySelector(sel);
+const store = {
+  get(k, d) { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+let current = OPTIONS.some((o) => o.id === location.hash.slice(1)) ? location.hash.slice(1) : store.get("casca-opt", "combo");
+let base = store.get("casca-base", "http://127.0.0.1:7681");
+let tvMode = "shello";
+let drawerOpen = true;
+
+const frame = (view, title) => `<iframe class="frame" title="${title}" src="${base.replace(/\/$/, "")}${VIEWS[view]}" allow="clipboard-write; microphone"></iframe>`;
+const video = (label = "YouTube · tocando") => `<div class="video"><span class="ov">▶ ${label}</span></div>`;
+
+function render() {
+  const o = OPTIONS.find((x) => x.id === current);
+  const shelloOnTv = o.tv && tvMode === "shello";
+  const screen = shelloOnTv
+    ? frame(o.tv, "Shello na TV") + `<div class="pip" data-tv="video">${video("YouTube · mini player")}</div>`
+    : video();
+
+  $("#stage").innerHTML = `
+    <aside class="left">
+      <div class="date-row"><div class="pillbox date">05/10/2026 <span>🗓</span></div><div class="pillbox sq">✎</div><div class="pillbox sq">☰</div></div>
+      <div class="tasks">${TASKS.map((t) => `<div class="task"><div class="cb"></div><div class="t">${t}</div><div class="tag">∞</div></div>`).join("")}</div>
+      <div class="left-slot">${o.left ? frame(o.left, "Shello na coluna") : ""}</div>
+    </aside>
+    <div class="weather">
+      <div class="wx"><b>Florianópolis</b><small>Chuva</small><span class="deg">18°</span></div>
+      <div class="wx"><b>Londres</b><small>Parcialmente nublado</small><span class="deg">21°</span></div>
+      <div class="wx"><b>São J. Campos</b><small>Chuva</small><span class="deg">24°</span></div>
+    </div>
+    <div class="shortcuts">
+      <div class="sc calc">🧮</div><div class="sc cam">📷</div><div class="sc">+</div>
+      ${o.strip ? `<div class="sc strip">${frame(o.strip, "Shello na faixa")}</div>` : `<div class="sc">+</div><div class="sc">+</div><div class="sc">+</div>`}
+    </div>
+    <div class="quotes">
+      <div class="q"><span class="flag"></span><div><b>USD</b></div><div class="r"><b>R$ 4,97</b><span class="neg">-0,51%</span></div></div>
+      <div class="q"><span class="flag"></span><div><b>BTC</b></div><div class="r"><b>R$ 428.266</b><span class="pos">+0,28%</span></div></div>
+      <div class="q"><span class="flag"></span><div><b>GBP</b></div><div class="r"><b>R$ 6,60</b><span class="neg">-0,03%</span></div></div>
+    </div>
+    <div class="system">
+      <div class="sys"><i style="width:16%"></i><span>CPU</span><span>16%</span></div>
+      <div class="sys"><i style="width:84%"></i><span>RAM</span><span>84%</span></div>
+      <div class="sys"><i style="width:21%"></i><span>GPU</span><span>21%</span></div>
+      <div class="sys"><span>DISCO</span><span>0%</span></div>
+      <div class="sys"><span>REDE</span><span>↓ 189 KB/s</span></div>
+    </div>
+    <div class="media">
+      <div class="screen">${screen}</div>
+      <nav class="dock">
+        <div class="dk yt ${shelloOnTv ? "running" : "active"}" data-tv="video"><span class="ic">▶</span></div>
+        <div class="dk sp"><span class="ic">≋</span></div>
+        <div class="dk tw"><span class="ic">◩</span></div>
+        ${o.dock ? `<div class="dk sh ${shelloOnTv ? "active" : ""}" data-tv="shello"><span class="ic">&gt;_</span></div>` : ""}
+        <div class="dk-ctrl"><span>≡</span><span>⛶</span></div>
+      </nav>
+    </div>
+    ${o.drawer ? `<div class="drawer ${drawerOpen ? "" : "closed"}"><div class="handle" id="handle">SHELLO</div>${frame(o.drawer, "Shello na gaveta")}</div>` : ""}`;
+
+  $("#tabs").innerHTML = OPTIONS.map((x) =>
+    `<button class="tab" aria-selected="${x.id === current}" data-opt="${x.id}"><span class="k">${x.key}</span>${x.label}</button>`).join("");
+}
+
+function fit() {
+  const maxW = Math.min(window.innerWidth - 32, 1916);
+  const maxH = window.innerHeight - $(".mockbar").offsetHeight - $(".hint").offsetHeight - 50;
+  const scale = Math.max(0.3, Math.min(maxW / 1916, maxH / 1192));
+  $("#viewport").style.width = `${1916 * scale}px`;
+  $("#viewport").style.height = `${1192 * scale}px`;
+  $("#stage").style.transform = `scale(${scale})`;
+}
+
+function pick(id) {
+  current = id;
+  store.set("casca-opt", id);
+  history.replaceState(null, "", `#${id}`);
+  tvMode = "shello";
+  drawerOpen = true;
+  render();
+}
+
+document.addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-opt]");
+  if (tab) return pick(tab.dataset.opt);
+  if (event.target.closest("#handle")) {
+    drawerOpen = !drawerOpen;
+    $(".drawer").classList.toggle("closed", !drawerOpen);
+    return;
+  }
+  const tv = event.target.closest("[data-tv]");
+  if (tv && tv.dataset.tv !== tvMode) { tvMode = tv.dataset.tv; render(); }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.target.closest("input")) return;
+  const o = OPTIONS.find((x) => String(x.key) === event.key);
+  if (o) pick(o.id);
+});
+$("#base").value = base;
+$("#base").addEventListener("change", (event) => {
+  base = event.target.value.trim() || "http://127.0.0.1:7681";
+  store.set("casca-base", base);
+  render();
+});
+$("#reload").addEventListener("click", render);
+window.addEventListener("resize", fit);
+
+// Aberta como arquivo não tem origem: o Shello recusa o iframe. Avisa em vez de mostrar quadros quebrados
+if (location.protocol === "file:") {
+  $(".hint").innerHTML = `<b style="color:var(--warn)">Aberta como arquivo:</b> o Shello só aceita o iframe vindo de
+    <code>http://127.0.0.1:5280</code>. Rode <code>npm run docs:serve</code> no Desk e abra
+    <a href="http://127.0.0.1:5280/shello-casca.html" style="color:var(--sh-accent)">http://127.0.0.1:5280/shello-casca.html</a>.`;
+}
+
+render();
+fit();
+</script>
+</body>
+</html>

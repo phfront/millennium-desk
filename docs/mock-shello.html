@@ -1,0 +1,539 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mock · Shello no Millennium Desk</title>
+<style>
+  :root {
+    /* Desk */
+    --desk-bg: #1b1b1d;
+    --desk-col: #1f1f21;
+    --desk-card: #242427;
+    --desk-tile: #262628;
+    --desk-line: #333336;
+    --desk-fg: #ececee;
+    --desk-muted: #9a9aa0;
+    /* Shello (public/css/base.css) */
+    --sh-bg: #0f1115;
+    --sh-surface: #181b22;
+    --sh-surface2: #20242d;
+    --sh-line: #2a2f3a;
+    --sh-hair: rgba(255, 255, 255, .07);
+    --sh-fg: #e6e8ec;
+    --sh-muted: #8b92a1;
+    --sh-faint: #5d6472;
+    --sh-accent: #d97757;
+    --ok: #7fd18b;
+    --warn: #e5c07b;
+    --bad: #f07178;
+    --info: #6cb6ff;
+    --mono: "Cascadia Code", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #0c0c0d; color: var(--desk-fg); font-family: Inter, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
+  button { font: inherit; color: inherit; }
+
+  /* ---------- barra do mock ---------- */
+  .mockbar { position: sticky; top: 0; z-index: 50; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 12px 16px; background: #111113; border-bottom: 1px solid #2a2a2d; }
+  .mockbar h1 { margin: 0 8px 0 0; font-size: 15px; font-weight: 700; letter-spacing: .2px; }
+  .mockbar h1 span { color: var(--sh-accent); }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tab { height: 34px; padding: 0 14px; border: 1px solid #2f2f33; border-radius: 17px; background: #1a1a1c; cursor: pointer; font-size: 13px; font-weight: 600; color: #c9c9ce; }
+  .tab:hover { background: #222225; }
+  .tab[aria-selected="true"] { color: #fff; border-color: var(--sh-accent); background: color-mix(in srgb, var(--sh-accent) 18%, #1a1a1c); }
+  .tab .k { margin-right: 6px; color: #77777d; font-size: 11px; }
+  .tab.rec::after { content: "recomendado"; margin-left: 8px; padding: 2px 7px; border-radius: 8px; font-size: 10px; color: #1b1b1d; background: var(--ok); }
+  .spacer { flex: 1; }
+  .toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #c9c9ce; cursor: pointer; user-select: none; }
+  .toggle input { accent-color: var(--warn); width: 16px; height: 16px; }
+
+  .wrap { padding: 16px; }
+  .viewport { position: relative; margin: 0 auto; overflow: hidden; border-radius: 10px; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .stage { position: absolute; top: 0; left: 0; width: 1916px; height: 1192px; transform-origin: 0 0; background: var(--desk-bg); overflow: hidden; }
+
+  .notes { max-width: 1200px; margin: 18px auto 40px; display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 14px; }
+  .note { padding: 16px 18px; border: 1px solid #2a2a2d; border-radius: 12px; background: #141416; font-size: 14px; line-height: 1.55; }
+  .note h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: .8px; text-transform: uppercase; color: #8d8d93; }
+  .note p { margin: 0 0 8px; }
+  .note ul { margin: 0; padding-left: 18px; }
+  .note li { margin: 3px 0; }
+  .note.pro h3 { color: var(--ok); }
+  .note.con h3 { color: var(--bad); }
+  .note .eff { display: inline-block; margin-top: 6px; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; background: #222225; color: #dadade; }
+  @media (max-width: 900px) { .notes { grid-template-columns: 1fr; } }
+
+  /* ---------- Desk: estrutura ---------- */
+  .left { position: absolute; left: 0; top: 0; width: 381px; height: 1192px; background: var(--desk-col); border-right: 1px solid #29292c; padding: 18px 24px 22px 23px; display: flex; flex-direction: column; gap: 16px; }
+  .date-row { display: flex; gap: 11px; }
+  .pillbox { height: 55px; border: 1px solid var(--desk-line); border-radius: 16px; background: #232326; display: flex; align-items: center; justify-content: center; color: #d6d6da; }
+  .pillbox.date { flex: 1; justify-content: space-between; padding: 0 18px; font-size: 19px; }
+  .pillbox.sq { width: 55px; font-size: 20px; }
+  .tasks { border: 1px solid var(--desk-line); border-radius: 12px; background: var(--desk-card); overflow: hidden; flex: none; }
+  .task { height: 68px; padding: 8px 10px; border-bottom: 1px solid var(--desk-line); position: relative; }
+  .task:last-child { border-bottom: 0; }
+  .task .cb { width: 20px; height: 20px; border: 1.5px solid #4a4a4f; border-radius: 4px; }
+  .task .t { margin-top: 6px; font-size: 19px; color: #e4e4e8; }
+  .task .tag { position: absolute; right: 9px; top: 10px; width: 28px; height: 18px; border-radius: 9px; border: 1px solid #2e6b3a; color: #5fd47a; font-size: 10px; display: grid; place-items: center; background: #1b2a1f; }
+  .left-slot { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+  .weather { position: absolute; left: 382px; top: 0; width: 306px; height: 235px; display: grid; grid-template-rows: repeat(3, 1fr); gap: 1px; background: #111; }
+  .wx { position: relative; padding: 6px 12px; color: #fff; background: linear-gradient(135deg, #6d8aa8, #3f5873); overflow: hidden; }
+  .wx:nth-child(2) { background: linear-gradient(135deg, #5f7590, #33465e); }
+  .wx b { font-size: 20px; display: block; line-height: 1.1; }
+  .wx small { font-size: 12px; opacity: .85; display: block; }
+  .wx .deg { position: absolute; right: 12px; top: 2px; font-size: 38px; font-weight: 300; }
+  .wx .mm { position: absolute; right: 12px; bottom: 6px; font-size: 11px; }
+
+  .shortcuts { position: absolute; left: 689px; top: 0; width: 685px; height: 235px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr); gap: 1px; background: #111; }
+  .sc { background: var(--desk-tile); display: grid; place-items: center; color: #5a5a5f; font-size: 40px; font-weight: 200; }
+  .sc.calc { background: #2ec24f; font-size: 64px; }
+  .sc.cam { background: radial-gradient(circle, #f3f3f3, #a9a9a9); font-size: 60px; color: #111; }
+
+  .quotes { position: absolute; left: 1375px; top: 0; width: 295px; height: 235px; background: #232325; display: grid; grid-template-rows: repeat(3, 1fr); }
+  .q { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid #303033; font-size: 12px; }
+  .q:last-child { border-bottom: 0; }
+  .q .flag { width: 28px; height: 28px; border-radius: 50%; background: #3b6fd1; flex: none; }
+  .q:nth-child(2) .flag { background: #f7931a; }
+  .q:nth-child(3) .flag { background: #c8102e; }
+  .q b { font-size: 14px; }
+  .q .r { margin-left: auto; text-align: right; }
+  .q .r b { display: block; font-size: 15px; }
+  .q .neg { color: #f07178; } .q .pos { color: #7fd18b; }
+
+  .system { position: absolute; left: 1671px; top: 0; width: 245px; height: 235px; background: #1d1d1f; display: grid; grid-template-rows: repeat(5, 1fr); font-size: 13px; font-weight: 700; }
+  .sys { position: relative; display: flex; justify-content: space-between; align-items: center; padding: 0 14px; border-bottom: 1px solid #2c2c2f; }
+  .sys i { position: absolute; inset: 0 auto 0 0; background: #1f4d2a; z-index: 0; }
+  .sys span { position: relative; z-index: 1; }
+
+  /* ---------- área de mídia ---------- */
+  .media { position: absolute; left: 382px; top: 236px; width: 1534px; height: 956px; display: flex; flex-direction: column; background: #0b0b0c; }
+  .screen { position: relative; flex: 1; overflow: hidden; }
+  .video { position: absolute; inset: 0; background:
+      radial-gradient(ellipse 30% 45% at 52% 58%, #2b2523 0 60%, transparent 61%),
+      radial-gradient(ellipse 12% 16% at 51% 32%, #7a5546 0 70%, transparent 71%),
+      radial-gradient(ellipse 22% 30% at 88% 78%, #55413a 0 60%, transparent 61%),
+      linear-gradient(160deg, #6c6fb8 0%, #4a4b8a 35%, #3a2d40 70%, #5b3a33 100%); }
+  .video .ov { position: absolute; left: 24px; bottom: 22px; padding: 6px 12px; border-radius: 8px; background: rgba(0,0,0,.55); font-size: 14px; }
+  .video .bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(255,255,255,.2); }
+  .video .bar::before { content: ""; position: absolute; inset: 0 62% 0 0; background: #f00; }
+
+  .dock { height: 95px; display: flex; border-top: 1px solid #2a2a2d; flex: none; }
+  .dk { position: relative; flex: 1; display: grid; place-items: center; border-right: 1px solid rgba(0,0,0,.25); opacity: .35; cursor: pointer; }
+  .dk.active { opacity: 1; }
+  .dk.running { opacity: .6; }
+  .dk.running::after { content: ""; position: absolute; bottom: 8px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px rgba(255,255,255,.7); }
+  .dk.yt { background: linear-gradient(180deg, #2a2a2a, #101010); }
+  .dk.sp { background: linear-gradient(180deg, #169c46, #0a4d24); }
+  .dk.tw { background: linear-gradient(180deg, #9146ff, #5b2db8); }
+  .dk.sh { background: linear-gradient(180deg, #e08a6c, #9c4a2f); }
+  .dk .ic { font-size: 30px; font-weight: 800; color: #fff; }
+  .dk.yt .ic { width: 52px; height: 36px; border-radius: 9px; background: #f00; display: grid; place-items: center; font-size: 16px; }
+  .dk.sp .ic { width: 50px; height: 50px; border-radius: 50%; background: #1ed760; color: #0a4d24; display: grid; place-items: center; font-size: 22px; }
+  .dk.sh .ic { font-family: var(--mono); font-size: 30px; letter-spacing: -2px; }
+  .dk .badge { position: absolute; top: 12px; right: calc(50% - 38px); min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; background: var(--warn); color: #241c05; font-size: 12px; font-weight: 800; display: grid; place-items: center; }
+  .dk-ctrl { width: 190px; flex: none; display: flex; align-items: center; justify-content: space-around; background: #1c1d22; font-size: 24px; color: #d8d8dc; }
+
+  /* ---------- estados (compartilhado) ---------- */
+  .st { width: 9px; height: 9px; border-radius: 50%; flex: none; background: var(--sh-faint); }
+  .st.working { background: var(--info); animation: pulse 1.2s infinite; }
+  .st.waiting { background: var(--warn); box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 22%, transparent); }
+  .st.idle { background: var(--ok); }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .pill { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: 10px; font-size: 11px; font-weight: 700; color: var(--sh-muted); background: rgba(255,255,255,.06); white-space: nowrap; }
+  .pill.working { color: var(--info); background: color-mix(in srgb, var(--info) 15%, transparent); }
+  .pill.waiting { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+  .pill.idle { color: var(--ok); background: color-mix(in srgb, var(--ok) 13%, transparent); }
+  .prof { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; color: #c7c9cf; background: rgba(255,255,255,.07); }
+  .prof.trabalho { color: #b9d3ff; background: rgba(108,182,255,.12); }
+
+  /* ---------- card nativo do Desk (coluna esquerda) ---------- */
+  .dcard { flex: 1; min-height: 0; border: 1px solid var(--desk-line); border-radius: 12px; background: var(--desk-card); display: flex; flex-direction: column; overflow: hidden; }
+  .dcard-h { display: flex; align-items: center; gap: 10px; padding: 14px 14px 10px; }
+  .eyebrow { font-size: 11px; font-weight: 800; letter-spacing: 1.2px; color: var(--desk-muted); }
+  .eyebrow b { color: var(--sh-accent); }
+  .dcard-h h2 { margin: 2px 0 0; font-size: 18px; }
+  .dcard-h .act { margin-left: auto; display: flex; gap: 6px; }
+  .ibtn { width: 34px; height: 34px; border: 1px solid var(--desk-line); border-radius: 10px; background: #2a2a2d; display: grid; place-items: center; cursor: pointer; font-size: 15px; color: #d0d0d4; }
+  .srows { flex: 1; overflow: auto; padding: 0 8px; }
+  .srow { padding: 10px 8px; border-radius: 10px; cursor: pointer; display: grid; grid-template-columns: 9px 1fr auto; gap: 4px 10px; align-items: center; }
+  .srow:hover { background: rgba(255,255,255,.04); }
+  .srow .nm { font-size: 15px; font-weight: 650; display: flex; gap: 6px; align-items: center; min-width: 0; }
+  .srow .msg { grid-column: 2 / 4; font-size: 12.5px; color: var(--desk-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .srow.waiting { background: color-mix(in srgb, var(--warn) 8%, transparent); outline: 1px solid color-mix(in srgb, var(--warn) 30%, transparent); }
+  .srow.waiting .msg { color: #eadbb5; white-space: normal; }
+  .srow .reply { grid-column: 2 / 4; display: flex; gap: 6px; margin-top: 4px; }
+  .mini { height: 30px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--desk-line); background: #2c2c30; font-size: 12.5px; font-weight: 650; cursor: pointer; }
+  .mini.yes { border-color: color-mix(in srgb, var(--ok) 40%, transparent); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+  .mini.warn { border-color: color-mix(in srgb, var(--warn) 40%, transparent); color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+  .limits { padding: 10px 14px 14px; border-top: 1px solid var(--desk-line); display: grid; gap: 8px; }
+  .lim { display: grid; grid-template-columns: 98px 1fr 38px; gap: 8px; align-items: center; font-size: 12px; color: var(--desk-muted); }
+  .lim .b { height: 6px; border-radius: 3px; background: #343438; overflow: hidden; }
+  .lim .b i { display: block; height: 100%; background: var(--ok); border-radius: 3px; }
+  .lim .b i.mid { background: var(--warn); }
+  .lim b { text-align: right; color: #dcdce0; }
+  .dcard .open { margin: 0 14px 14px; height: 42px; border-radius: 11px; border: 1px solid color-mix(in srgb, var(--sh-accent) 45%, transparent); background: color-mix(in srgb, var(--sh-accent) 14%, transparent); color: #f2c3b1; font-weight: 700; cursor: pointer; }
+
+  /* ---------- faixa nos atalhos ---------- */
+  .sc.strip { grid-column: 1 / 4; grid-row: 2; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #111; place-items: stretch; font-size: inherit; }
+  .chipcard { padding: 12px 14px; background: var(--desk-tile); display: flex; flex-direction: column; gap: 6px; cursor: pointer; }
+  .chipcard .top { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: #ececee; }
+  .chipcard .msg { font-size: 12px; line-height: 1.35; color: var(--desk-muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .chipcard.waiting { background: #2d2919; box-shadow: inset 0 -3px 0 var(--warn); }
+  .chipcard.waiting .msg { color: #eadbb5; }
+  .sc.limtile { display: flex; flex-direction: column; justify-content: center; gap: 9px; padding: 0 16px; place-items: initial; font-size: inherit; }
+  .sc.limtile .eyebrow { margin-bottom: 2px; }
+  .sc.limtile .lim { grid-template-columns: 74px 1fr 34px; }
+
+  /* ---------- painel do Shello (WebContentsView com a UI real dele) ---------- */
+  .shello { position: absolute; inset: 0; display: flex; background: var(--sh-bg); color: var(--sh-fg); font-size: 14px; }
+  .rail { width: 88px; flex: none; border-right: 1px solid var(--sh-hair); display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 6px; }
+  .rail .logo { width: 44px; height: 44px; border-radius: 13px; background: var(--sh-accent); color: #1a0f0a; display: grid; place-items: center; font-family: var(--mono); font-weight: 800; margin-bottom: 10px; }
+  .rail button { width: 72px; height: 64px; border: 0; border-radius: 12px; background: transparent; color: var(--sh-muted); font-size: 11px; font-weight: 600; cursor: pointer; display: grid; place-items: center; gap: 2px; padding: 8px 0; }
+  .rail button .g { font-size: 20px; }
+  .rail button.on { color: var(--sh-fg); background: var(--sh-surface2); }
+  .slist { width: 330px; flex: none; border-right: 1px solid var(--sh-hair); display: flex; flex-direction: column; }
+  .slist-h { padding: 22px 18px 12px; }
+  .slist-h h2 { margin: 0 0 12px; font-size: 22px; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chip { height: 30px; padding: 0 12px; border-radius: 15px; border: 1px solid var(--sh-line); background: var(--sh-surface); font-size: 12px; font-weight: 600; color: var(--sh-muted); display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .chip.on { color: var(--sh-fg); border-color: var(--sh-accent); }
+  .scards { flex: 1; overflow: auto; padding: 4px 12px 84px; display: flex; flex-direction: column; gap: 8px; }
+  .scard { padding: 12px; border: 1px solid var(--sh-line); border-radius: 14px; background: var(--sh-surface); cursor: pointer; display: grid; grid-template-columns: 36px 1fr; gap: 4px 10px; }
+  .scard.sel { border-color: var(--sh-accent); background: color-mix(in srgb, var(--sh-accent) 7%, var(--sh-surface)); }
+  .avatar { grid-row: 1 / 3; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #111; }
+  .scard .l1 { display: flex; align-items: center; gap: 6px; font-weight: 700; min-width: 0; }
+  .scard .l1 .pill { margin-left: auto; }
+  .scard .l2 { font-size: 12px; color: var(--sh-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .fab { position: absolute; left: 106px; bottom: 18px; width: 294px; height: 50px; padding: 0 20px; border: 0; border-radius: 25px; background: var(--sh-accent); color: #1a0f0a; font-weight: 800; box-shadow: 0 8px 24px rgba(0,0,0,.4); cursor: pointer; }
+
+  .sess { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .sess-h { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--sh-hair); }
+  .sess-h .avatar { grid-row: auto; }
+  .sess-h h3 { margin: 0; font-size: 17px; }
+  .sess-h small { color: var(--sh-muted); font-family: var(--mono); font-size: 12px; }
+  .sess-h .chips { margin-left: auto; }
+  .term { flex: 1; overflow: hidden; padding: 16px 22px; font-family: var(--mono); font-size: 13.5px; line-height: 1.6; color: #cfd3da; background: #0b0d11; white-space: pre-wrap; }
+  .term .p { color: var(--sh-accent); }
+  .term .d { color: var(--sh-faint); }
+  .term .g { color: var(--ok); }
+  .term .y { color: var(--warn); }
+  .term .b { color: var(--info); }
+  .ask { margin: 0 20px; padding: 14px 16px; border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); border-radius: 14px; background: color-mix(in srgb, var(--warn) 9%, var(--sh-surface)); display: grid; gap: 10px; transform: translateY(-14px); }
+  .ask .q { display: flex; gap: 10px; align-items: center; font-weight: 700; padding: 0; border: 0; font-size: 14px; }
+  .ask .opts { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ask .o { height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--sh-line); background: var(--sh-surface2); font-weight: 650; cursor: pointer; }
+  .ask .o.pri { background: var(--ok); color: #0f2214; border-color: transparent; }
+  .composer { display: flex; gap: 8px; padding: 12px 20px 16px; border-top: 1px solid var(--sh-hair); }
+  .composer .in { flex: 1; height: 44px; border-radius: 12px; border: 1px solid var(--sh-line); background: var(--sh-surface); display: flex; align-items: center; padding: 0 14px; color: var(--sh-faint); }
+  .composer .ib { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--sh-line); background: var(--sh-surface2); display: grid; place-items: center; cursor: pointer; }
+  .composer .ib.send { background: var(--sh-accent); color: #1a0f0a; border: 0; font-weight: 800; }
+
+  /* vídeo em miniatura (PiP) enquanto o Shello ocupa a TV */
+  .pip { position: absolute; right: 22px; top: 86px; width: 340px; height: 191px; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 34px rgba(0,0,0,.6); border: 1px solid rgba(255,255,255,.12); cursor: pointer; z-index: 5; }
+  .pip .video .ov { font-size: 11px; left: 10px; bottom: 12px; padding: 3px 8px; }
+  .pip .x { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,.6); display: grid; place-items: center; font-size: 13px; }
+
+  /* gaveta lateral */
+  .drawer { position: absolute; top: 236px; right: 0; width: 720px; height: 861px; z-index: 6; box-shadow: -18px 0 48px rgba(0,0,0,.55); transform: translateX(0); transition: transform .25s ease; }
+  .drawer .shello .slist { width: 260px; }
+  .drawer .shello .rail { display: none; }
+  .drawer .shello .sess-h .chips { display: none; }
+  .drawer.closed { transform: translateX(100%); }
+  .handle { position: absolute; top: 50%; left: -46px; width: 46px; height: 120px; margin-top: -60px; border-radius: 12px 0 0 12px; background: var(--sh-accent); color: #1a0f0a; display: grid; place-items: center; cursor: pointer; font-family: var(--mono); font-weight: 800; writing-mode: vertical-rl; letter-spacing: 2px; }
+  .handle .badge { writing-mode: horizontal-tb; position: absolute; top: -8px; left: -8px; min-width: 22px; height: 22px; border-radius: 11px; background: var(--warn); color: #241c05; font-size: 12px; display: grid; place-items: center; font-family: inherit; }
+
+  /* toast */
+  .toast { position: absolute; z-index: 20; right: 24px; top: 256px; width: 420px; padding: 14px 16px; border-radius: 14px; background: rgba(28, 26, 20, .97); border: 1px solid color-mix(in srgb, var(--warn) 50%, transparent); box-shadow: 0 16px 40px rgba(0,0,0,.55); display: grid; grid-template-columns: 36px 1fr; gap: 4px 12px; animation: drop .35s ease; }
+  .toast .avatar { grid-row: 1 / 4; }
+  .toast b { font-size: 14px; }
+  .toast span { font-size: 13px; color: #eadbb5; }
+  .toast .row { display: flex; gap: 6px; margin-top: 6px; }
+  @keyframes drop { from { transform: translateY(-14px); opacity: 0; } }
+</style>
+</head>
+<body>
+
+<header class="mockbar">
+  <h1>Mock · <span>Shello</span> no Millennium Desk</h1>
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div class="spacer"></div>
+  <label class="toggle"><input type="checkbox" id="waitToggle" checked> Simular sessão pedindo resposta</label>
+</header>
+
+<div class="wrap">
+  <div class="viewport" id="viewport"><div class="stage" id="stage"></div></div>
+  <section class="notes" id="notes"></section>
+</div>
+
+<script>
+const SESSIONS = [
+  { id: "cloqui", name: "cloqui", path: "C:\\projects\\cloqui", profile: "trabalho", machine: "PC", color: "#e5c07b",
+    working: "Rodando a suíte de testes de integração…", question: "Posso rodar a migração 0042 no banco de dev?" },
+  { id: "desk", name: "millennium-desk", path: "C:\\projects\\millennium-desk", profile: "pessoal", machine: "PC", color: "#d97757",
+    state: "working", message: "Editando src/main/mediaHub.ts…" },
+  { id: "shello", name: "claude-web-term", path: "C:\\projects\\claude-web-term", profile: "pessoal", machine: "PC", color: "#7fd18b",
+    state: "idle", message: "Pronto. 214 testes passaram." },
+  { id: "lumark", name: "lumark", path: "~/dev/lumark", profile: "trabalho", machine: "Mac", color: "#6cb6ff",
+    state: "idle", message: "Deploy de preview publicado." },
+];
+const LIMITS = [
+  { label: "Pessoal · 5h", pct: 42 }, { label: "Pessoal · semana", pct: 61 }, { label: "Trabalho · 5h", pct: 18 },
+];
+const STATE_LABEL = { working: "trabalhando", waiting: "esperando você", idle: "ociosa", ended: "encerrada" };
+
+const OPTIONS = [
+  { id: "combo", key: 1, label: "Coluna + app na TV", rec: true,
+    what: "<p>O espaço vazio embaixo das Tarefas vira um <b>card nativo de status</b>: sessões, quem está esperando você e os limites. Tocar numa sessão (ou em “Abrir painel”) troca a TV para o <b>app Shello</b> no dock, que é o painel completo dele. O vídeo não para: encolhe para um <b>mini player</b> no canto.</p><p>Clique nas sessões do card ou do painel: tudo é interativo.</p>",
+    pro: ["Usa a área morta da coluna esquerda sem tirar nada de lugar.", "Status de relance sempre visível, sem sair do vídeo.", "Painel completo = a própria UI do Shello num WebContentsView: zero reimplementação.", "Reaproveita o liga/desliga do dock que acabamos de fazer."],
+    con: ["O mini player depende de redimensionar o WebContentsView do vídeo (dá, mas é código novo no mediaHub).", "Dois pontos de entrada para manter (card + app)."],
+    eff: "M · card nativo + app no dock + PiP" },
+  { id: "column", key: 2, label: "Só coluna esquerda",
+    what: "<p>Apenas o <b>card nativo</b> embaixo das Tarefas. Responder sim/não e ver limites direto no card; “Abrir painel” abre o Shello no navegador.</p>",
+    pro: ["Mais simples de todos: só um módulo React lendo o /ws/events.", "Não disputa espaço com o vídeo."],
+    con: ["Não é o app “completão”: terminal e conversa ficam fora do Desk.", "Se as Tarefas crescerem, o card perde altura."],
+    eff: "P/M · módulo nativo" },
+  { id: "dock", key: 3, label: "App no dock da TV",
+    what: "<p>O Shello vira um <b>app do dock</b> como YouTube e Spotify, com o painel completo (sessões, terminal, responder, limites, histórico, portas). Quando ele está na tela, o vídeo segue em <b>mini player</b>.</p>",
+    pro: ["Experiência completa com a maior área da tela.", "Quase de graça: uma entrada em mediaApps.ts apontando para 127.0.0.1:7681.", "Login guardado na partição persist:shello."],
+    con: ["Sem status de relance enquanto você assiste algo (só o selo no ícone do dock).", "Keepalive/UA de streaming precisam ser desligados para ele."],
+    eff: "P · app no dock (+ M se tiver PiP)" },
+  { id: "strip", key: 4, label: "Faixa nos atalhos",
+    what: "<p>Os 4 atalhos vazios (“+”) viram uma <b>faixa de status</b>: três sessões lado a lado e um bloco de limites. A sessão esperando resposta fica destacada em amarelo.</p>",
+    pro: ["Fica no topo, no campo de visão.", "Aproveita slots que hoje estão vazios."],
+    con: ["Pouco espaço: cabem só 3 sessões, sem botões de resposta.", "Os atalhos perdem espaço para crescer.", "Mistura dois módulos na mesma grade (precisa de um módulo novo dividindo a célula)."],
+    eff: "M · exige mexer no layout da grade" },
+  { id: "drawer", key: 5, label: "Gaveta lateral",
+    what: "<p>Uma <b>aba laranja</b> na borda direita da TV abre uma gaveta com o Shello por cima do vídeo. Clique na aba para abrir e fechar.</p>",
+    pro: ["Aparece só quando você quer; não ocupa nada fechado.", "O vídeo continua visível à esquerda."],
+    con: ["A gaveta tem que ser outro WebContentsView (DOM não fica por cima das views nativas).", "Painel espremido em 720px.", "Toque/gestos de abrir e fechar dão trabalho."],
+    eff: "M · view nativa extra + animação" },
+];
+
+const $ = (sel, el = document) => el.querySelector(sel);
+let current = OPTIONS.some((o) => o.id === location.hash.slice(1)) ? location.hash.slice(1) : "combo";
+let waiting = true;
+let selected = "cloqui";
+let drawerOpen = true;
+let tvMode = "shello";
+
+const stateOf = (s) => s.id === "cloqui" ? (waiting ? "waiting" : "working") : s.state;
+const msgOf = (s) => s.id === "cloqui" ? (waiting ? s.question : s.working) : s.message;
+const initials = (n) => n.replace(/[^a-z]/gi, " ").trim().split(/\s+/).map((p) => p[0]).join("").slice(0, 2).toUpperCase();
+const avatar = (s) => `<div class="avatar" style="background:${s.color}">${initials(s.name)}</div>`;
+const sorted = () => [...SESSIONS].sort((a, b) => (stateOf(b) === "waiting") - (stateOf(a) === "waiting"));
+const limitRows = (labelW) => LIMITS.map((l) => `<div class="lim"><span>${l.label}</span><div class="b"><i class="${l.pct > 55 ? "mid" : ""}" style="width:${l.pct}%"></i></div><b>${l.pct}%</b></div>`).join("");
+
+/* ---------- Desk base ---------- */
+const TASKS = ["Cadeira Bianca", "Pesquisar NOBREAK", "Voo de volta da família", "Robo aspirador", "Voo de ida da família", "CANCELAR CODEX"];
+const leftColumn = (slot) => `
+  <aside class="left">
+    <div class="date-row"><div class="pillbox date">05/10/2026 <span>🗓</span></div><div class="pillbox sq">✎</div><div class="pillbox sq">☰</div></div>
+    <div class="tasks">${TASKS.map((t) => `<div class="task"><div class="cb"></div><div class="t">${t}</div><div class="tag">∞</div></div>`).join("")}</div>
+    <div class="left-slot">${slot}</div>
+  </aside>`;
+const weather = () => `
+  <div class="weather">
+    <div class="wx"><b>Florianópolis</b><small>14:38:09 · 06/10/2026</small><small>Chuva</small><span class="deg">18°</span><span class="mm">↑18° ↓14°</span></div>
+    <div class="wx"><b>Londres</b><small>18:38:09 · 06/10/2026</small><small>Parcialmente nublado</small><span class="deg">21°</span><span class="mm">↑21° ↓14°</span></div>
+    <div class="wx"><b>São J. Campos</b><small>14:38:09 · 06/10/2026</small><small>Chuva</small><span class="deg">24°</span><span class="mm">↑25° ↓18°</span></div>
+  </div>`;
+const shortcuts = (strip) => strip ? `
+  <div class="shortcuts">
+    <div class="sc calc">🧮</div><div class="sc cam">📷</div>
+    <div class="sc limtile"><span class="eyebrow"><b>SHELLO</b> · LIMITES</span>${limitRows()}</div>
+    <div class="sc strip">${sorted().slice(0, 3).map((s) => `
+      <div class="chipcard ${stateOf(s)}" data-sel="${s.id}">
+        <div class="top"><span class="st ${stateOf(s)}"></span>${s.name}<span class="prof ${s.profile}">${s.profile}</span></div>
+        <div class="msg">${msgOf(s)}</div>
+      </div>`).join("")}</div>
+  </div>` : `
+  <div class="shortcuts"><div class="sc calc">🧮</div><div class="sc cam">📷</div><div class="sc">+</div><div class="sc">+</div><div class="sc">+</div><div class="sc">+</div></div>`;
+const quotes = () => `
+  <div class="quotes">
+    <div class="q"><span class="flag"></span><div><b>USD</b><br>DÓLAR AMERICANO</div><div class="r"><b>R$ 4,97</b><span class="neg">-0,51%</span></div></div>
+    <div class="q"><span class="flag"></span><div><b>BTC</b><br>BITCOIN</div><div class="r">US$ 86.113<b>R$ 428.266</b><span class="pos">+0,28%</span></div></div>
+    <div class="q"><span class="flag"></span><div><b>GBP</b><br>LIBRA ESTERLINA</div><div class="r">US$ 1,33<b>R$ 6,60</b><span class="neg">-0,03%</span></div></div>
+  </div>`;
+const system = () => `
+  <div class="system">
+    <div class="sys"><i style="width:16%"></i><span>CPU</span><span>16%</span></div>
+    <div class="sys"><i style="width:84%"></i><span>RAM</span><span>84%</span></div>
+    <div class="sys"><i style="width:21%"></i><span>GPU</span><span>21%</span></div>
+    <div class="sys"><span>DISCO</span><span>0%</span></div>
+    <div class="sys"><span>REDE</span><span style="text-align:right;font-size:11px">↓ 189 KB/s<br>↑ 51 KB/s</span></div>
+  </div>`;
+const video = (label = "YouTube · podcast tocando") => `<div class="video"><span class="ov">▶ ${label}</span><div class="bar"></div></div>`;
+
+const waitingCount = () => SESSIONS.filter((s) => stateOf(s) === "waiting").length;
+const dock = (withShello, shelloActive) => {
+  const badge = waitingCount() ? `<span class="badge">${waitingCount()}</span>` : "";
+  const ytCls = withShello && shelloActive ? "running" : "active";
+  return `<nav class="dock">
+    <div class="dk yt ${ytCls}" data-tv="video"><span class="ic">▶</span></div>
+    <div class="dk sp"><span class="ic">≋</span></div>
+    <div class="dk tw"><span class="ic">◩</span></div>
+    ${withShello ? `<div class="dk sh ${shelloActive ? "active" : ""}" data-tv="shello"><span class="ic">&gt;_</span>${badge}</div>` : ""}
+    <div class="dk-ctrl"><span>≡</span><span>⛶</span></div>
+  </nav>`;
+};
+
+/* ---------- card nativo ---------- */
+const deskCard = (compactOpen) => `
+  <div class="dcard">
+    <div class="dcard-h">
+      <div><div class="eyebrow"><b>CLAUDE</b> · SHELLO</div><h2>${SESSIONS.length} sessões${waitingCount() ? ` · <span style="color:var(--warn)">${waitingCount()} esperando</span>` : ""}</h2></div>
+      <div class="act"><div class="ibtn" title="Nova sessão">＋</div><div class="ibtn" title="Configurar">⚙</div></div>
+    </div>
+    <div class="srows">${sorted().map((s) => `
+      <div class="srow ${stateOf(s)}" data-sel="${s.id}">
+        <span class="st ${stateOf(s)}"></span>
+        <div class="nm">${s.name} <span class="prof ${s.profile}">${s.profile}</span>${s.machine === "Mac" ? `<span class="prof">Mac</span>` : ""}</div>
+        <span class="pill ${stateOf(s)}">${STATE_LABEL[stateOf(s)]}</span>
+        <div class="msg">${msgOf(s)}</div>
+        ${stateOf(s) === "waiting" ? `<div class="reply"><button class="mini yes">Sim</button><button class="mini">Não</button><button class="mini warn" data-sel="${s.id}">Abrir</button></div>` : ""}
+      </div>`).join("")}</div>
+    <div class="limits">${limitRows()}</div>
+    <button class="open" data-tv="shello">${compactOpen}</button>
+  </div>`;
+
+/* ---------- painel completo (UI do próprio Shello) ---------- */
+const TERM = {
+  cloqui: `<span class="p">❯</span> rode os testes de integração e prepare a migração do plano
+<span class="d">● Bash(npm run test:integration)</span>
+  <span class="g">✓ 87 passed</span> <span class="d">(41.2s)</span>
+<span class="d">● Read(db/migrations/0042_add_billing_cycle.sql)</span>
+<span class="d">● Write(db/migrations/0042_add_billing_cycle.sql)</span>
+  <span class="g">+ ALTER TABLE subscriptions ADD COLUMN billing_cycle text</span>
+
+<span class="b">◆</span> A migração está pronta. Ela altera a tabela <span class="y">subscriptions</span>
+  (2,3 mil linhas no dev) e é reversível pelo down correspondente.`,
+  desk: `<span class="p">❯</span> adicione ligar/desligar por app no dock da Smart TV
+<span class="d">● Read(src/main/mediaHub.ts)</span>
+<span class="d">● Update(src/main/mediaHub.ts)</span>
+  <span class="g">+ export const powerOffMediaApp = (appId: MediaAppId) =&gt; {</span>
+<span class="d">● Update(src/renderer/modules/media/MediaModule.tsx)</span>
+<span class="b">✻</span> Ajustando o menu do dock… <span class="d">(esc para interromper)</span>`,
+  shello: `<span class="p">❯</span> rode a suíte completa
+<span class="d">● Bash(npm test)</span>
+  <span class="g">✓ 214 passed</span> <span class="d">(18.7s)</span>
+
+<span class="b">◆</span> Pronto. 214 testes passaram, nenhum aviso novo.`,
+  lumark: `<span class="p">❯</span> publique um preview da branch
+<span class="d">● Bash(vercel deploy --prebuilt)</span>
+  <span class="g">✓ Preview: https://lumark-git-feat-x.vercel.app</span>
+
+<span class="b">◆</span> Deploy de preview publicado.`,
+};
+const shelloPanel = (withRail = true) => {
+  const s = SESSIONS.find((x) => x.id === selected) ?? SESSIONS[0];
+  const st = stateOf(s);
+  const term = s.id === "cloqui" && !waiting
+    ? TERM.cloqui.split("\n").slice(0, 3).join("\n") + `\n<span class="b">✻</span> Rodando a suíte… <span class="d">(esc para interromper)</span>`
+    : TERM[s.id];
+  return `<div class="shello">
+    ${withRail ? `<div class="rail"><div class="logo">&gt;_</div>
+      <button class="on"><span class="g">▤</span>Sessões</button><button><span class="g">↺</span>Histórico</button>
+      <button><span class="g">◔</span>Limites</button><button><span class="g">⇄</span>Portas</button><button><span class="g">⚙</span>Ajustes</button></div>` : ""}
+    <div class="slist">
+      <div class="slist-h"><h2>Sessões</h2><div class="chips"><span class="chip on">Todas</span><span class="chip">PC</span><span class="chip">Mac</span></div></div>
+      <div class="scards">${sorted().map((x) => `
+        <div class="scard ${x.id === s.id ? "sel" : ""}" data-sel="${x.id}">
+          ${avatar(x)}
+          <div class="l1"><span class="st ${stateOf(x)}"></span>${x.name}<span class="pill ${stateOf(x)}">${STATE_LABEL[stateOf(x)]}</span></div>
+          <div class="l2">${x.profile} · ${x.machine} · ${msgOf(x)}</div>
+        </div>`).join("")}</div>
+    </div>
+    <div class="sess">
+      <div class="sess-h">${avatar(s)}<div><h3>${s.name}</h3><small>${s.path}</small></div>
+        <div class="chips"><span class="chip">Conversa</span><span class="chip">Arquivos</span><span class="chip">Mudanças</span><span class="chip">Fila · 1</span><span class="chip">Uso</span></div></div>
+      <div class="term">${term}</div>
+      ${st === "waiting" ? `<div class="ask"><div class="q"><span class="st waiting"></span>${s.question}</div>
+        <div class="opts"><button class="o pri">Sim, rodar</button><button class="o">Sim, e não perguntar de novo</button><button class="o">Não, explicar antes</button></div></div>` : ""}
+      <div class="composer"><div class="in">Mensagem para ${s.name}…</div><div class="ib">🎤</div><div class="ib send">➤</div></div>
+    </div>
+    ${withRail ? `<button class="fab">＋ Nova sessão</button>` : ""}
+  </div>`;
+};
+
+const toast = () => {
+  const s = SESSIONS.find((x) => x.id === "cloqui");
+  return `<div class="toast">${avatar(s)}<b>${s.name} está esperando você</b><span>${s.question}</span>
+    <div class="row"><button class="mini yes">Sim</button><button class="mini">Não</button><button class="mini warn" data-sel="cloqui" data-tv="shello">Abrir</button></div></div>`;
+};
+
+/* ---------- montagem por opção ---------- */
+function render() {
+  const stage = $("#stage");
+  const opt = OPTIONS.find((o) => o.id === current);
+  let left = "", screen = video(), dk = dock(false), extra = "", strip = false;
+
+  if (current === "combo") {
+    left = deskCard("Abrir painel do Shello");
+    dk = dock(true, tvMode === "shello");
+    screen = tvMode === "shello" ? shelloPanel() + `<div class="pip" data-tv="video"><span class="x">⤢</span>${video("YouTube · mini player")}</div>` : video();
+  } else if (current === "column") {
+    left = deskCard("Abrir Shello no navegador ↗");
+  } else if (current === "dock") {
+    dk = dock(true, tvMode === "shello");
+    screen = tvMode === "shello" ? shelloPanel() + `<div class="pip" data-tv="video"><span class="x">⤢</span>${video("YouTube · mini player")}</div>` : video();
+  } else if (current === "strip") {
+    strip = true;
+  } else if (current === "drawer") {
+    const badge = waitingCount() ? `<span class="badge">${waitingCount()}</span>` : "";
+    extra = `<div class="drawer ${drawerOpen ? "" : "closed"}"><div class="handle" id="handle">SHELLO${badge}</div>${shelloPanel(false)}</div>`;
+  }
+
+  const showToast = waiting && !(tvMode === "shello" && (current === "combo" || current === "dock")) && !(current === "drawer" && drawerOpen);
+
+  stage.innerHTML =
+    leftColumn(left) + weather() + shortcuts(strip) + quotes() + system() +
+    `<div class="media"><div class="screen">${screen}</div>${dk}</div>` + extra +
+    (showToast ? toast() : "");
+
+  $("#tabs").innerHTML = OPTIONS.map((o) =>
+    `<button class="tab ${o.rec ? "rec" : ""}" role="tab" aria-selected="${o.id === current}" data-opt="${o.id}"><span class="k">${o.key}</span>${o.label}</button>`).join("");
+
+  $("#notes").innerHTML = `
+    <div class="note"><h3>Como funciona</h3>${opt.what}<span class="eff">Esforço: ${opt.eff}</span></div>
+    <div class="note pro"><h3>A favor</h3><ul>${opt.pro.map((p) => `<li>${p}</li>`).join("")}</ul></div>
+    <div class="note con"><h3>Contra</h3><ul>${opt.con.map((p) => `<li>${p}</li>`).join("")}</ul></div>`;
+}
+
+function fit() {
+  const vp = $("#viewport");
+  const maxW = Math.min(window.innerWidth - 32, 1916);
+  const maxH = window.innerHeight - $(".mockbar").offsetHeight - 40;
+  const scale = Math.max(0.3, Math.min(maxW / 1916, maxH / 1192));
+  vp.style.width = `${1916 * scale}px`;
+  vp.style.height = `${1192 * scale}px`;
+  $("#stage").style.transform = `scale(${scale})`;
+}
+
+document.addEventListener("click", (event) => {
+  const tab = event.target.closest("[data-opt]");
+  if (tab) { current = tab.dataset.opt; tvMode = "shello"; drawerOpen = true; render(); return; }
+  if (event.target.closest("#handle")) { drawerOpen = !drawerOpen; render(); return; }
+  const sel = event.target.closest("[data-sel]");
+  const tv = event.target.closest("[data-tv]");
+  if (event.target.closest(".mini.yes, .o.pri") && waiting) { $("#waitToggle").checked = waiting = false; }
+  if (sel) {
+    selected = sel.dataset.sel;
+    if (current === "combo" || current === "dock") tvMode = "shello";
+    if (current === "drawer") drawerOpen = true;
+  }
+  if (tv) tvMode = tv.dataset.tv;
+  if (sel || tv || event.target.closest(".mini, .o")) render();
+});
+document.addEventListener("keydown", (event) => {
+  const o = OPTIONS.find((x) => String(x.key) === event.key);
+  if (o) { current = o.id; tvMode = "shello"; drawerOpen = true; render(); }
+});
+$("#waitToggle").addEventListener("change", (event) => { waiting = event.target.checked; render(); });
+window.addEventListener("resize", fit);
+
+render();
+fit();
+</script>
+</body>
+</html>
