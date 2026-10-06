@@ -39,6 +39,25 @@ if (!window.electronControl) {
     throw new Error(`Tarefa ${id} nao encontrada.`);
   };
 
+  // Espelha rollOverPendingTasks do processo principal: pendentes marcadas
+  // para migrar sobem para o dia atual antes de qualquer leitura.
+  const rollOverBrowserTasks = () => {
+    const today = todayDateKey();
+    const moved: TaskItem[] = [];
+    for (const [date, tasks] of browserTasks.entries()) {
+      if (date >= today) continue;
+      const staying = tasks.filter(
+        (task) => !(task.rollover && !task.persistent && !task.done),
+      );
+      if (staying.length === tasks.length) continue;
+      moved.push(...tasks.filter((task) => !staying.includes(task)));
+      browserTasks.set(date, staying);
+    }
+    if (moved.length > 0) {
+      browserTasks.set(today, [...(browserTasks.get(today) ?? []), ...moved]);
+    }
+  };
+
   const getTaskDate = (id: number) => {
     for (const [date, tasks] of browserTasks.entries()) {
       if (tasks.some((task) => task.id === id)) return date;
@@ -174,6 +193,7 @@ if (!window.electronControl) {
     },
     tasks: {
       listByDate: async (date: string) => {
+        rollOverBrowserTasks();
         const dated = (browserTasks.get(date) ?? []).filter(
           (task) => !task.persistent,
         );
@@ -198,6 +218,7 @@ if (!window.electronControl) {
           done: false,
           tagIds: input.tagIds ?? [],
           persistent: input.persistent === true,
+          rollover: input.persistent !== true && input.rollover === true,
           completedOn: null,
         };
         browserTasks.set(input.date, [...(browserTasks.get(input.date) ?? []), created]);
@@ -215,6 +236,9 @@ if (!window.electronControl) {
           done: nextDone,
           tagIds: input.tagIds ?? current.tagIds,
           persistent: nextPersistent,
+          rollover: nextPersistent
+            ? false
+            : (input.rollover ?? current.rollover),
           completedOn:
             !nextPersistent || !nextDone
               ? null
@@ -258,6 +282,7 @@ if (!window.electronControl) {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             persistent: task.persistent,
+            rollover: task.rollover,
             completedOn: task.completedOn,
           })),
         ),

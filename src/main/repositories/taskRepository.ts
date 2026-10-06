@@ -19,13 +19,14 @@ interface TaskRow {
   done: number;
   sort_order: number;
   persistent: number;
+  rollover: number;
   completed_on: string | null;
   created_at: string;
   updated_at: string;
 }
 
 const TASK_COLUMNS =
-  "id, task_date, text, done, sort_order, persistent, completed_on, created_at, updated_at";
+  "id, task_date, text, done, sort_order, persistent, rollover, completed_on, created_at, updated_at";
 
 const toTaskItem = (row: TaskRow, tagIds: number[] = []): TaskItem => ({
   id: row.id,
@@ -33,6 +34,7 @@ const toTaskItem = (row: TaskRow, tagIds: number[] = []): TaskItem => ({
   done: row.done === 1,
   tagIds,
   persistent: row.persistent === 1,
+  rollover: row.rollover === 1,
   completedOn: row.completed_on ?? null,
 });
 
@@ -57,10 +59,70 @@ const getTaskRow = (id: number) => {
   return row;
 };
 
+/**
+ * Traz para hoje toda tarefa datada com rollover ligado que virou o dia sem
+ * ser concluida. E idempotente e olha todas as datas passadas de uma vez, entao
+ * cobre tambem o app fechado por varios dias; as concluidas ficam no dia em que
+ * foram feitas e as recorrentes ja aparecem sozinhas todo dia.
+ */
+export const rollOverPendingTasks = (): number => {
+  const today = todayDateKey();
+  const database = getDatabase();
+  const pending = database
+    .prepare(
+      `
+        SELECT id
+        FROM tasks
+        WHERE rollover = 1
+          AND persistent = 0
+          AND done = 0
+          AND task_date < ?
+        ORDER BY task_date ASC, sort_order ASC, id ASC
+      `,
+    )
+    .all(today) as unknown as { id: number }[];
+
+  if (pending.length === 0) return 0;
+
+  let nextSortOrder = (
+    database
+      .prepare(
+        "SELECT COALESCE(MAX(sort_order), -1) + 1 AS next_order FROM tasks WHERE task_date = ? AND persistent = 0",
+      )
+      .get(today) as { next_order: number }
+  ).next_order;
+
+  const update = database.prepare(
+    `
+      UPDATE tasks
+      SET task_date = ?, sort_order = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `,
+  );
+
+  database.exec("BEGIN");
+  try {
+    for (const row of pending) {
+      update.run(today, nextSortOrder, row.id);
+      nextSortOrder += 1;
+    }
+    database.exec("COMMIT");
+  } catch (error) {
+    database.exec("ROLLBACK");
+    throw error;
+  }
+
+  return pending.length;
+};
+
 export const listTasksByDate = (taskDate: string): TaskItem[] => {
   if (!isValidDateKey(taskDate)) {
     throw new Error("Data invalida.");
   }
+
+  // Antes de qualquer leitura: quem devia ter migrado ja migra aqui, mesmo que
+  // o dia tenha virado com o app fechado.
+  rollOverPendingTasks();
 
   // Tarefas com data: apenas as do dia. Recorrentes: aparecem em todos os
   // dias a partir da criacao ate o dia da conclusao (inclusive), sempre
@@ -94,6 +156,8 @@ export const createTask = (input: CreateTaskInput): TaskItem => {
   assertEditableDate(input.date);
 
   const persistent = input.persistent === true;
+  // Recorrente ja reaparece todo dia: guardar rollover nela so criaria ruido.
+  const rollover = !persistent && input.rollover === true;
   const database = getDatabase();
   const nextSortOrder = (
     database
@@ -108,11 +172,17 @@ export const createTask = (input: CreateTaskInput): TaskItem => {
   const result = database
     .prepare(
       `
-        INSERT INTO tasks (task_date, text, done, sort_order, persistent)
-        VALUES (?, ?, 0, ?, ?)
+        INSERT INTO tasks (task_date, text, done, sort_order, persistent, rollover)
+        VALUES (?, ?, 0, ?, ?, ?)
       `,
     )
-    .run(input.date, text, nextSortOrder, persistent ? 1 : 0);
+    .run(
+      input.date,
+      text,
+      nextSortOrder,
+      persistent ? 1 : 0,
+      rollover ? 1 : 0,
+    );
 
   const taskId = Number(result.lastInsertRowid);
   if (input.tagIds?.length) {
@@ -149,6 +219,16 @@ export const updateTask = (input: UpdateTaskInput): TaskItem => {
 
   const nextDone = input.done !== undefined ? (input.done ? 1 : 0) : row.done;
 
+  // Virar recorrente desliga a migracao diaria: a tarefa ja passa a aparecer
+  // em todos os dias por conta propria.
+  const nextRollover = nextPersistent
+    ? 0
+    : input.rollover !== undefined
+      ? input.rollover
+        ? 1
+        : 0
+      : row.rollover;
+
   // Conclusao de recorrente registra o dia real; reabrir limpa o registro.
   let nextCompletedOn: string | null = row.completed_on ?? null;
   if (!nextPersistent || nextDone === 0) {
@@ -173,7 +253,8 @@ export const updateTask = (input: UpdateTaskInput): TaskItem => {
       `
         UPDATE tasks
         SET task_date = ?, text = ?, done = ?, sort_order = ?,
-            persistent = ?, completed_on = ?, updated_at = datetime('now')
+            persistent = ?, rollover = ?, completed_on = ?,
+            updated_at = datetime('now')
         WHERE id = ?
       `,
     )
@@ -183,6 +264,7 @@ export const updateTask = (input: UpdateTaskInput): TaskItem => {
       nextDone,
       nextSortOrder,
       nextPersistent ? 1 : 0,
+      nextRollover,
       nextCompletedOn,
       input.id,
     );
@@ -227,6 +309,7 @@ export const exportTasksJson = (): TaskExportPayload => {
       createdAt: row.created_at,
       updatedAt: row.updated_at,
       persistent: row.persistent === 1,
+      rollover: row.rollover === 1,
       completedOn: row.completed_on ?? null,
     })),
   };

@@ -263,6 +263,8 @@ export interface TaskItem {
   tagIds: number[];
   /** Recorrente: aparece todos os dias, no fim da lista, ate ser concluida. */
   persistent: boolean;
+  /** Migra sozinha para o dia seguinte enquanto nao for concluida. */
+  rollover: boolean;
   /** Chave YYYY-MM-DD do dia em que a tarefa recorrente foi concluida. */
   completedOn: string | null;
 }
@@ -281,6 +283,7 @@ export interface CreateTaskInput {
   text: string;
   tagIds?: number[];
   persistent?: boolean;
+  rollover?: boolean;
 }
 
 export interface UpdateTaskInput {
@@ -290,6 +293,7 @@ export interface UpdateTaskInput {
   done?: boolean;
   tagIds?: number[];
   persistent?: boolean;
+  rollover?: boolean;
 }
 
 export interface TaskExportRecord {
@@ -301,6 +305,7 @@ export interface TaskExportRecord {
   createdAt: string;
   updatedAt: string;
   persistent: boolean;
+  rollover: boolean;
   completedOn: string | null;
 }
 

@@ -1643,6 +1643,22 @@ button {
   gap: 10px;
 }
 
+/* Largura que os botoes flutuantes de edicao ocupam na direita da linha. Eles
+   sao empilhados a partir da borda (excluir 4px, mover 34px, recorrente 64px),
+   entao so a linha datada precisa da reserva cheia: a recorrente mostra apenas
+   o excluir. Sem isso o botao de recorrente cai em cima da tag. */
+.task {
+  --row-actions: 0px;
+}
+
+.task:has(.task-delete) {
+  --row-actions: 36px;
+}
+
+.task:has(.task-persistent-toggle) {
+  --row-actions: 96px;
+}
+
 .task {
   position: relative;
   display: flex;
@@ -1674,7 +1690,8 @@ button {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  padding-right: 68px;
+  /* 68px reservam o canto onde a tag fica ancorada; em edicao vale o maior. */
+  padding-right: max(68px, var(--row-actions));
 }
 
 .task-body {
@@ -1870,7 +1887,8 @@ button {
   background-color: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
-.task-persistent-pill {
+.task-persistent-pill,
+.task-rollover-pill {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1885,7 +1903,8 @@ button {
   white-space: nowrap;
 }
 
-button.task-persistent-pill {
+button.task-persistent-pill,
+button.task-rollover-pill {
   font-family: inherit;
   cursor: pointer;
 }
@@ -1893,6 +1912,32 @@ button.task-persistent-pill {
 button.task-persistent-pill:hover {
   border-color: color-mix(in srgb, var(--accent) 55%, transparent);
   background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+/* Migracao automatica: mesma pilula, cor propria para nao virar sinonimo
+   visual da recorrente. */
+.task-rollover-pill {
+  border-color: rgba(209, 154, 102, 0.32);
+  color: #d19a66;
+  background: rgba(209, 154, 102, 0.1);
+}
+
+button.task-rollover-pill:hover {
+  border-color: rgba(209, 154, 102, 0.55);
+  background: rgba(209, 154, 102, 0.18);
+}
+
+/* Desligada: mesmo tracejado do "Tag", que ja e o convite a clicar da linha. */
+.task-rollover-pill.is-off {
+  border: 1px dashed color-mix(in srgb, var(--muted) 55%, var(--border));
+  color: var(--muted);
+  background: transparent;
+}
+
+.task-rollover-pill.is-off:hover {
+  border-color: rgba(209, 154, 102, 0.55);
+  color: #d19a66;
+  background: rgba(209, 154, 102, 0.12);
 }
 
 .task-group-divider {
@@ -1934,8 +1979,10 @@ button.task-persistent-pill:hover {
   padding-right: 0;
 }
 
-.task-list.is-inline-tags .task:has(.task-delete) .task-main {
-  padding-right: 68px;
+/* A reserva vai na linha inteira: aqui a tag e irma do texto e tambem passaria
+   por baixo dos botoes. */
+.task-list.is-inline-tags .task:has(.task-delete) {
+  padding-right: calc(var(--row-pad) + var(--row-actions));
 }
 
 .task-list.is-inline-tags .task:has(.task-tags-row:not(:empty)) {
@@ -1976,7 +2023,8 @@ button.task-persistent-pill:hover {
   font-size: 11px;
 }
 
-.task-list.is-dense .task-persistent-pill {
+.task-list.is-dense .task-persistent-pill,
+.task-list.is-dense .task-rollover-pill {
   padding: 1px 6px;
   font-size: 11px;
 }
@@ -2061,7 +2109,12 @@ button.task-persistent-pill:hover {
 
 /* Em edicao os botoes flutuantes ocupam a direita da primeira linha. */
 .task-list.is-stacked .task:has(.task-delete) {
-  padding-right: calc(var(--row-pad) + 68px);
+  padding-right: calc(var(--row-pad) + var(--row-actions));
+}
+
+/* A reserva ja esta na linha; repeti-la no .task-main dobraria o recuo. */
+.task-list.is-stacked .task:has(.task-delete) .task-main {
+  padding-right: 0;
 }
 
 /* Tag ancorada no canto direito da linha. No layout empilhado a tag desliza
@@ -2075,35 +2128,30 @@ button.task-persistent-pill:hover {
   margin-left: auto;
 }
 
-.task-composer-persistent {
-  flex: 0 0 44px;
-  width: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  color: var(--muted);
-  font-size: 18px;
-  font-weight: 700;
-  line-height: 1;
-  background: var(--surface);
-  cursor: pointer;
-  transition:
-    transform 120ms ease,
-    background-color 160ms ease,
-    border-color 160ms ease,
-    color 160ms ease;
+/* Recorrencia e migracao usam a pilula das tags, so que com cor fixa: a tag
+   traz a cor no style inline, aqui ela vem do modificador. */
+.task-flag-toggle .tag-swatch {
+  background: var(--flag-color);
 }
 
-.task-composer-persistent:active {
-  transform: scale(0.97);
+.task-flag-toggle.selected {
+  color: var(--flag-color);
+  background: color-mix(in srgb, var(--flag-color) 14%, transparent);
+  border-color: color-mix(in srgb, var(--flag-color) 40%, transparent);
 }
 
-.task-composer-persistent.active {
-  border-color: transparent;
-  color: white;
-  background: var(--accent);
+.task-flag-toggle.is-persistent {
+  --flag-color: var(--accent);
+}
+
+.task-flag-toggle.is-rollover {
+  --flag-color: #d19a66;
+}
+
+/* Recorrente ligada: a migracao diaria nao acrescenta nada. */
+.task-flag-toggle:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .task-delete {

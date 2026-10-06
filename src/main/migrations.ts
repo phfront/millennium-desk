@@ -113,6 +113,17 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
         ON tasks(persistent) WHERE persistent = 1;
     `,
   },
+  {
+    // Migracao automatica: tarefa datada com rollover = 1 que passa do dia sem
+    // ser concluida e trazida para o dia atual na proxima leitura.
+    version: 10,
+    sql: `
+      ALTER TABLE tasks ADD COLUMN rollover INTEGER NOT NULL DEFAULT 0
+        CHECK (rollover IN (0, 1));
+      CREATE INDEX IF NOT EXISTS idx_tasks_rollover
+        ON tasks(rollover) WHERE rollover = 1;
+    `,
+  },
 ];
 
 const getCurrentVersion = (database: DatabaseSync) => {

@@ -28,12 +28,13 @@ export const TasksModule = memo(function TasksModule({
   tags: TaskTag[];
   onConfigure: () => void;
 }) {
-  const today = toDateKey(new Date());
+  const [today, setToday] = useState(() => toDateKey(new Date()));
   const [selectedDate, setSelectedDate] = useState(today);
   const [newTaskText, setNewTaskText] = useState("");
   const [newTaskCursor, setNewTaskCursor] = useState(0);
   const [newTaskTagIds, setNewTaskTagIds] = useState<number[]>([]);
   const [newTaskPersistent, setNewTaskPersistent] = useState(false);
+  const [newTaskRollover, setNewTaskRollover] = useState(false);
   const [visibleTagIds, setVisibleTagIds] = useState<number[]>([]);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [editingList, setEditingList] = useState(false);
@@ -51,6 +52,7 @@ export const TasksModule = memo(function TasksModule({
   const [error, setError] = useState<string | null>(null);
   const newTaskInputRef = useRef<HTMLInputElement>(null);
   const moduleRef = useRef<HTMLDivElement>(null);
+  const previousTodayRef = useRef(today);
   // Toque longo abre o menu; refs guardam o timer e suprimem o clique final.
   const longPressTimer = useRef<number | null>(null);
   const longPressOrigin = useRef<{ x: number; y: number } | null>(null);
@@ -120,6 +122,25 @@ export const TasksModule = memo(function TasksModule({
     );
   }, [tags]);
 
+  // O modulo pode ficar aberto atravessando a meia-noite. Sem esse relogio a
+  // lista continuaria mostrando o dia anterior e as tarefas migradas so
+  // apareceriam no proximo reinicio.
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const nextToday = toDateKey(new Date());
+      setToday((current) => (current === nextToday ? current : nextToday));
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    const previousToday = previousTodayRef.current;
+    if (previousToday === today) return;
+    previousTodayRef.current = today;
+    // Quem estava vendo "hoje" acompanha a virada; datas escolhidas a mao ficam.
+    setSelectedDate((current) => (current === previousToday ? today : current));
+  }, [today]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -148,7 +169,9 @@ export const TasksModule = memo(function TasksModule({
     return () => {
       cancelled = true;
     };
-  }, [selectedDate]);
+    // `today` entra na lista para recarregar na virada do dia: e nessa leitura
+    // que o processo principal aplica a migracao das pendentes.
+  }, [selectedDate, today]);
 
   const toggleTaskDone = (item: TaskItem) => {
     void runTaskMutation(async () => {
@@ -224,13 +247,25 @@ export const TasksModule = memo(function TasksModule({
         text,
         tagIds: newTaskTagIds,
         persistent: newTaskPersistent,
+        rollover: newTaskRollover,
       });
       setNewTaskText("");
       setNewTaskCursor(0);
       setNewTaskTagIds([]);
       setNewTaskPersistent(false);
+      setNewTaskRollover(false);
       return [...items, created];
     }, "Falha ao criar tarefa.");
+  };
+
+  const toggleTaskRollover = (item: TaskItem) => {
+    void runTaskMutation(async () => {
+      const updated = await window.electronControl.tasks.update({
+        id: item.id,
+        rollover: !item.rollover,
+      });
+      return items.map((entry) => (entry.id === item.id ? updated : entry));
+    }, "Falha ao alterar a migracao automatica da tarefa.");
   };
 
   const toggleTaskPersistent = (item: TaskItem) => {
@@ -278,7 +313,7 @@ export const TasksModule = memo(function TasksModule({
     // Modulos de midia sao WebContentsView nativos, sempre acima do DOM. Para o
     // menu nunca ficar por tras deles, confino ele ao retangulo do modulo.
     const menuWidth = 224;
-    const menuHeight = 240;
+    const menuHeight = 280;
     const rect = moduleRef.current?.getBoundingClientRect();
     const minX = rect ? rect.left + 8 : 8;
     const maxX = (rect ? rect.right : window.innerWidth) - menuWidth - 8;
@@ -337,6 +372,7 @@ export const TasksModule = memo(function TasksModule({
     setNewTaskCursor(0);
     setNewTaskTagIds([]);
     setNewTaskPersistent(false);
+    setNewTaskRollover(false);
   }, [selectedDate]);
 
   useEffect(() => {
@@ -564,6 +600,43 @@ export const TasksModule = memo(function TasksModule({
                         ∞
                       </span>
                     ))}
+                  {/* Em edicao a pilula aparece sempre, apagada quando a
+                      migracao esta desligada: e assim que se liga a flag numa
+                      tarefa que ja existe. Fora da edicao ela so indica. */}
+                  {!item.persistent &&
+                    (!isPast && editingList ? (
+                      <button
+                        type="button"
+                        className={
+                          item.rollover
+                            ? "task-rollover-pill"
+                            : "task-rollover-pill is-off"
+                        }
+                        aria-pressed={item.rollover}
+                        aria-label={
+                          item.rollover
+                            ? "Desligar migracao automatica"
+                            : "Migrar sozinha para o dia seguinte"
+                        }
+                        title="Migra sozinha para o dia seguinte enquanto não for concluída"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleTaskRollover(item);
+                        }}
+                      >
+                        →
+                      </button>
+                    ) : (
+                      item.rollover && (
+                        <span
+                          className="task-rollover-pill"
+                          aria-label="Migra para o dia seguinte"
+                          title="Migra sozinha para o dia seguinte enquanto não for concluída"
+                        >
+                          →
+                        </span>
+                      )
+                    ))}
                   {item.tagIds.map((tagId) => {
                     const tag = tagsById.get(tagId);
                     if (!tag) return null;
@@ -714,20 +787,6 @@ export const TasksModule = memo(function TasksModule({
                 )}
               </div>
               <button
-                type="button"
-                className={
-                  newTaskPersistent
-                    ? "task-composer-persistent active"
-                    : "task-composer-persistent"
-                }
-                aria-pressed={newTaskPersistent}
-                aria-label="Criar como tarefa recorrente"
-                title="Recorrente: sem data, aparece todos os dias até ser concluída"
-                onClick={() => setNewTaskPersistent((value) => !value)}
-              >
-                ∞
-              </button>
-              <button
                 className="add-task"
                 aria-label="Adicionar tarefa"
                 title="Adicionar tarefa"
@@ -735,6 +794,48 @@ export const TasksModule = memo(function TasksModule({
               >
                 +
               </button>
+            </div>
+            {/* Mesma pilula das tags, em categoria propria: sao os dois modos
+                de repeticao da tarefa, nao um rotulo. */}
+            <div className="task-composer-tags">
+              <span>Repetição da nova tarefa</span>
+              <div className="tag-toggle-list">
+                <button
+                  type="button"
+                  aria-pressed={newTaskPersistent}
+                  className={
+                    newTaskPersistent
+                      ? "tag-toggle task-flag-toggle is-persistent selected"
+                      : "tag-toggle task-flag-toggle is-persistent"
+                  }
+                  title="Sem data: aparece todos os dias até ser concluída"
+                  onClick={() =>
+                    setNewTaskPersistent((value) => {
+                      // Recorrente ja reaparece todo dia: as duas nao se somam.
+                      if (!value) setNewTaskRollover(false);
+                      return !value;
+                    })
+                  }
+                >
+                  <span className="tag-swatch" />
+                  Recorrente
+                </button>
+                <button
+                  type="button"
+                  disabled={newTaskPersistent}
+                  aria-pressed={newTaskRollover}
+                  className={
+                    newTaskRollover
+                      ? "tag-toggle task-flag-toggle is-rollover selected"
+                      : "tag-toggle task-flag-toggle is-rollover"
+                  }
+                  title="Migra sozinha para o dia seguinte enquanto não for concluída"
+                  onClick={() => setNewTaskRollover((value) => !value)}
+                >
+                  <span className="tag-swatch" />
+                  Migra sozinha
+                </button>
+              </div>
             </div>
             {tags.length > 0 && (
               <div className="task-composer-tags">
@@ -832,6 +933,22 @@ export const TasksModule = memo(function TasksModule({
                 }}
               >
                 Mover para…
+              </button>
+            )}
+            {!contextMenu.item.persistent && (
+              <button
+                type="button"
+                role="menuitem"
+                aria-checked={contextMenu.item.rollover}
+                className="task-context-menu-item"
+                onClick={() => {
+                  toggleTaskRollover(contextMenu.item);
+                  setContextMenu(null);
+                }}
+              >
+                {contextMenu.item.rollover
+                  ? "Não migrar automaticamente"
+                  : "Migrar sozinha se não concluída"}
               </button>
             )}
             <div className="task-context-menu-divider" role="separator" />
