@@ -135,41 +135,89 @@ const openExternalLink = (url: string) => {
 };
 
 // ---------- modal: o app completo por cima de tudo ----------
-// Aberto pelo Resumo (window.open). Mesma particao, entao ja entra logado. O fundo escuro e
-// uma view nativa (cobre a Smart TV): tocar nele ou no x fecha. Esc continua indo para o Shello.
+// Aberto pelo Resumo (window.open). Mesma particao, entao ja entra logado. O fundo, a moldura e
+// o cabecalho sao uma view nativa (cobre a Smart TV); o app entra numa segunda view, encaixada
+// embaixo do cabecalho com os cantos arredondados. Tocar fora ou no x fecha; Esc segue para o
+// Shello (interrompe o Claude).
 
-const MODAL_MARGIN = 40;
+const MODAL_MARGIN = 32;
 const MODAL_MAX_WIDTH = 1320;
+const MODAL_HEADER = 52;
+const MODAL_RADIUS = 14;
 
 let modal: WebContentsView | null = null;
 let backdrop: WebContentsView | null = null;
 let modalOpen = false;
+let modalFrame: Electron.Rectangle | null = null;
 const resizeHooked = new WeakSet<Electron.BrowserWindow>();
 
 const BACKDROP_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
-html, body { margin: 0; height: 100%; overflow: hidden; background: rgba(6, 7, 10, .64); cursor: pointer; }
-button { position: fixed; top: 14px; right: 18px; width: 44px; height: 44px; border-radius: 12px; cursor: pointer;
-  border: 1px solid rgba(255, 255, 255, .16); background: rgba(24, 27, 34, .92); color: #e6e8ec;
-  font: 500 24px/1 system-ui, sans-serif; }
-button:hover { background: rgba(40, 44, 54, .95); }
-p { position: fixed; left: 0; right: 0; bottom: 10px; margin: 0; text-align: center;
-  color: rgba(230, 232, 236, .55); font: 13px system-ui, sans-serif; }
-</style></head><body><button title="Fechar" aria-label="Fechar">&times;</button><p>Toque fora para fechar</p>
-<script>document.body.onclick = () => { document.title = "close " + Date.now(); };</script></body></html>`;
+html, body { margin: 0; height: 100%; overflow: hidden; background: rgba(5, 6, 9, .66);
+  font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; }
+#panel { position: fixed; box-sizing: border-box; border-radius: ${MODAL_RADIUS}px; overflow: hidden; background: #0f1115;
+  border: 1px solid rgba(255, 255, 255, .09); box-shadow: 0 30px 90px rgba(0, 0, 0, .6); }
+header { height: ${MODAL_HEADER - 1}px; display: flex; align-items: center; gap: 10px; padding: 0 10px 0 14px;
+  background: #151820; border-bottom: 1px solid rgba(255, 255, 255, .07); }
+.mark { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; flex: none;
+  background: #d97757; color: #1a0f0a; font: 800 12px "Cascadia Code", Consolas, monospace; }
+h1 { margin: 0; font-size: 15px; font-weight: 650; color: #e6e8ec; white-space: nowrap; }
+h1 small { margin-left: 6px; font-size: 12px; font-weight: 500; color: #8b92a1; }
+.sp { flex: 1; }
+button { width: 34px; height: 34px; padding: 0; border: 0; border-radius: 9px; cursor: pointer;
+  display: grid; place-items: center; background: transparent; color: #aab0bc; }
+button:hover { background: rgba(255, 255, 255, .08); color: #e6e8ec; }
+button.close:hover { background: rgba(240, 113, 120, .16); color: #f07178; }
+svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.hint { position: fixed; left: 0; right: 0; bottom: 8px; margin: 0; text-align: center; font-size: 12px; color: rgba(230, 232, 236, .45); }
+</style></head><body>
+<div id="panel"><header>
+  <span class="mark">&gt;_</span><h1>Shello<small>Claude Code</small></h1><span class="sp"></span>
+  <button id="ext" title="Abrir no navegador" aria-label="Abrir no navegador"><svg viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg></button>
+  <button id="x" class="close" title="Fechar" aria-label="Fechar"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+</header></div>
+<p class="hint">Toque fora para fechar</p>
+<script>
+const send = (kind) => { document.title = kind + " " + Date.now(); };
+document.body.addEventListener("click", (event) => { if (!event.target.closest("#panel")) send("close"); });
+document.getElementById("x").onclick = () => send("close");
+document.getElementById("ext").onclick = () => send("external");
+window.setFrame = (x, y, width, height) => {
+  Object.assign(document.getElementById("panel").style, { left: x + "px", top: y + "px", width: width + "px", height: height + "px" });
+};
+</script></body></html>`;
+
+// O painel desenhado no fundo precisa saber onde esta: manda a moldura depois de carregar e a
+// cada reposicionamento
+const sendFrame = () => {
+  if (!backdrop || backdrop.webContents.isDestroyed() || !modalFrame) return;
+  const { x, y, width, height } = modalFrame;
+  void backdrop.webContents
+    .executeJavaScript(`window.setFrame && window.setFrame(${x}, ${y}, ${width}, ${height})`)
+    .catch(() => {});
+};
 
 const positionModal = () => {
   const window = context?.getMainWindow();
   if (!modalOpen || !window || !modal || !backdrop) return;
   const { width, height } = window.getContentBounds();
-  const modalWidth = Math.min(MODAL_MAX_WIDTH, width - MODAL_MARGIN * 2);
+  const panelWidth = Math.max(1, Math.min(MODAL_MAX_WIDTH, width - MODAL_MARGIN * 2));
+  const panelHeight = Math.max(MODAL_HEADER + 1, height - MODAL_MARGIN * 2);
+  modalFrame = {
+    x: Math.round((width - panelWidth) / 2),
+    y: MODAL_MARGIN,
+    width: panelWidth,
+    height: panelHeight,
+  };
   place(backdrop, { x: 0, y: 0, width, height }, { raise: true });
+  sendFrame();
+  // 1px para dentro: a borda do painel continua aparecendo em volta do app
   place(
     modal,
     {
-      x: Math.round((width - modalWidth) / 2),
-      y: MODAL_MARGIN,
-      width: Math.max(1, modalWidth),
-      height: Math.max(1, height - MODAL_MARGIN * 2),
+      x: modalFrame.x + 1,
+      y: modalFrame.y + MODAL_HEADER,
+      width: Math.max(1, panelWidth - 2),
+      height: Math.max(1, panelHeight - MODAL_HEADER - 1),
     },
     { raise: true },
   );
@@ -194,6 +242,7 @@ const openModal = (url: string) => {
       onBeforeInputEvent: context?.onBeforeInputEvent,
     });
     modal.setBackgroundColor("#0f1115");
+    modal.setBorderRadius(MODAL_RADIUS - 1);
     modal.webContents.setWindowOpenHandler(({ url: target }) => {
       openExternalLink(target);
       return { action: "deny" };
@@ -206,7 +255,9 @@ const openModal = (url: string) => {
     backdrop.setBackgroundColor("#00000000");
     backdrop.webContents.on("page-title-updated", (_event, title) => {
       if (title.startsWith("close ")) closeModal();
+      if (title.startsWith("external ")) void shell.openExternal(`${baseUrl()}/`);
     });
+    backdrop.webContents.on("did-finish-load", sendFrame);
     backdrop.webContents.on("will-navigate", (event) => event.preventDefault());
     backdrop.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
     void backdrop.webContents
