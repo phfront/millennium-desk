@@ -115,7 +115,7 @@ if (!window.electronControl) {
         shortcutGrid: { columns: 4, rows: 2 },
       },
     ],
-    shello: { mode: "grid", url: "http://127.0.0.1:7681" },
+    shello: { mode: "grid", gridView: "summary", url: "http://127.0.0.1:7681" },
     soundboard: DEFAULT_SOUNDBOARD_SETTINGS,
   });
 

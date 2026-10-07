@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type {
   ShelloDisplayMode,
+  ShelloGridView,
   ShelloSettings,
   ShelloState,
 } from "../../../shared/contracts";
@@ -16,6 +17,19 @@ const MODES: { id: ShelloDisplayMode; label: string; hint: string }[] = [
     id: "drawer",
     label: "Gaveta lateral",
     hint: "O app completo do Shello numa gaveta, aberta pela aba na borda direita da tela.",
+  },
+];
+
+const GRID_VIEWS: { id: ShelloGridView; label: string; hint: string }[] = [
+  {
+    id: "summary",
+    label: "Resumo",
+    hint: "Sessoes em cima e limites embaixo.",
+  },
+  {
+    id: "limits",
+    label: "So limites",
+    hint: "So a tabela de limites dos perfis, para um modulo pequeno num canto.",
   },
 ];
 
@@ -75,6 +89,25 @@ export function ShelloSettingsPanel({
         <p className="muted">
           {MODES.find((mode) => mode.id === settings.mode)?.hint}
         </p>
+        {settings.mode === "grid" && (
+          <>
+            <div className="segmented shello-mode-segmented">
+              {GRID_VIEWS.map((view) => (
+                <button
+                  key={view.id}
+                  type="button"
+                  className={settings.gridView === view.id ? "selected" : ""}
+                  onClick={() => onChange({ gridView: view.id })}
+                >
+                  {view.label}
+                </button>
+              ))}
+            </div>
+            <p className="muted">
+              {GRID_VIEWS.find((view) => view.id === settings.gridView)?.hint}
+            </p>
+          </>
+        )}
       </section>
       <section className="setting-group">
         <label className="shello-url-field">

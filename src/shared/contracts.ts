@@ -285,8 +285,15 @@ export interface AppSettings {
  */
 export type ShelloDisplayMode = "grid" | "drawer";
 
+/**
+ * O que o modulo da grade mostra.
+ * summary: o Resumo (sessoes e limites). limits: so a tabela de limites, para um canto pequeno.
+ */
+export type ShelloGridView = "summary" | "limits";
+
 export interface ShelloSettings {
   mode: ShelloDisplayMode;
+  gridView: ShelloGridView;
   /** Endereco do servidor do Shello neste PC (so loopback). */
   url: string;
 }

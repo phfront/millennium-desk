@@ -39,7 +39,8 @@ const attached = new Set<WebContentsView>();
 
 const getParent = () => context?.getMainWindow()?.contentView ?? null;
 const baseUrl = () => getSettings().shello.url;
-const targetUrl = () => shelloViewUrl(baseUrl(), surface.mode);
+const targetUrl = () =>
+  shelloViewUrl(baseUrl(), surface.mode, getSettings().shello.gridView);
 
 const isTrusted = (rawUrl: string) => {
   try {

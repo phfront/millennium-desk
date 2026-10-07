@@ -8,6 +8,7 @@ Toda visão nova é construída lá; aqui fica só onde ela aparece.
 | Visão | Endereço | Uso no Desk |
 | --- | --- | --- |
 | Resumo | `/?embed#resumo` | módulo na grade (coluna esquerda ou onde for posto) |
+| Só limites | `/?embed#limites-mini` | módulo na grade, pequeno num canto (só a tabela de limites) |
 | App completo | `/` | gaveta lateral |
 
 O Resumo mostra as sessões no alto (com rolagem) e os limites presos embaixo, em duas colunas.
@@ -35,7 +36,9 @@ Como ficou:
 - Fora do ar: a view some, o módulo mostra o aviso e tenta de novo a cada 10 s; a aba fica cinza.
 - Contador de sessões esperando: lido do título da página (`(n) Claude Web`).
 - A gaveta volta para a frente quando a Smart TV sobe (`onEmbeddedViewRaised` no embeddedWeb).
-- Configuração em `AppSettings.shello` (`mode`, `url`; só endereço deste PC).
+- No modo grade, Ajustes → Shello escolhe o que o módulo mostra: **Resumo** ou **Só limites**
+  (`gridView`). A aba só de limites é a mesma tabela do Resumo, sem cabeçalho nem sessões.
+- Configuração em `AppSettings.shello` (`mode`, `gridView`, `url`; só endereço deste PC).
 
 ## Testar sem o Desk
 
