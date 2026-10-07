@@ -12,16 +12,23 @@ import type {
   DashboardProfile,
   DisplayInfo,
   SaveShortcutInput,
+  SaveSoundInput,
   ShelloSettings,
   ShelloState,
   ShortcutItem,
   ShortcutGridSettings,
+  SoundboardSettings,
+  SoundItem,
   TemperatureUnit,
   TaskTag,
   ThemePreference,
   WeatherLocation,
 } from "../shared/contracts";
 import { DEFAULT_SHELLO_SETTINGS } from "../shared/shello";
+import {
+  DEFAULT_SOUNDBOARD_SETTINGS,
+  normalizeSoundboardSettings,
+} from "../shared/soundboard";
 import {
   DEFAULT_MEDIA_APP_ID,
   isMediaAppId,
@@ -83,6 +90,10 @@ import {
   ShortcutsModule,
   ShortcutsSettingsPanel,
 } from "./modules/shortcuts";
+import {
+  SoundboardModule,
+  SoundboardSettingsPanel,
+} from "./modules/soundboard";
 
 const HEADER_HEIGHT = 56;
 const DEFAULT_PROFILE_ID = "default";
@@ -131,6 +142,7 @@ const MODULE_LABELS: Record<ModuleId, string> = {
   shortcuts: "Atalhos",
   quotes: "Cotacoes",
   shello: "Shello",
+  soundboard: "Sons",
 };
 const MODULE_IDS = Object.keys(MODULE_LABELS) as ModuleId[];
 
@@ -206,6 +218,12 @@ export function App() {
   const [shortcutCreateSlot, setShortcutCreateSlot] = useState<number | null>(
     null,
   );
+  const [sounds, setSounds] = useState<SoundItem[]>([]);
+  const [soundboardSettings, setSoundboardSettings] =
+    useState<SoundboardSettings>(DEFAULT_SOUNDBOARD_SETTINGS);
+  const soundboardSettingsRef = useRef(soundboardSettings);
+  soundboardSettingsRef.current = soundboardSettings;
+  const [soundCreateSlot, setSoundCreateSlot] = useState<number | null>(null);
   const [fullscreen, setFullscreen] = useState(false);
   const [mediaModuleFullscreen, setMediaModuleFullscreen] = useState(false);
   const [launchAtStartup, setLaunchAtStartup] = useState(false);
@@ -410,6 +428,9 @@ export function App() {
         }
         setShortcutGrid(settings.shortcutGrid);
         setShelloSettings(settings.shello ?? DEFAULT_SHELLO_SETTINGS);
+        setSoundboardSettings(
+          settings.soundboard ?? DEFAULT_SOUNDBOARD_SETTINGS,
+        );
         if (settings.taskList) {
           setTaskSettings(settings.taskList);
         }
@@ -624,6 +645,60 @@ export function App() {
     setShortcutGrid(normalized);
     await window.electronControl.settings.update({ shortcutGrid: normalized });
     await loadShortcuts();
+  };
+
+  const loadSounds = useCallback(async () => {
+    setSounds(await window.electronControl.sounds.list());
+  }, []);
+
+  useEffect(() => {
+    void loadSounds();
+  }, [loadSounds]);
+
+  const saveSound = async (input: SaveSoundInput) => {
+    const saved = await window.electronControl.sounds.save(input);
+    await loadSounds();
+    return saved;
+  };
+
+  const deleteSound = async (id: number) => {
+    await window.electronControl.sounds.delete(id);
+    await loadSounds();
+  };
+
+  const placeSound = async (id: number, slot: number) => {
+    setSounds(await window.electronControl.sounds.place(id, slot));
+  };
+
+  const updateSoundboardSettings = async (
+    patch: Partial<SoundboardSettings>,
+  ) => {
+    const next = normalizeSoundboardSettings({
+      ...soundboardSettingsRef.current,
+      ...patch,
+    });
+    soundboardSettingsRef.current = next;
+    setSoundboardSettings(next);
+    await window.electronControl.settings.update({ soundboard: next });
+    if (!patch.grid) return;
+
+    // Grade menor: sons que ficaram fora vao para os slots livres que sobraram
+    const capacity = next.grid.columns * next.grid.rows;
+    const current = await window.electronControl.sounds.list();
+    const used = new Set(
+      current
+        .map((sound) => sound.gridSlot)
+        .filter((slot) => slot < capacity),
+    );
+    const freeSlots = Array.from({ length: capacity }, (_, slot) => slot).filter(
+      (slot) => !used.has(slot),
+    );
+    for (const sound of current.filter((item) => item.gridSlot >= capacity)) {
+      const slot = freeSlots.shift();
+      if (slot === undefined) break;
+      await window.electronControl.sounds.place(sound.id, slot);
+    }
+    await loadSounds();
   };
 
   const updateTaskSettings = (next: TaskModuleSettings) => {
@@ -983,6 +1058,22 @@ export function App() {
     [openModuleSettings],
   );
 
+  const handleSoundCreateRequestHandled = useCallback(() => {
+    setSoundCreateSlot(null);
+  }, []);
+
+  const openSoundboardSettings = useCallback(
+    (slot?: number) => {
+      setSoundCreateSlot(
+        typeof slot === "number" && Number.isInteger(slot) && slot >= 0
+          ? slot
+          : null,
+      );
+      openModuleSettings("soundboard");
+    },
+    [openModuleSettings],
+  );
+
   // Callbacks estaveis para nao invalidar o memo() dos modulos a cada render.
   const openTasksSettings = useCallback(
     () => openModuleSettings("tasks"),
@@ -1003,6 +1094,10 @@ export function App() {
   const openShortcutsSettingsDefault = useCallback(
     () => openShortcutSettings(),
     [openShortcutSettings],
+  );
+  const openSoundboardSettingsDefault = useCallback(
+    () => openSoundboardSettings(),
+    [openSoundboardSettings],
   );
   const reloadMediaApp = useCallback(
     () => void window.electronControl.media.reload(),
@@ -1486,6 +1581,15 @@ export function App() {
             onConfigure={openShelloSettings}
           />
         );
+      case "soundboard":
+        return (
+          <SoundboardModule
+            sounds={sounds}
+            settings={soundboardSettings}
+            onConfigure={openSoundboardSettingsDefault}
+            onAddAtSlot={openSoundboardSettings}
+          />
+        );
     }
   };
 
@@ -1776,6 +1880,8 @@ export function App() {
                               ? "Cotacoes"
                               : moduleSettings === "shello"
                                 ? "Shello"
+                                : moduleSettings === "soundboard"
+                                  ? "Sons"
                           : "Configuracoes"}
                   </h2>
                 </div>
@@ -2015,6 +2121,18 @@ export function App() {
                   onGridSettingsChange={updateShortcutGrid}
                   createAtSlot={shortcutCreateSlot}
                   onCreateRequestHandled={handleShortcutCreateRequestHandled}
+                />
+              )}
+              {moduleSettings === "soundboard" && (
+                <SoundboardSettingsPanel
+                  sounds={sounds}
+                  settings={soundboardSettings}
+                  onSettingsChange={updateSoundboardSettings}
+                  onSave={saveSound}
+                  onDelete={deleteSound}
+                  onPlace={placeSound}
+                  createAtSlot={soundCreateSlot}
+                  onCreateRequestHandled={handleSoundCreateRequestHandled}
                 />
               )}
                 </>

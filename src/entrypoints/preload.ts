@@ -9,6 +9,7 @@ import type {
   LogQuery,
   MediaPowerState,
   SaveShortcutInput,
+  SaveSoundInput,
   ShelloState,
   ShelloSurface,
   TemperatureUnit,
@@ -71,6 +72,14 @@ const api: ElectronControlApi = {
     place: (id: number, slot: number) =>
       ipcRenderer.invoke("shortcuts:place", id, slot),
     execute: (id: number) => ipcRenderer.invoke("shortcuts:execute", id),
+  },
+  sounds: {
+    list: () => ipcRenderer.invoke("sounds:list"),
+    save: (input: SaveSoundInput) => ipcRenderer.invoke("sounds:save", input),
+    delete: (id: number) => ipcRenderer.invoke("sounds:delete", id),
+    place: (id: number, slot: number) =>
+      ipcRenderer.invoke("sounds:place", id, slot),
+    readAudio: (id: number) => ipcRenderer.invoke("sounds:read-audio", id),
   },
   youtube: {
     setBounds: (bounds: ViewBounds) =>

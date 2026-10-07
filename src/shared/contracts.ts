@@ -23,7 +23,8 @@ export type DashboardModuleId =
   | "system"
   | "shortcuts"
   | "quotes"
-  | "shello";
+  | "shello"
+  | "soundboard";
 
 export type ShortcutType =
   | "app"
@@ -72,6 +73,61 @@ export interface ShortcutExecutionResult {
 export interface ShortcutGridSettings {
   columns: number;
   rows: number;
+}
+
+/** Som do modulo de efeitos, tocado na saida do microfone virtual. */
+export interface SoundItem {
+  id: number;
+  name: string;
+  /** Emoji (ou texto curto) exibido no botao; vazio usa o nome. */
+  emoji: string;
+  color: string;
+  color2: string;
+  /** Volume proprio do som, de 0 a 1. */
+  volume: number;
+  /** Nome do arquivo na pasta sounds do userData. */
+  fileName: string;
+  gridSlot: number;
+}
+
+export interface SoundAudioUpload {
+  bytes: Uint8Array;
+  /** Extensao do arquivo original, sem ponto (mp3, wav, ogg...). */
+  extension: string;
+}
+
+export interface SaveSoundInput {
+  id?: number;
+  name: string;
+  emoji?: string;
+  color?: string;
+  color2?: string;
+  volume?: number;
+  gridSlot?: number;
+  /** Obrigatorio ao criar; ao editar, so quando o arquivo e trocado. */
+  audio?: SoundAudioUpload;
+}
+
+export interface SoundAudioData {
+  bytes: Uint8Array;
+  mimeType: string;
+}
+
+export interface SoundboardSettings {
+  /** Saida que alimenta o microfone virtual (ex.: CABLE Input do VB-Cable). */
+  outputDeviceId: string;
+  /** Rotulo da saida, para reencontrar o dispositivo se o id mudar. */
+  outputDeviceLabel: string;
+  /** Toca tambem no fone, para ouvir o que os outros estao ouvindo. */
+  monitorEnabled: boolean;
+  /** Saida do retorno; vazio usa a saida padrao do Windows. */
+  monitorDeviceId: string;
+  monitorDeviceLabel: string;
+  /** Volume geral na saida do microfone, de 0 a 1. */
+  volume: number;
+  /** Volume geral no retorno, de 0 a 1. */
+  monitorVolume: number;
+  grid: ShortcutGridSettings;
 }
 
 export interface SystemStatus {
@@ -219,6 +275,8 @@ export interface AppSettings {
   dashboardProfiles: DashboardProfile[];
   /** Painel do Claude Code (Shello / Claude Web) exibido no Desk. */
   shello: ShelloSettings;
+  /** Modulo de sons tocados no microfone virtual. */
+  soundboard: SoundboardSettings;
 }
 
 /**
@@ -418,6 +476,13 @@ export interface ElectronControlApi {
     reorder(ids: number[]): Promise<ShortcutItem[]>;
     place(id: number, slot: number): Promise<ShortcutItem[]>;
     execute(id: number): Promise<ShortcutExecutionResult>;
+  };
+  sounds: {
+    list(): Promise<SoundItem[]>;
+    save(input: SaveSoundInput): Promise<SoundItem>;
+    delete(id: number): Promise<void>;
+    place(id: number, slot: number): Promise<SoundItem[]>;
+    readAudio(id: number): Promise<SoundAudioData>;
   };
   youtube: {
     setBounds(bounds: ViewBounds): Promise<void>;

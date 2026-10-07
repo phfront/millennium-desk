@@ -15,6 +15,12 @@ import type {
   WeatherLocation,
 } from "../shared/contracts";
 import { isPastDateKey, todayDateKey } from "../shared/date";
+import {
+  DEFAULT_SOUND_COLOR,
+  DEFAULT_SOUND_COLOR2,
+  DEFAULT_SOUNDBOARD_SETTINGS,
+  SOUND_AUDIO_EXTENSIONS,
+} from "../shared/soundboard";
 import { App } from "../renderer/App";
 import { SnackbarProvider } from "../renderer/components/Snackbar";
 import "../renderer/styles.css";
@@ -110,6 +116,7 @@ if (!window.electronControl) {
       },
     ],
     shello: { mode: "grid", url: "http://127.0.0.1:7681" },
+    soundboard: DEFAULT_SOUNDBOARD_SETTINGS,
   });
 
   const readBrowserSettings = (): AppSettings => {
@@ -132,6 +139,8 @@ if (!window.electronControl) {
 
   const browserSettings = readBrowserSettings();
   let browserShortcuts: import("../shared/contracts").ShortcutItem[] = [];
+  let browserSounds: import("../shared/contracts").SoundItem[] = [];
+  const browserSoundAudio = new Map<string, Uint8Array>();
 
   const browserLogSubscribers = new Set<(entry: LogEntry) => void>();
   const browserLogs: LogEntry[] = [];
@@ -495,6 +504,69 @@ if (!window.electronControl) {
         started: true,
         message: "",
       }),
+    },
+    sounds: {
+      list: async () => browserSounds,
+      save: async (input) => {
+        const existing = input.id
+          ? browserSounds.find((item) => item.id === input.id)
+          : undefined;
+        if (!existing && !input.audio) throw new Error("Escolha o arquivo de audio.");
+        let fileName = existing?.fileName ?? "";
+        if (input.audio) {
+          fileName = `${Date.now()}.${input.audio.extension}`;
+          browserSoundAudio.set(fileName, input.audio.bytes);
+        }
+        const used = new Set(browserSounds.map((item) => item.gridSlot));
+        let slot = 0;
+        while (used.has(slot)) slot += 1;
+        const item = {
+          id: existing?.id ?? Date.now(),
+          name: input.name.trim(),
+          emoji: input.emoji ?? "",
+          color: input.color ?? DEFAULT_SOUND_COLOR,
+          color2: input.color2 ?? DEFAULT_SOUND_COLOR2,
+          volume: input.volume ?? 1,
+          fileName,
+          gridSlot:
+            existing?.gridSlot ??
+            (input.gridSlot !== undefined && !used.has(input.gridSlot)
+              ? input.gridSlot
+              : slot),
+        };
+        browserSounds = existing
+          ? browserSounds.map((current) => (current.id === item.id ? item : current))
+          : [...browserSounds, item];
+        return item;
+      },
+      delete: async (id) => {
+        browserSounds = browserSounds.filter((item) => item.id !== id);
+      },
+      place: async (id, slot) => {
+        const moving = browserSounds.find((item) => item.id === id);
+        if (!moving) return browserSounds;
+        const occupant = browserSounds.find(
+          (item) => item.gridSlot === slot && item.id !== id,
+        );
+        browserSounds = browserSounds.map((item) =>
+          item.id === id
+            ? { ...item, gridSlot: slot }
+            : occupant && item.id === occupant.id
+              ? { ...item, gridSlot: moving.gridSlot }
+              : item,
+        );
+        return browserSounds;
+      },
+      readAudio: async (id) => {
+        const sound = browserSounds.find((item) => item.id === id);
+        const bytes = sound && browserSoundAudio.get(sound.fileName);
+        if (!sound || !bytes) throw new Error("Som nao encontrado.");
+        const extension = sound.fileName.split(".").pop() ?? "";
+        return {
+          bytes,
+          mimeType: SOUND_AUDIO_EXTENSIONS[extension] ?? "application/octet-stream",
+        };
+      },
     },
     weather: {
       searchLocations: async (query: string): Promise<WeatherLocation[]> => [

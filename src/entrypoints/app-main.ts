@@ -50,6 +50,7 @@ import { registerSystemIpc } from "../main/ipc/systemIpc";
 import { registerQuotesIpc } from "../main/ipc/quotesIpc";
 import { stopSystemStatusWorker } from "../main/systemStatus";
 import { registerShortcutsIpc } from "../main/ipc/shortcutsIpc";
+import { registerSoundsIpc } from "../main/ipc/soundsIpc";
 import { registerWeatherIpc } from "../main/ipc/weatherIpc";
 import {
   flushSettingsStore,
@@ -944,6 +945,7 @@ app.whenReady().then(async () => {
   registerSystemIpc();
   registerQuotesIpc();
   registerShortcutsIpc();
+  registerSoundsIpc();
   registerMediaIpc();
   registerShelloIpc();
   screen.on("display-added", () => {

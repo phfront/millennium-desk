@@ -124,6 +124,27 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
         ON tasks(rollover) WHERE rollover = 1;
     `,
   },
+  {
+    // Sons do modulo de efeitos: o audio fica em userData/sounds, aqui so o nome do arquivo.
+    // A 11 e de Passagens (branch wip/passagens), ja aplicada no banco do Pedro.
+    version: 12,
+    sql: `
+      CREATE TABLE IF NOT EXISTS sounds (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+        emoji TEXT NOT NULL DEFAULT '',
+        color TEXT NOT NULL DEFAULT '#f08a4b',
+        color_2 TEXT NOT NULL DEFAULT '#e15f9a',
+        volume REAL NOT NULL DEFAULT 1 CHECK (volume >= 0 AND volume <= 1),
+        file_name TEXT NOT NULL CHECK (length(trim(file_name)) > 0),
+        grid_slot INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_sounds_grid_slot ON sounds(grid_slot, id);
+    `,
+  },
 ];
 
 const getCurrentVersion = (database: DatabaseSync) => {
