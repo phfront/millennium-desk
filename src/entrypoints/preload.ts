@@ -1,6 +1,8 @@
 import { contextBridge, ipcRenderer } from "electron";
+import type { VoiceRoute } from "../shared/audioControl";
 import type {
   AppSettings,
+  AudioHotkeyEvent,
   CreateTagInput,
   CreateTaskInput,
   DisplayInfo,
@@ -80,6 +82,34 @@ const api: ElectronControlApi = {
     place: (id: number, slot: number) =>
       ipcRenderer.invoke("sounds:place", id, slot),
     readAudio: (id: number) => ipcRenderer.invoke("sounds:read-audio", id),
+  },
+  audio: {
+    getState: () => ipcRenderer.invoke("audio:get-state"),
+    setDefault: (id: string) => ipcRenderer.invoke("audio:set-default", id),
+    setVolume: (id: string, volume: number) =>
+      ipcRenderer.invoke("audio:set-volume", id, volume),
+    setMute: (id: string, muted: boolean) =>
+      ipcRenderer.invoke("audio:set-mute", id, muted),
+    setAppVolume: (key: string, volume: number) =>
+      ipcRenderer.invoke("audio:set-app-volume", key, volume),
+    setAppMute: (key: string, muted: boolean) =>
+      ipcRenderer.invoke("audio:set-app-mute", key, muted),
+    setDnd: (on: boolean) => ipcRenderer.invoke("audio:set-dnd", on),
+    setDucking: (on: boolean) => ipcRenderer.invoke("audio:set-ducking", on),
+    setVoice: (route: VoiceRoute) => ipcRenderer.invoke("audio:set-voice", route),
+    toggleMute: () => ipcRenderer.invoke("audio:toggle-mute"),
+    syncHotkeys: () => ipcRenderer.invoke("audio:sync-hotkeys"),
+    onChanged: (callback: () => void) => {
+      const listener = () => callback();
+      ipcRenderer.on("audio:changed", listener);
+      return () => ipcRenderer.removeListener("audio:changed", listener);
+    },
+    onHotkey: (callback: (event: AudioHotkeyEvent) => void) => {
+      const listener = (_event: Electron.IpcRendererEvent, value: AudioHotkeyEvent) =>
+        callback(value);
+      ipcRenderer.on("audio:hotkey", listener);
+      return () => ipcRenderer.removeListener("audio:hotkey", listener);
+    },
   },
   youtube: {
     setBounds: (bounds: ViewBounds) =>

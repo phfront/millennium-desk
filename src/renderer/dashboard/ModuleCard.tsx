@@ -14,7 +14,8 @@ export type ModuleId =
   | "shortcuts"
   | "quotes"
   | "shello"
-  | "soundboard";
+  | "soundboard"
+  | "scenes";
 
 const DROP_LABELS: Record<DropPlacement, string> = {
   left: "Encaixar à esquerda",
@@ -38,6 +39,7 @@ const MODULE_EDIT_META: Record<
   quotes: { eyebrow: "MERCADO", title: "Cotacoes" },
   shello: { eyebrow: "CLAUDE CODE", title: "Shello" },
   soundboard: { eyebrow: "NO MICROFONE", title: "Sons" },
+  scenes: { eyebrow: "AUDIO", title: "Cenas" },
 };
 
 const getDropIndicatorBounds = (

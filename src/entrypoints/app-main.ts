@@ -51,6 +51,7 @@ import { registerQuotesIpc } from "../main/ipc/quotesIpc";
 import { stopSystemStatusWorker } from "../main/systemStatus";
 import { registerShortcutsIpc } from "../main/ipc/shortcutsIpc";
 import { registerSoundsIpc } from "../main/ipc/soundsIpc";
+import { registerAudioIpc, stopAudio } from "../main/ipc/audioIpc";
 import { registerWeatherIpc } from "../main/ipc/weatherIpc";
 import {
   flushSettingsStore,
@@ -946,6 +947,7 @@ app.whenReady().then(async () => {
   registerQuotesIpc();
   registerShortcutsIpc();
   registerSoundsIpc();
+  registerAudioIpc(() => mainWindow);
   registerMediaIpc();
   registerShelloIpc();
   screen.on("display-added", () => {
@@ -981,6 +983,7 @@ app.on("window-all-closed", () => {
 
 app.on("will-quit", () => {
   stopSystemStatusWorker();
+  stopAudio();
   flushSettingsStore();
   closeDatabase();
 });

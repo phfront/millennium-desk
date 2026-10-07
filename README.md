@@ -12,6 +12,7 @@ Painel touchscreen modular para Windows: grid de módulos configurável, persist
 - **Sistema** — CPU, memória, rede e disco
 - **Atalhos** — apps, arquivos, URLs, BAT e PowerShell; grid com ícones e cores
 - **Sons** — efeitos tocados no microfone virtual (VB-Cable) para soltar em reuniões ([`docs/soundboard-plano.md`](./docs/soundboard-plano.md))
+- **Cenas** — trocar de uma vez saída, microfone (direto ou pelo cabo), volumes e Não perturbe; o Controle de áudio do Windows num modal ([`docs/controle-plano.md`](./docs/controle-plano.md))
 
 Roadmap e visão de produto: [`PLANO.md`](./PLANO.md).
 

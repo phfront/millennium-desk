@@ -1,5 +1,11 @@
 import type { MediaAppId, MediaAppInfo } from "./mediaApps";
 import type {
+  AudioControlSettings,
+  AudioState,
+  VoiceRoute,
+  VoiceStatus,
+} from "./audioControl";
+import type {
   LogCategory,
   LogEntry,
   LogLevel,
@@ -24,7 +30,8 @@ export type DashboardModuleId =
   | "shortcuts"
   | "quotes"
   | "shello"
-  | "soundboard";
+  | "soundboard"
+  | "scenes";
 
 export type ShortcutType =
   | "app"
@@ -85,6 +92,8 @@ export interface SoundItem {
   color2: string;
   /** Volume proprio do som, de 0 a 1. */
   volume: number;
+  /** Imagem do botao (data URL); no lugar do emoji quando existe. */
+  iconDataUrl: string | null;
   /** Nome do arquivo na pasta sounds do userData. */
   fileName: string;
   gridSlot: number;
@@ -103,6 +112,8 @@ export interface SaveSoundInput {
   color?: string;
   color2?: string;
   volume?: number;
+  /** undefined mantem a imagem atual; null tira. */
+  iconDataUrl?: string | null;
   gridSlot?: number;
   /** Obrigatorio ao criar; ao editar, so quando o arquivo e trocado. */
   audio?: SoundAudioUpload;
@@ -277,6 +288,17 @@ export interface AppSettings {
   shello: ShelloSettings;
   /** Modulo de sons tocados no microfone virtual. */
   soundboard: SoundboardSettings;
+  /** Cenas e Controle de audio. */
+  audioControl: AudioControlSettings;
+}
+
+export type AudioHotkeyAction = "open" | "mute";
+
+/** Atalho global apertado; no "mute", o estado da voz depois da troca. */
+export interface AudioHotkeyEvent {
+  action: AudioHotkeyAction;
+  voice?: VoiceStatus;
+  error?: string;
 }
 
 /**
@@ -490,6 +512,23 @@ export interface ElectronControlApi {
     delete(id: number): Promise<void>;
     place(id: number, slot: number): Promise<SoundItem[]>;
     readAudio(id: number): Promise<SoundAudioData>;
+  };
+  audio: {
+    getState(): Promise<AudioState>;
+    setDefault(id: string): Promise<void>;
+    setVolume(id: string, volume: number): Promise<void>;
+    setMute(id: string, muted: boolean): Promise<void>;
+    setAppVolume(key: string, volume: number): Promise<void>;
+    setAppMute(key: string, muted: boolean): Promise<void>;
+    setDnd(on: boolean): Promise<void>;
+    setDucking(on: boolean): Promise<void>;
+    /** Liga a rota da voz (microfone padrao + "Escutar") e desmuta. */
+    setVoice(route: VoiceRoute): Promise<void>;
+    toggleMute(): Promise<VoiceStatus>;
+    /** Registra de novo os atalhos globais; diz quais o Windows aceitou. */
+    syncHotkeys(): Promise<Record<AudioHotkeyAction, boolean>>;
+    onChanged(callback: () => void): () => void;
+    onHotkey(callback: (event: AudioHotkeyEvent) => void): () => void;
   };
   youtube: {
     setBounds(bounds: ViewBounds): Promise<void>;

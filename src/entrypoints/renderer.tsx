@@ -21,7 +21,9 @@ import {
   DEFAULT_SOUNDBOARD_SETTINGS,
   SOUND_AUDIO_EXTENSIONS,
 } from "../shared/soundboard";
+import { DEFAULT_AUDIO_CONTROL_SETTINGS } from "../shared/audioControl";
 import { App } from "../renderer/App";
+import { createBrowserAudio } from "./browserAudioMock";
 import { SnackbarProvider } from "../renderer/components/Snackbar";
 import "../renderer/styles.css";
 
@@ -117,6 +119,7 @@ if (!window.electronControl) {
     ],
     shello: { mode: "grid", gridView: "summary", url: "http://127.0.0.1:7681" },
     soundboard: DEFAULT_SOUNDBOARD_SETTINGS,
+    audioControl: DEFAULT_AUDIO_CONTROL_SETTINGS,
   });
 
   const readBrowserSettings = (): AppSettings => {
@@ -140,6 +143,29 @@ if (!window.electronControl) {
   const browserSettings = readBrowserSettings();
   let browserShortcuts: import("../shared/contracts").ShortcutItem[] = [];
   let browserSounds: import("../shared/contracts").SoundItem[] = [];
+  // ?demo: sons de exemplo para olhar a grade e a lista sem cadastrar arquivo
+  if (new URLSearchParams(window.location.search).has("demo")) {
+    browserSounds = [
+      ["du-bist-gut-genug", "🎵"],
+      ["guitarra-humana-so-na-pisadinha", "🎸"],
+      ["faaah", "😱"],
+      ["la-ele", ""],
+      ["anime-wow-sound-effect", "🌸"],
+      ["meme-de-creditos-finales", "🎬"],
+      ["tf_nemesis", ""],
+      ["vine-boom-sound-effect", "💥"],
+    ].map(([name, emoji], index) => ({
+      id: index + 1,
+      name,
+      emoji,
+      color: DEFAULT_SOUND_COLOR,
+      color2: DEFAULT_SOUND_COLOR2,
+      volume: 1,
+      iconDataUrl: null,
+      fileName: `demo-${index}.mp3`,
+      gridSlot: index,
+    }));
+  }
   const browserSoundAudio = new Map<string, Uint8Array>();
 
   const browserLogSubscribers = new Set<(entry: LogEntry) => void>();
@@ -527,6 +553,10 @@ if (!window.electronControl) {
           color: input.color ?? DEFAULT_SOUND_COLOR,
           color2: input.color2 ?? DEFAULT_SOUND_COLOR2,
           volume: input.volume ?? 1,
+          iconDataUrl:
+            input.iconDataUrl === undefined
+              ? (existing?.iconDataUrl ?? null)
+              : input.iconDataUrl,
           fileName,
           gridSlot:
             existing?.gridSlot ??
@@ -630,6 +660,7 @@ if (!window.electronControl) {
         };
       },
     },
+    audio: createBrowserAudio(),
     youtube: {
       setBounds: async () => undefined,
       setVisible: async () => undefined,

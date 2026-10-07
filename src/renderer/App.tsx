@@ -26,6 +26,13 @@ import type {
 } from "../shared/contracts";
 import { DEFAULT_SHELLO_SETTINGS } from "../shared/shello";
 import {
+  DEFAULT_AUDIO_CONTROL_SETTINGS,
+  normalizeAudioControlSettings,
+  type AudioControlSettings,
+  type AudioScene,
+} from "../shared/audioControl";
+import { useSnackbar } from "./components/Snackbar";
+import {
   DEFAULT_SOUNDBOARD_SETTINGS,
   normalizeSoundboardSettings,
 } from "../shared/soundboard";
@@ -94,6 +101,15 @@ import {
   SoundboardModule,
   SoundboardSettingsPanel,
 } from "./modules/soundboard";
+import {
+  AudioControlModal,
+  ScenesModule,
+  applyScene,
+  refreshAudio,
+  runAudio,
+  suggestedScenes,
+  type ControlTab,
+} from "./modules/scenes";
 
 const HEADER_HEIGHT = 56;
 const DEFAULT_PROFILE_ID = "default";
@@ -143,6 +159,7 @@ const MODULE_LABELS: Record<ModuleId, string> = {
   quotes: "Cotacoes",
   shello: "Shello",
   soundboard: "Sons",
+  scenes: "Cenas",
 };
 const MODULE_IDS = Object.keys(MODULE_LABELS) as ModuleId[];
 
@@ -224,6 +241,15 @@ export function App() {
   const soundboardSettingsRef = useRef(soundboardSettings);
   soundboardSettingsRef.current = soundboardSettings;
   const [soundCreateSlot, setSoundCreateSlot] = useState<number | null>(null);
+  const [audioControl, setAudioControl] = useState<AudioControlSettings>(
+    DEFAULT_AUDIO_CONTROL_SETTINGS,
+  );
+  const audioControlRef = useRef(audioControl);
+  audioControlRef.current = audioControl;
+  const [audioControlLoaded, setAudioControlLoaded] = useState(false);
+  /** Aba aberta do modal do Controle; null = fechado. */
+  const [controlTab, setControlTab] = useState<ControlTab | null>(null);
+  const { showSnackbar } = useSnackbar();
   const [fullscreen, setFullscreen] = useState(false);
   const [mediaModuleFullscreen, setMediaModuleFullscreen] = useState(false);
   const [launchAtStartup, setLaunchAtStartup] = useState(false);
@@ -308,6 +334,7 @@ export function App() {
   themeRef.current = theme;
   accentColorRef.current = accentColor;
   const overlayOpen = settingsOpen || logsOpen || moduleSettings !== null;
+  const controlOpen = controlTab !== null;
   const compactLayout = fullscreen || editMode || mediaModuleFullscreen;
   const calculatedLayout = calculateLayout(layoutTree, {
     x: 0,
@@ -319,6 +346,7 @@ export function App() {
   const mediaInGrid = renderedLayouts.some((layout) => layout.id === "media");
   const mediaSurfaceHidden =
     overlayOpen ||
+    controlOpen ||
     profileMenuOpen ||
     editingProfiles ||
     emojiPickerOpen ||
@@ -331,6 +359,7 @@ export function App() {
   // Paineis e menus ficam embaixo das views nativas: o Shello some enquanto estao abertos
   const shelloVisible =
     !overlayOpen &&
+    !controlOpen &&
     !profileMenuOpen &&
     !editingProfiles &&
     !emojiPickerOpen &&
@@ -431,6 +460,12 @@ export function App() {
         setSoundboardSettings(
           settings.soundboard ?? DEFAULT_SOUNDBOARD_SETTINGS,
         );
+        setAudioControl(
+          normalizeAudioControlSettings(
+            settings.audioControl ?? DEFAULT_AUDIO_CONTROL_SETTINGS,
+          ),
+        );
+        setAudioControlLoaded(true);
         if (settings.taskList) {
           setTaskSettings(settings.taskList);
         }
@@ -700,6 +735,98 @@ export function App() {
     }
     await loadSounds();
   };
+
+  // ---------- Cenas e Controle de audio ----------
+  const updateAudioControl = useCallback(async (next: AudioControlSettings) => {
+    const normalized = normalizeAudioControlSettings(next);
+    audioControlRef.current = normalized;
+    setAudioControl(normalized);
+    await window.electronControl.settings.update({ audioControl: normalized });
+  }, []);
+
+  const updateSoundboardRef = useRef(updateSoundboardSettings);
+  updateSoundboardRef.current = updateSoundboardSettings;
+
+  const applyAudioScene = useCallback(
+    async (scene: AudioScene) => {
+      try {
+        const state = await window.electronControl.audio.getState();
+        if (!state.available) {
+          showSnackbar(state.error ?? "Controle de áudio indisponível.");
+          return;
+        }
+        const failures = await applyScene(scene, {
+          state,
+          settings: audioControlRef.current,
+          updateSoundboard: (patch) => updateSoundboardRef.current(patch),
+        });
+        await updateAudioControl({ ...audioControlRef.current, activeSceneId: scene.id });
+        showSnackbar(
+          failures.length
+            ? `Cena ${scene.name}, com falhas: ${failures.join("; ")}`
+            : `Cena ${scene.name} aplicada`,
+        );
+      } finally {
+        await refreshAudio();
+      }
+    },
+    [showSnackbar, updateAudioControl],
+  );
+
+  const toggleVoiceMute = useCallback(() => {
+    void runAudio(() => window.electronControl.audio.toggleMute())
+      .then((voice) =>
+        showSnackbar(
+          voice.muted
+            ? `Voz mutada na reunião${voice.route === "cable" ? " (os Sons seguem tocando)" : ""}`
+            : "Voz ligada na reunião",
+        ),
+      )
+      .catch((error) =>
+        showSnackbar(error instanceof Error ? error.message : String(error)),
+      );
+  }, [showSnackbar]);
+
+  const openAudioControl = useCallback(() => setControlTab("scenes"), []);
+  const closeAudioControl = useCallback(() => setControlTab(null), []);
+
+  // Atalhos globais (registrados no main): abrir o Controle e mutar a voz
+  useEffect(
+    () =>
+      window.electronControl.audio.onHotkey((event) => {
+        if (event.action === "open") {
+          setControlTab((current) => (current ? null : "scenes"));
+          return;
+        }
+        void refreshAudio();
+        if (event.error) showSnackbar(event.error);
+        else if (event.voice) {
+          showSnackbar(event.voice.muted ? "Voz mutada na reunião" : "Voz ligada na reunião");
+        }
+      }),
+    [showSnackbar],
+  );
+
+  // Primeira vez: cria as duas cenas sugeridas (Reuniao e Dia a dia) com os aparelhos do PC
+  useEffect(() => {
+    if (!audioControlLoaded || audioControl.seeded) return;
+    let cancelled = false;
+    void window.electronControl.audio.getState().then((state) => {
+      if (cancelled || !state.available || audioControlRef.current.seeded) return;
+      const current = audioControlRef.current;
+      void updateAudioControl({
+        ...current,
+        scenes:
+          current.scenes.length > 0
+            ? current.scenes
+            : suggestedScenes(state, current, soundboardSettingsRef.current),
+        seeded: true,
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [audioControlLoaded, audioControl.seeded, updateAudioControl]);
 
   const updateTaskSettings = (next: TaskModuleSettings) => {
     setTaskSettings(next);
@@ -1588,6 +1715,16 @@ export function App() {
             settings={soundboardSettings}
             onConfigure={openSoundboardSettingsDefault}
             onAddAtSlot={openSoundboardSettings}
+          />
+        );
+      case "scenes":
+        return (
+          <ScenesModule
+            settings={audioControl}
+            soundboard={soundboardSettings}
+            onApplyScene={applyAudioScene}
+            onToggleMute={toggleVoiceMute}
+            onOpenControl={openAudioControl}
           />
         );
     }
@@ -2606,6 +2743,18 @@ export function App() {
           </motion.div>
         )}
       </AnimatePresence>
+      {controlTab && (
+        <AudioControlModal
+          initialTab={controlTab}
+          settings={audioControl}
+          soundboard={soundboardSettings}
+          onClose={closeAudioControl}
+          onSettingsChange={updateAudioControl}
+          onSoundboardChange={updateSoundboardSettings}
+          onApplyScene={(scene) => void applyAudioScene(scene)}
+          onToggleMute={toggleVoiceMute}
+        />
+      )}
     </main>
   );
 }

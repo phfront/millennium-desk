@@ -25,6 +25,10 @@ import {
   DEFAULT_SOUNDBOARD_SETTINGS,
   normalizeSoundboardSettings,
 } from "../../shared/soundboard";
+import {
+  DEFAULT_AUDIO_CONTROL_SETTINGS,
+  normalizeAudioControlSettings,
+} from "../../shared/audioControl";
 import { getDatabase, getDatabasePath } from "../database";
 
 const LEGACY_SETTINGS_FILE = "settings.json";
@@ -64,6 +68,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   dashboardProfiles: [],
   shello: DEFAULT_SHELLO_SETTINGS,
   soundboard: DEFAULT_SOUNDBOARD_SETTINGS,
+  audioControl: DEFAULT_AUDIO_CONTROL_SETTINGS,
 };
 
 const normalizeQuoteAssets = (value: unknown): string[] => {
@@ -121,7 +126,8 @@ const normalizeDashboardModuleId = (
     value === "shortcuts" ||
     value === "quotes" ||
     value === "shello" ||
-    value === "soundboard"
+    value === "soundboard" ||
+    value === "scenes"
   ) {
     return value;
   }
@@ -408,6 +414,7 @@ const normalizeSettings = (value: unknown): AppSettings => {
     dashboardProfiles: profiles,
     shello: normalizeShelloSettings(raw.shello),
     soundboard: normalizeSoundboardSettings(raw.soundboard),
+    audioControl: normalizeAudioControlSettings(raw.audioControl),
   };
 };
 

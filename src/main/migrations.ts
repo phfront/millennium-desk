@@ -145,6 +145,13 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
       CREATE INDEX IF NOT EXISTS idx_sounds_grid_slot ON sounds(grid_slot, id);
     `,
   },
+  {
+    // Imagem no botao do som (data URL), como a dos Atalhos
+    version: 13,
+    sql: `
+      ALTER TABLE sounds ADD COLUMN icon_data_url TEXT;
+    `,
+  },
 ];
 
 const getCurrentVersion = (database: DatabaseSync) => {

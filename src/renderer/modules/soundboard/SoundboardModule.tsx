@@ -114,10 +114,14 @@ export const SoundboardModule = memo(function SoundboardModule({
                   aria-hidden="true"
                   style={shortcutTileStyle(sound.color, sound.color2)}
                 />
-                {sound.emoji && (
-                  <span className="sound-emoji" aria-hidden="true">
-                    {sound.emoji}
-                  </span>
+                {sound.iconDataUrl ? (
+                  <img className="shortcut-image" src={sound.iconDataUrl} alt="" />
+                ) : (
+                  sound.emoji && (
+                    <span className="sound-emoji" aria-hidden="true">
+                      {sound.emoji}
+                    </span>
+                  )
                 )}
                 <span className="shortcut-tile-label">
                   <strong>{sound.name}</strong>
