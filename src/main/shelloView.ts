@@ -107,12 +107,19 @@ const ensureView = () => {
     else openExternalLink(url);
     return { action: "deny" };
   });
+  // Carga recusada (Shello ainda nao iniciado) ainda dispara dom-ready, da pagina de erro vazia
+  // e com a URL do Shello: sem essa marca o modulo achava que tinha voltado e ficava escuro
+  let loadFailed = false;
+  contents.on("did-start-loading", () => {
+    loadFailed = false;
+  });
   contents.on("did-fail-load", (_event, errorCode, _description, _url, isMainFrame) => {
     if (!isMainFrame || errorCode === -3) return;
+    loadFailed = true;
     markOffline();
   });
   contents.on("dom-ready", () => {
-    if (!isTrusted(contents.getURL())) return;
+    if (loadFailed || !isTrusted(contents.getURL())) return;
     clearRetry();
     if (state.offline) {
       setState({ offline: false });
