@@ -714,6 +714,11 @@ export function SoundboardSettingsPanel({
           escolha o outro lado do cabo como microfone; sua voz entra nele pelo
           Windows, em “Escutar este dispositivo” no seu microfone.
         </p>
+        <p className="sound-tip">
+          <strong>No Meet/Teams, desligue o cancelamento de ruído.</strong> Ele trata
+          os efeitos como barulho e eles chegam picotados na reunião (a voz passa
+          normal). No Meet: ⋮ → Configurações → Áudio → Cancelamento de ruído.
+        </p>
         <label className="display-selector">
           <span>Saída do cabo</span>
           <select

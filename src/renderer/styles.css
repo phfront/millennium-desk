@@ -8596,3 +8596,17 @@ button.control-pill {
     transition: none;
   }
 }
+
+.sound-tip {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.45;
+  background: var(--accent-soft);
+}
+
+.sound-tip strong {
+  font-weight: 650;
+}
