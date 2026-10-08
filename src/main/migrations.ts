@@ -175,6 +175,15 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
       WHERE lower(color) = '#f08a4b' AND lower(color_2) = '#e15f9a';
     `,
   },
+  {
+    // Catalogo dos Sons: desligado, o som sai da grade e fica so no catalogo (grid_slot guarda
+    // o ultimo lugar, para voltar a ele)
+    version: 15,
+    sql: `
+      ALTER TABLE sounds ADD COLUMN active INTEGER NOT NULL DEFAULT 1
+        CHECK (active IN (0, 1));
+    `,
+  },
 ];
 
 const getCurrentVersion = (database: DatabaseSync) => {

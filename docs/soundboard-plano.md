@@ -31,16 +31,23 @@ Desk (sons) ── setSinkId(CABLE Input) ─────┘
   tocando, aparece o botão de parar tudo no cabeçalho. Mock em `docs/mocks/sons-poster.html`
   (opção "D + E").
 - **Segurar um botão** (450 ms parado, ou botão direito) abre um menu logo acima dele: Editar
-  (abre os ajustes já no editor do som), Ouvir no fone (só no retorno, nunca no microfone) e
-  Remover (confirma no próprio menu). Segurar e mexer fecha o menu e arrasta: o botão vira um
-  fantasma no dedo, a grade mostra a troca e soltar troca os dois de lugar. Deslizar antes do
-  tempo não toca nem mexe; com o menu aberto, tocar fora só fecha o menu.
+  (abre os ajustes já no editor do som), Ouvir no fone (só no retorno, nunca no microfone), Tirar
+  da grade (vai para o catálogo), Excluir (confirma no próprio menu) e um X para fechar. Segurar
+  e mexer fecha o menu e arrasta: o botão vira um fantasma no dedo, a grade mostra a troca e
+  soltar troca os dois de lugar. Deslizar antes do tempo não toca nem mexe; com o menu aberto,
+  tocar fora só fecha o menu.
+- **Catálogo:** todo som cadastrado fica no catálogo; a grade mostra só os ligados (`active`,
+  migração 15). Desligado, o som guarda o último lugar e volta para ele ao ligar, se estiver
+  livre (senão vai para o primeiro livre; grade cheia avisa). O "+" de um lugar vazio, com sons
+  fora da grade, abre a lista do catálogo acima dele (escolher põe o som ali) e "Novo som".
 - Cada som toca em duas saídas: o cabo (volume do som × volume no microfone) e, se ligado, o
   retorno no fone (volume do som × volume no fone), para o Pedro ouvir o que os outros ouvem.
 - **Ajustes → Sons:** saída do cabo (sem escolha, pega o `CABLE Input`), volume no microfone,
-  retorno liga/desliga, saída e volume do retorno, colunas × linhas e a lista de sons.
+  retorno liga/desliga, saída e volume do retorno, colunas × linhas e o catálogo: cada som com
+  o interruptor "na grade", renomear, editar e excluir.
 - **Editor de som:** arquivo (mp3, wav, ogg, m4a, aac, flac, webm; até 20 MB), nome (vem do
-  arquivo), volume próprio, posição na grade (escolher um slot ocupado troca os dois) e uma cor
+  arquivo), volume próprio, posição na grade (escolher um slot ocupado troca os dois; vindo do catálogo, tira o ocupante;
+  "Fora da grade" deixa só no catálogo) e uma cor
   só: as 14 da paleta (`SOUND_PALETTE`, com a segunda cor escolhida a dedo) ou outra qualquer, que
   ganha a segunda por `soundSecondColor`. Emoji e imagem saíram (as colunas ficaram no banco, sem
   uso). "Ouvir" toca só no retorno, nunca no microfone.

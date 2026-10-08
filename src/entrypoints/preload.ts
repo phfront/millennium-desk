@@ -81,6 +81,8 @@ const api: ElectronControlApi = {
     delete: (id: number) => ipcRenderer.invoke("sounds:delete", id),
     place: (id: number, slot: number) =>
       ipcRenderer.invoke("sounds:place", id, slot),
+    setActive: (id: number, active: boolean, slot?: number) =>
+      ipcRenderer.invoke("sounds:set-active", id, active, slot),
     readAudio: (id: number) => ipcRenderer.invoke("sounds:read-audio", id),
   },
   audio: {

@@ -8,6 +8,7 @@ import {
   SOUND_GRID_MAX_ROWS,
   SOUND_MAX_BYTES,
   SOUND_PALETTE,
+  findFreeSoundSlot,
   soundSecondColor,
 } from "../../../shared/soundboard";
 import { SoundName } from "./SoundTileParts";
@@ -19,6 +20,7 @@ import {
   previewSavedSound,
   resolveOutputDevice,
   stopPreview,
+  stopSound,
   type AudioOutputDevice,
 } from "./soundPlayer";
 import type {
@@ -33,6 +35,7 @@ interface SoundForm {
   color: string;
   color2: string;
   volume: number;
+  /** Lugar na grade; null e fora da grade (so no catalogo). */
   gridSlot: number | null;
   /** Arquivo novo escolhido no editor (ao criar, ou para trocar o audio). */
   file: File | null;
@@ -91,6 +94,7 @@ export function SoundboardSettingsPanel({
   onSave,
   onDelete,
   onPlace,
+  onSetActive,
   createAtSlot,
   onCreateRequestHandled,
   editSoundId,
@@ -102,6 +106,7 @@ export function SoundboardSettingsPanel({
   onSave: (input: SaveSoundInput) => Promise<SoundItem>;
   onDelete: (id: number) => Promise<void>;
   onPlace: (id: number, slot: number) => Promise<void>;
+  onSetActive: (id: number, active: boolean, slot?: number) => Promise<void>;
   createAtSlot?: number | null;
   onCreateRequestHandled?: () => void;
   /** Som a abrir no editor (o "Editar" do menu de segurar, no modulo). */
@@ -127,6 +132,8 @@ export function SoundboardSettingsPanel({
   onEditRequestHandledRef.current = onEditRequestHandled;
 
   const slotCount = settings.grid.columns * settings.grid.rows;
+  // A grade e o organizador mostram so os ligados; a lista e o catalogo inteiro
+  const gridSounds = sounds.filter((sound) => sound.active);
   const output = resolveOutputDevice(devices, settings);
 
   useEffect(() => {
@@ -164,9 +171,8 @@ export function SoundboardSettingsPanel({
   };
 
   const create = (slot?: number) => {
-    const freeSlot = Array.from({ length: slotCount }, (_, index) => index).find(
-      (index) => !sounds.some((sound) => sound.gridSlot === index),
-    );
+    // Grade cheia: o som novo nasce so no catalogo
+    const freeSlot = findFreeSoundSlot(sounds, slotCount);
     // Cor nova: a primeira da paleta que nenhum som usa ainda
     const used = new Set(sounds.map((sound) => sound.color.toLowerCase()));
     const [color, color2] =
@@ -179,7 +185,7 @@ export function SoundboardSettingsPanel({
       gridSlot:
         typeof slot === "number" && Number.isInteger(slot) && slot >= 0
           ? slot
-          : (freeSlot ?? null),
+          : freeSlot,
     });
     setError(null);
     setEditorOpen(true);
@@ -192,7 +198,7 @@ export function SoundboardSettingsPanel({
       color: sound.color,
       color2: sound.color2,
       volume: sound.volume,
-      gridSlot: sound.gridSlot,
+      gridSlot: sound.active ? sound.gridSlot : null,
       file: null,
       savedFileName: sound.fileName,
     });
@@ -278,18 +284,32 @@ export function SoundboardSettingsPanel({
           }
         : undefined;
       if (form.id !== undefined && audio) forgetSoundAudio(form.id);
+      const target = form.gridSlot;
+      const occupant =
+        target === null
+          ? undefined
+          : gridSounds.find((sound) => sound.gridSlot === target && sound.id !== form.id);
       const saved = await onSave({
         id: form.id,
         name: form.name,
         color: form.color,
         color2: form.color2,
         volume: form.volume,
-        gridSlot: form.gridSlot ?? undefined,
+        gridSlot: target ?? undefined,
+        // Som novo nasce direto no lugar livre; com o lugar ocupado, nasce no catalogo e entra
+        // abaixo, tirando o ocupante
+        active: form.id === undefined ? target !== null && !occupant : undefined,
         audio,
       });
-      // Slot ocupado: o save cai no proximo livre; place faz a troca com o ocupante
-      if (form.gridSlot !== null && form.gridSlot !== saved.gridSlot) {
-        await onPlace(saved.id, form.gridSlot);
+      if (target === null) {
+        if (saved.active) await onSetActive(saved.id, false);
+      } else if (saved.active) {
+        // Ja estava na grade: escolher um lugar ocupado troca os dois
+        if (target !== saved.gridSlot) await onPlace(saved.id, target);
+      } else {
+        // Vindo do catalogo (ou novo): o ocupante do lugar escolhido sai da grade
+        if (occupant) await onSetActive(occupant.id, false);
+        await onSetActive(saved.id, true, target);
       }
       reset();
     } catch (saveError) {
@@ -322,6 +342,28 @@ export function SoundboardSettingsPanel({
       setListError(null);
     } catch (saveError) {
       setListError(saveError instanceof Error ? saveError.message : "Falha ao salvar.");
+    }
+  };
+
+  // Ligar volta o som ao ultimo lugar dele, se estiver livre; senao ao primeiro livre
+  const toggleActive = async (sound: SoundItem) => {
+    try {
+      if (sound.active) {
+        stopSound(sound.id);
+        await onSetActive(sound.id, false);
+      } else {
+        const slot = findFreeSoundSlot(sounds, slotCount, sound.gridSlot);
+        if (slot === null) {
+          setListError(
+            "A grade está cheia: aumente colunas ou linhas, ou tire outro som da grade.",
+          );
+          return;
+        }
+        await onSetActive(sound.id, true, slot);
+      }
+      setListError(null);
+    } catch (toggleError) {
+      setListError(toggleError instanceof Error ? toggleError.message : "Falha ao salvar.");
     }
   };
 
@@ -439,11 +481,11 @@ export function SoundboardSettingsPanel({
   // Durante o arraste a grade mostra o resultado: o som (apagado) no slot de destino e o
   // ocupante dele no slot de origem; o som de verdade vai no fantasma, com o ponteiro
   const soundShownAt = (slot: number): SoundItem | undefined => {
-    const occupant = sounds.find((sound) => sound.gridSlot === slot);
+    const occupant = gridSounds.find((sound) => sound.gridSlot === slot);
     if (!draggedSound || dragOverSlot === null || !isDragging) return occupant;
     if (slot === dragOverSlot) return draggedSound;
     if (slot === draggedSound.gridSlot) {
-      return sounds.find(
+      return gridSounds.find(
         (sound) => sound.gridSlot === dragOverSlot && sound.id !== draggedSound.id,
       );
     }
@@ -481,13 +523,16 @@ export function SoundboardSettingsPanel({
       ? document.querySelector<HTMLElement>(".app")
       : null;
 
+  // Som que ja esta na grade troca de lugar com o ocupante; vindo do catalogo (ou novo), tira ele
+  const formOnGrid = sounds.some((sound) => sound.id === form.id && sound.active);
   const slotLabel = (slot: number) => {
-    const occupant = sounds.find(
+    const occupant = gridSounds.find(
       (sound) => sound.gridSlot === slot && sound.id !== form.id,
     );
-    return occupant
+    if (!occupant) return `${slot + 1}`;
+    return formOnGrid
       ? `${slot + 1} · troca com "${occupant.name}"`
-      : `${slot + 1}`;
+      : `${slot + 1} · tira "${occupant.name}" da grade`;
   };
 
   const editorModal =
@@ -582,7 +627,7 @@ export function SoundboardSettingsPanel({
                 })
               }
             >
-              {form.gridSlot === null && <option value="">Automática</option>}
+              <option value="">Fora da grade (só no catálogo)</option>
               {Array.from({ length: slotCount }, (_, slot) => (
                 <option key={slot} value={slot}>
                   {slotLabel(slot)}
@@ -796,8 +841,9 @@ export function SoundboardSettingsPanel({
       <section className="setting-group shortcut-settings-list">
         <div className="shortcut-list-heading">
           <div>
-            <h3>Seus sons</h3>
+            <h3>Catálogo</h3>
             <p className="muted">
+              Ligue ou desligue cada som na grade; os desligados ficam guardados aqui.
               Arraste na grade para trocar de lugar; toque num som para editar.
             </p>
           </div>
@@ -896,7 +942,7 @@ export function SoundboardSettingsPanel({
             );
           })}
         </div>
-        {sounds.some((sound) => sound.gridSlot >= slotCount) && (
+        {gridSounds.some((sound) => sound.gridSlot >= slotCount) && (
           <p className="muted sound-organizer-hint">
             Há sons fora da grade: aumente colunas ou linhas para vê-los.
           </p>
@@ -912,8 +958,22 @@ export function SoundboardSettingsPanel({
             <span>Adicione um mp3, wav ou ogg.</span>
           </button>
         )}
+        {sounds.length > 0 && (
+          <p className="muted sound-catalog-count">
+            {gridSounds.length} na grade
+            {sounds.length > gridSounds.length &&
+              ` · ${sounds.length - gridSounds.length} só no catálogo`}
+          </p>
+        )}
         {sounds.map((sound) => (
-          <div key={sound.id} className="shortcut-settings-row sound-settings-row">
+          <div
+            key={sound.id}
+            className={
+              sound.active
+                ? "shortcut-settings-row sound-settings-row"
+                : "shortcut-settings-row sound-settings-row sound-settings-row--off"
+            }
+          >
             <span
               className="sound-row-face"
               style={soundTileStyle(sound.color, sound.color2)}
@@ -944,9 +1004,20 @@ export function SoundboardSettingsPanel({
                 onClick={() => startRename(sound)}
               >
                 <strong>{sound.name}</strong>
-                <small>posição {sound.gridSlot + 1}</small>
+                <small>
+                  {sound.active ? `posição ${sound.gridSlot + 1}` : "fora da grade"}
+                </small>
               </button>
             )}
+            <button
+              type="button"
+              role="switch"
+              className="control-switch sound-row-switch"
+              aria-checked={sound.active}
+              aria-label={`${sound.name} na grade`}
+              title={sound.active ? "Tirar da grade" : "Pôr na grade"}
+              onClick={() => void toggleActive(sound)}
+            />
             <button
               type="button"
               className="sound-row-action sound-row-action--rename"

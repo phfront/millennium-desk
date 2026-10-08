@@ -710,6 +710,13 @@ export function App() {
     setSounds(await window.electronControl.sounds.place(id, slot));
   }, []);
 
+  const setSoundActive = useCallback(
+    async (id: number, active: boolean, slot?: number) => {
+      setSounds(await window.electronControl.sounds.setActive(id, active, slot));
+    },
+    [],
+  );
+
   const updateSoundboardSettings = async (
     patch: Partial<SoundboardSettings>,
   ) => {
@@ -724,7 +731,9 @@ export function App() {
 
     // Grade menor: sons que ficaram fora vao para os slots livres que sobraram
     const capacity = next.grid.columns * next.grid.rows;
-    const current = await window.electronControl.sounds.list();
+    const current = (await window.electronControl.sounds.list()).filter(
+      (sound) => sound.active,
+    );
     const used = new Set(
       current
         .map((sound) => sound.gridSlot)
@@ -1737,6 +1746,7 @@ export function App() {
             onEdit={openSoundEditor}
             onDelete={deleteSound}
             onPlace={placeSound}
+            onSetActive={setSoundActive}
           />
         );
       case "scenes":
@@ -2290,6 +2300,7 @@ export function App() {
                   onSave={saveSound}
                   onDelete={deleteSound}
                   onPlace={placeSound}
+                  onSetActive={setSoundActive}
                   createAtSlot={soundCreateSlot}
                   onCreateRequestHandled={handleSoundCreateRequestHandled}
                   editSoundId={soundEditId}

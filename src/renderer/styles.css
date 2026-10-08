@@ -7323,12 +7323,10 @@ button.task-rollover-pill:hover {
   will-change: transform;
 }
 
-.sound-tile-menu {
+/* O balao dos Sons (menu de segurar e lista do catalogo), ancorado num botao da grade */
+.sound-popover {
   position: fixed;
   z-index: 210;
-  display: flex;
-  align-items: center;
-  gap: 4px;
   padding: 6px;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -7338,12 +7336,18 @@ button.task-rollover-pill:hover {
   transform-origin: var(--sound-menu-arrow) 100%;
 }
 
-.sound-tile-menu--below {
+.sound-popover--below {
   transform-origin: var(--sound-menu-arrow) 0;
 }
 
+.sound-tile-menu {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 /* A seta apontando para o meio do botao */
-.sound-tile-menu::after {
+.sound-popover::after {
   content: "";
   position: absolute;
   top: 100%;
@@ -7354,7 +7358,7 @@ button.task-rollover-pill:hover {
   clip-path: polygon(0 0, 100% 0, 50% 100%);
 }
 
-.sound-tile-menu--below::after {
+.sound-popover--below::after {
   top: auto;
   bottom: 100%;
   clip-path: polygon(50% 0, 100% 100%, 0 100%);
@@ -7383,7 +7387,10 @@ button.task-rollover-pill:hover {
 
 .sound-tile-menu-item--edit::before,
 .sound-tile-menu-item--preview::before,
-.sound-tile-menu-item--delete::before {
+.sound-tile-menu-item--delete::before,
+.sound-tile-menu-item--hide::before,
+.sound-tile-menu-item--new::before,
+.sound-tile-menu-item--close::before {
   content: "";
   flex: none;
   width: 18px;
@@ -7402,6 +7409,105 @@ button.task-rollover-pill:hover {
 
 .sound-tile-menu-item--delete {
   --sound-menu-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18'/%3E%3Cpath d='M8 6V4h8v2'/%3E%3Cpath d='M19 6l-1 14H6L5 6'/%3E%3C/svg%3E");
+}
+
+.sound-tile-menu-item--hide {
+  --sound-menu-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4' width='18' height='5' rx='1.5'/%3E%3Cpath d='M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9'/%3E%3Cpath d='M10 13h4'/%3E%3C/svg%3E");
+}
+
+.sound-tile-menu-item--new {
+  --sound-menu-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M12 5v14'/%3E%3Cpath d='M5 12h14'/%3E%3C/svg%3E");
+}
+
+/* O "+" de um lugar vazio com sons fora da grade: a lista do catalogo */
+.sound-slot-picker {
+  display: grid;
+  gap: 4px;
+  width: min(300px, calc(100vw - 16px));
+}
+
+.sound-slot-picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-left: 10px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.sound-slot-picker-list {
+  display: grid;
+  gap: 2px;
+  max-height: min(320px, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sound-slot-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 11px;
+  color: var(--text);
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.sound-slot-picker-item:hover,
+.sound-slot-picker-item:active {
+  background: var(--surface-muted);
+}
+
+.sound-slot-picker-face {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--c1), var(--c2));
+}
+
+.sound-slot-picker-name {
+  min-width: 0;
+  overflow: hidden;
+  font-family: Anton, Impact, sans-serif;
+  font-size: 20px;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.sound-slot-picker > .sound-tile-menu-item--new {
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 11px 11px;
+}
+
+.sound-tile-menu-item--close {
+  justify-content: center;
+  width: 48px;
+  padding: 0;
+  color: var(--muted);
+  --sound-menu-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M7 7l10 10'/%3E%3Cpath d='M17 7 7 17'/%3E%3C/svg%3E");
+}
+
+.sound-tile-menu-item--close:hover,
+.sound-tile-menu-item--close:active {
+  color: var(--text);
+}
+
+.sound-tile-menu-divider {
+  flex: none;
+  align-self: stretch;
+  width: 1px;
+  margin: 8px 2px;
+  background: var(--border);
 }
 
 .sound-tile-menu-item--danger {
@@ -7624,8 +7730,23 @@ button.task-rollover-pill:hover {
 }
 
 .shortcut-settings-list > .sound-settings-row {
-  grid-template-columns: 38px minmax(0, 1fr) repeat(3, 38px);
+  grid-template-columns: 38px minmax(0, 1fr) 44px repeat(3, 38px);
   align-items: center;
+}
+
+/* Fora da grade: o som fica no catalogo, apagado */
+.sound-settings-row--off .sound-row-face {
+  opacity: 0.35;
+  filter: grayscale(0.6);
+}
+
+.sound-settings-row--off .sound-row-name strong {
+  color: var(--muted);
+}
+
+.sound-catalog-count {
+  margin: 0;
+  font-size: 12px;
 }
 
 .sound-row-face {

@@ -155,6 +155,8 @@ if (!window.electronControl) {
       "Creditos",
       "Nemesis",
       "Boom",
+      "Sirene",
+      "Aplausos",
     ].map((name, index) => ({
       id: index + 1,
       name,
@@ -162,7 +164,9 @@ if (!window.electronControl) {
       color2: SOUND_PALETTE[index][1],
       volume: 1,
       fileName: `demo-${index}.mp3`,
-      gridSlot: index,
+      // Os dois ultimos ficam so no catalogo
+      gridSlot: index < 8 ? index : 0,
+      active: index < 8,
     }));
   }
   const browserSoundAudio = new Map<string, Uint8Array>();
@@ -542,7 +546,10 @@ if (!window.electronControl) {
           fileName = `${Date.now()}.${input.audio.extension}`;
           browserSoundAudio.set(fileName, input.audio.bytes);
         }
-        const used = new Set(browserSounds.map((item) => item.gridSlot));
+        const active = input.active !== false;
+        const used = new Set(
+          browserSounds.filter((item) => item.active).map((item) => item.gridSlot),
+        );
         let slot = 0;
         while (used.has(slot)) slot += 1;
         const item = {
@@ -557,6 +564,7 @@ if (!window.electronControl) {
             (input.gridSlot !== undefined && !used.has(input.gridSlot)
               ? input.gridSlot
               : slot),
+          active: existing?.active ?? active,
         };
         browserSounds = existing
           ? browserSounds.map((current) => (current.id === item.id ? item : current))
@@ -569,8 +577,11 @@ if (!window.electronControl) {
       place: async (id, slot) => {
         const moving = browserSounds.find((item) => item.id === id);
         if (!moving) return browserSounds;
+        if (!moving.active) {
+          return window.electronControl.sounds.setActive(id, true, slot);
+        }
         const occupant = browserSounds.find(
-          (item) => item.gridSlot === slot && item.id !== id,
+          (item) => item.active && item.gridSlot === slot && item.id !== id,
         );
         browserSounds = browserSounds.map((item) =>
           item.id === id
@@ -579,6 +590,31 @@ if (!window.electronControl) {
               ? { ...item, gridSlot: moving.gridSlot }
               : item,
         );
+        return browserSounds;
+      },
+      setActive: async (id, active, slot) => {
+        const used = new Set(
+          browserSounds
+            .filter((item) => item.active && item.id !== id)
+            .map((item) => item.gridSlot),
+        );
+        if (active && slot !== undefined && used.has(slot)) {
+          throw new Error("Esse lugar da grade ja esta ocupado.");
+        }
+        let target = slot ?? 0;
+        while (active && slot === undefined && used.has(target)) target += 1;
+        browserSounds = browserSounds
+          .map((item) =>
+            item.id !== id
+              ? item
+              : active
+                ? { ...item, active: true, gridSlot: target }
+                : { ...item, active: false },
+          )
+          .sort(
+            (a, b) =>
+              Number(b.active) - Number(a.active) || a.gridSlot - b.gridSlot || a.id - b.id,
+          );
         return browserSounds;
       },
       readAudio: async (id) => {

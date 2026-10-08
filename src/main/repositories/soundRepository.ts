@@ -24,10 +24,11 @@ interface SoundRow {
   volume: number;
   file_name: string;
   grid_slot: number;
+  active: number;
 }
 
 const SELECT_COLUMNS =
-  "id, name, color, color_2, volume, file_name, grid_slot";
+  "id, name, color, color_2, volume, file_name, grid_slot, active";
 
 const getSoundsDir = () => path.join(getConfiguredUserDataPath(), "sounds");
 
@@ -46,6 +47,7 @@ const toSound = (row: SoundRow): SoundItem => ({
   volume: row.volume,
   fileName: row.file_name,
   gridSlot: row.grid_slot,
+  active: row.active === 1,
 });
 
 const selectSound = (id: number): SoundItem => {
@@ -99,7 +101,9 @@ const normalizeInput = (input: SaveSoundInput) => {
 
 export const listSounds = (): SoundItem[] => {
   const rows = getDatabase()
-    .prepare(`SELECT ${SELECT_COLUMNS} FROM sounds ORDER BY grid_slot ASC, id ASC`)
+    .prepare(
+      `SELECT ${SELECT_COLUMNS} FROM sounds ORDER BY active DESC, grid_slot ASC, id ASC`,
+    )
     .all() as unknown as SoundRow[];
   return rows.map(toSound);
 };
@@ -131,7 +135,8 @@ export const saveSound = (input: SaveSoundInput): SoundItem => {
   }
 
   if (!input.audio) throw new Error("Escolha o arquivo de audio.");
-  const occupiedSlots = new Set(listSounds().map((item) => item.gridSlot));
+  const active = input.active !== false;
+  const occupiedSlots = active ? occupiedGridSlots() : new Set<number>();
   let slot = 0;
   if (
     input.gridSlot !== undefined &&
@@ -148,8 +153,8 @@ export const saveSound = (input: SaveSoundInput): SoundItem => {
   try {
     const result = database
       .prepare(
-        `INSERT INTO sounds (name, color, color_2, volume, file_name, grid_slot)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sounds (name, color, color_2, volume, file_name, grid_slot, active)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         normalized.name,
@@ -158,6 +163,7 @@ export const saveSound = (input: SaveSoundInput): SoundItem => {
         normalized.volume,
         fileName,
         slot,
+        active ? 1 : 0,
       );
     return selectSound(Number(result.lastInsertRowid));
   } catch (error) {
@@ -172,15 +178,61 @@ export const deleteSound = (id: number) => {
   removeAudioFile(sound.fileName);
 };
 
+const occupiedGridSlots = (exceptId?: number) =>
+  new Set(
+    listSounds()
+      .filter((item) => item.active && item.id !== exceptId)
+      .map((item) => item.gridSlot),
+  );
+
+/**
+ * Liga o som na grade (no slot dado, que precisa estar livre, ou no primeiro livre) ou tira
+ * ele da grade. Fora da grade, grid_slot guarda o ultimo lugar.
+ */
+export const setSoundActive = (
+  id: number,
+  active: boolean,
+  slot?: number,
+): SoundItem[] => {
+  const sound = selectSound(id);
+  const database = getDatabase();
+  if (!active) {
+    database
+      .prepare("UPDATE sounds SET active = 0, updated_at = datetime('now') WHERE id = ?")
+      .run(id);
+    return listSounds();
+  }
+  const occupied = occupiedGridSlots(id);
+  let target: number;
+  if (slot !== undefined) {
+    if (!Number.isSafeInteger(slot) || slot < 0) {
+      throw new Error("Posicao da grid invalida.");
+    }
+    if (occupied.has(slot)) throw new Error("Esse lugar da grade ja esta ocupado.");
+    target = slot;
+  } else {
+    target = sound.active ? sound.gridSlot : 0;
+    if (!sound.active) while (occupied.has(target)) target += 1;
+  }
+  database
+    .prepare(
+      "UPDATE sounds SET active = 1, grid_slot = ?, updated_at = datetime('now') WHERE id = ?",
+    )
+    .run(target, id);
+  return listSounds();
+};
+
 /** Move o som para o slot; se estiver ocupado, os dois trocam de lugar. */
 export const placeSound = (id: number, slot: number): SoundItem[] => {
   if (!Number.isSafeInteger(slot) || slot < 0) {
     throw new Error("Posicao da grid invalida.");
   }
   const sound = selectSound(id);
+  // Som do catalogo nao tem lugar para dar ao ocupante: so entra em slot livre
+  if (!sound.active) return setSoundActive(id, true, slot);
   const database = getDatabase();
   const occupant = database
-    .prepare("SELECT id FROM sounds WHERE grid_slot = ? AND id <> ?")
+    .prepare("SELECT id FROM sounds WHERE grid_slot = ? AND id <> ? AND active = 1")
     .get(slot, id) as { id: number } | undefined;
 
   database.exec("BEGIN");

@@ -1,4 +1,4 @@
-import type { SoundboardSettings } from "./contracts";
+import type { SoundboardSettings, SoundItem } from "./contracts";
 
 // Sons: o Desk toca na saida do cabo virtual (VB-Cable), que chega aos apps de reuniao
 // como microfone. A voz entra no cabo pelo Windows ("Escutar este dispositivo").
@@ -81,6 +81,35 @@ export const soundSecondColor = (color: string) => {
     Math.min(1, saturation + 0.08),
     Math.max(0.12, lightness - 0.14),
   );
+};
+
+/**
+ * Lugar livre na grade para um som entrar: o preferido (o ultimo lugar dele) se estiver livre
+ * e couber, senao o primeiro livre. null com a grade cheia.
+ */
+export const findFreeSoundSlot = (
+  sounds: ReadonlyArray<Pick<SoundItem, "id" | "active" | "gridSlot">>,
+  slotCount: number,
+  preferred?: number,
+  exceptId?: number,
+): number | null => {
+  const used = new Set(
+    sounds
+      .filter((sound) => sound.active && sound.id !== exceptId)
+      .map((sound) => sound.gridSlot),
+  );
+  if (
+    preferred !== undefined &&
+    preferred >= 0 &&
+    preferred < slotCount &&
+    !used.has(preferred)
+  ) {
+    return preferred;
+  }
+  for (let slot = 0; slot < slotCount; slot += 1) {
+    if (!used.has(slot)) return slot;
+  }
+  return null;
 };
 
 /** Limites da grade dos Sons (o editor e o normalize usam os mesmos). */

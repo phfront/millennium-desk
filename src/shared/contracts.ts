@@ -95,7 +95,10 @@ export interface SoundItem {
   volume: number;
   /** Nome do arquivo na pasta sounds do userData. */
   fileName: string;
+  /** Lugar na grade; fora da grade (active false) guarda o ultimo, para voltar a ele. */
   gridSlot: number;
+  /** Na grade; desligado, o som fica so no catalogo (Ajustes → Sons). */
+  active: boolean;
 }
 
 export interface SoundAudioUpload {
@@ -111,6 +114,8 @@ export interface SaveSoundInput {
   color2?: string;
   volume?: number;
   gridSlot?: number;
+  /** So ao criar: false cria direto no catalogo, fora da grade (padrao true). */
+  active?: boolean;
   /** Obrigatorio ao criar; ao editar, so quando o arquivo e trocado. */
   audio?: SoundAudioUpload;
 }
@@ -507,6 +512,8 @@ export interface ElectronControlApi {
     save(input: SaveSoundInput): Promise<SoundItem>;
     delete(id: number): Promise<void>;
     place(id: number, slot: number): Promise<SoundItem[]>;
+    /** Liga (no slot dado, ou no primeiro livre) ou desliga o som na grade. */
+    setActive(id: number, active: boolean, slot?: number): Promise<SoundItem[]>;
     readAudio(id: number): Promise<SoundAudioData>;
   };
   audio: {

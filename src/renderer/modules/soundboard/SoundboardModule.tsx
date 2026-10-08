@@ -10,7 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import { useSnackbar } from "../../components/Snackbar";
 import { SoundName, SoundWave } from "./SoundTileParts";
-import { SoundTileMenu } from "./SoundTileMenu";
+import { SoundSlotPicker, SoundTileMenu } from "./SoundTileMenu";
 import { soundTileStyle } from "./soundLook";
 import {
   forgetSoundAudio,
@@ -65,6 +65,7 @@ export const SoundboardModule = memo(function SoundboardModule({
   onEdit,
   onDelete,
   onPlace,
+  onSetActive,
 }: {
   sounds: SoundItem[];
   settings: SoundboardSettings;
@@ -73,13 +74,18 @@ export const SoundboardModule = memo(function SoundboardModule({
   onEdit: (id: number) => void;
   onDelete: (id: number) => Promise<void>;
   onPlace: (id: number, slot: number) => Promise<void>;
+  onSetActive: (id: number, active: boolean, slot?: number) => Promise<void>;
 }) {
   const { showSnackbar } = useSnackbar();
   const playing = useSyncExternalStore(subscribePlaying, getPlayingSnapshot);
   const { columns, rows } = settings.grid;
   const slotCount = columns * rows;
+  // Na grade so os ligados; os outros ficam no catalogo, para o "+" de um lugar vazio
+  const gridSounds = sounds.filter((sound) => sound.active);
+  const catalogSounds = sounds.filter((sound) => !sound.active);
 
   const [menu, setMenu] = useState<{ id: number; anchor: DOMRect } | null>(null);
+  const [picker, setPicker] = useState<{ slot: number; anchor: DOMRect } | null>(null);
   const [heldId, setHeldId] = useState<number | null>(null);
   const [drag, setDrag] = useState<{ id: number; overSlot: number } | null>(null);
   const gestureRef = useRef<Gesture | null>(null);
@@ -241,15 +247,51 @@ export const SoundboardModule = memo(function SoundboardModule({
     };
   }, []);
 
-  // Cada toque novo comeca liberado; com o menu aberto, tocar fora so fecha o menu
+  // Cada toque novo comeca liberado; com um balao aberto, tocar fora so fecha o balao
+  const popoverOpen = Boolean(menu || picker);
   useEffect(() => {
     const handlePointerDown = (event: globalThis.PointerEvent) => {
       const target = event.target as Element | null;
-      clickBlocked.current = Boolean(menu && !target?.closest(".sound-tile-menu"));
+      clickBlocked.current = popoverOpen && !target?.closest(".sound-popover");
     };
     window.addEventListener("pointerdown", handlePointerDown, true);
     return () => window.removeEventListener("pointerdown", handlePointerDown, true);
-  }, [menu]);
+  }, [popoverOpen]);
+
+  // "+" de um lugar vazio: com sons no catalogo, escolher um deles (ou criar); sem, criar
+  const handleEmptyClick = (
+    event: MouseEvent<HTMLButtonElement>,
+    slot: number,
+  ) => {
+    if (event.detail !== 0 && clickBlocked.current) {
+      clickBlocked.current = false;
+      return;
+    }
+    if (catalogSounds.length === 0) {
+      onAddAtSlot(slot);
+      return;
+    }
+    setPicker({ slot, anchor: event.currentTarget.getBoundingClientRect() });
+  };
+
+  const pickFromCatalog = async (sound: SoundItem, slot: number) => {
+    setPicker(null);
+    try {
+      await onSetActive(sound.id, true, slot);
+    } catch (error) {
+      showSnackbar(error instanceof Error ? error.message : "Falha ao pôr o som na grade.");
+    }
+  };
+
+  const deactivateSound = async (sound: SoundItem) => {
+    setMenu(null);
+    stopSound(sound.id);
+    try {
+      await onSetActive(sound.id, false);
+    } catch (error) {
+      showSnackbar(error instanceof Error ? error.message : "Falha ao tirar o som da grade.");
+    }
+  };
 
   const handleTileClick = (event: MouseEvent<HTMLButtonElement>, sound: SoundItem) => {
     // detail 0: Enter/Espaco pelo teclado, que nunca e bloqueado
@@ -297,11 +339,11 @@ export const SoundboardModule = memo(function SoundboardModule({
   // Durante o arraste a grade mostra o resultado: o som (apagado) no slot de destino e o
   // ocupante dele no slot de origem; o som de verdade vai no fantasma, com o ponteiro
   const soundShownAt = (slot: number): SoundItem | undefined => {
-    const occupant = sounds.find((sound) => sound.gridSlot === slot);
+    const occupant = gridSounds.find((sound) => sound.gridSlot === slot);
     if (!draggedSound || !drag) return occupant;
     if (slot === drag.overSlot) return draggedSound;
     if (slot === draggedSound.gridSlot) {
-      return sounds.find(
+      return gridSounds.find(
         (sound) => sound.gridSlot === drag.overSlot && sound.id !== draggedSound.id,
       );
     }
@@ -384,8 +426,9 @@ export const SoundboardModule = memo(function SoundboardModule({
                   className="shortcut-tile shortcut-tile--empty"
                   style={position}
                   aria-label={`Adicionar som no slot ${slot + 1}`}
+                  aria-haspopup={catalogSounds.length > 0 ? "menu" : undefined}
                   title="Adicionar som"
-                  onClick={() => onAddAtSlot(slot)}
+                  onClick={(event) => handleEmptyClick(event, slot)}
                 >
                   <span className="shortcut-tile-add-icon" aria-hidden="true">
                     +
@@ -452,7 +495,20 @@ export const SoundboardModule = memo(function SoundboardModule({
             onEdit(menuSound.id);
           }}
           onPreview={() => void previewSound(menuSound)}
+          onDeactivate={() => void deactivateSound(menuSound)}
           onDelete={() => void removeSound(menuSound)}
+        />
+      )}
+      {picker && (
+        <SoundSlotPicker
+          sounds={catalogSounds}
+          anchor={picker.anchor}
+          onClose={() => setPicker(null)}
+          onPick={(sound) => void pickFromCatalog(sound, picker.slot)}
+          onCreate={() => {
+            setPicker(null);
+            onAddAtSlot(picker.slot);
+          }}
         />
       )}
       {dragGhost}

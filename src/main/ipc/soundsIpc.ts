@@ -6,6 +6,7 @@ import {
   placeSound,
   readSoundAudio,
   saveSound,
+  setSoundActive,
 } from "../repositories/soundRepository";
 
 export const registerSoundsIpc = () => {
@@ -18,6 +19,11 @@ export const registerSoundsIpc = () => {
   });
   ipcMain.handle("sounds:place", (_event, id: number, slot: number) =>
     placeSound(id, slot),
+  );
+  ipcMain.handle(
+    "sounds:set-active",
+    (_event, id: number, active: boolean, slot?: number) =>
+      setSoundActive(id, active, slot),
   );
   ipcMain.handle("sounds:read-audio", (_event, id: number) =>
     readSoundAudio(id),

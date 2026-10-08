@@ -1,26 +1,25 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import type { SoundItem } from "../../../shared/contracts";
+import { SoundPopover } from "./SoundPopover";
+import { soundTileStyle } from "./soundLook";
 
-/** Distancia entre o menu e o botao, e o respiro minimo ate a borda da janela. */
-const GAP = 10;
-const MARGIN = 8;
-
-interface MenuPosition {
-  left: number;
-  top: number;
-  /** Sem espaco acima do botao: o menu desce para baixo dele. */
-  below: boolean;
-  /** Onde a seta aponta, a partir da esquerda do menu (o meio do botao). */
-  arrow: number;
-}
-
-const clamp = (value: number, min: number, max: number) =>
-  Math.min(Math.max(value, min), Math.max(min, max));
+const CloseItem = ({ onClose }: { onClose: () => void }) => (
+  <>
+    <span className="sound-tile-menu-divider" aria-hidden="true" />
+    <button
+      type="button"
+      role="menuitem"
+      className="sound-tile-menu-item sound-tile-menu-item--close"
+      aria-label="Fechar"
+      title="Fechar"
+      onClick={onClose}
+    />
+  </>
+);
 
 /**
- * O menu do toque longo num som: aparece logo acima do botao (ou abaixo, sem espaco) com
- * Editar, Ouvir no fone e Remover. Remover pede confirmacao no proprio menu.
+ * O menu do toque longo num som: Editar, Ouvir no fone, Tirar da grade (o som fica no
+ * catalogo), Excluir e o X de fechar. Excluir pede confirmacao no proprio menu.
  */
 export function SoundTileMenu({
   sound,
@@ -28,6 +27,7 @@ export function SoundTileMenu({
   onClose,
   onEdit,
   onPreview,
+  onDeactivate,
   onDelete,
 }: {
   sound: SoundItem;
@@ -35,82 +35,23 @@ export function SoundTileMenu({
   onClose: () => void;
   onEdit: () => void;
   onPreview: () => void;
+  onDeactivate: () => void;
   onDelete: () => void;
 }) {
-  const menuRef = useRef<HTMLDivElement>(null);
   const [confirming, setConfirming] = useState(false);
-  const [position, setPosition] = useState<MenuPosition | null>(null);
 
-  // A largura muda com a confirmacao: medir de novo
-  useLayoutEffect(() => {
-    const menu = menuRef.current;
-    if (!menu) return;
-    const width = menu.offsetWidth;
-    const height = menu.offsetHeight;
-    const center = anchor.left + anchor.width / 2;
-    const left = clamp(center - width / 2, MARGIN, window.innerWidth - width - MARGIN);
-    const below = anchor.top - GAP - height < MARGIN;
-    setPosition({
-      left,
-      top: below ? anchor.bottom + GAP : anchor.top - GAP - height,
-      below,
-      arrow: clamp(center - left, 18, width - 18),
-    });
-  }, [anchor, confirming]);
-
-  // Fora do menu, Esc, janela mudando de tamanho ou rolando: fecha
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-  useEffect(() => {
-    const close = () => onCloseRef.current();
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!menuRef.current?.contains(event.target as Node)) close();
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      event.stopPropagation();
-      close();
-    };
-    window.addEventListener("pointerdown", handlePointerDown, true);
-    window.addEventListener("keydown", handleKeyDown, true);
-    window.addEventListener("resize", close);
-    window.addEventListener("scroll", close, true);
-    return () => {
-      window.removeEventListener("pointerdown", handlePointerDown, true);
-      window.removeEventListener("keydown", handleKeyDown, true);
-      window.removeEventListener("resize", close);
-      window.removeEventListener("scroll", close, true);
-    };
-  }, []);
-
-  const portalRoot = document.querySelector<HTMLElement>(".app") ?? document.body;
-
-  return createPortal(
-    <div
-      ref={menuRef}
-      className={[
-        "sound-tile-menu",
-        position?.below ? "sound-tile-menu--below" : "",
-        confirming ? "sound-tile-menu--confirm" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      role="menu"
-      aria-label={`Ações de ${sound.name}`}
-      style={
-        {
-          left: position?.left ?? 0,
-          top: position?.top ?? 0,
-          visibility: position ? "visible" : "hidden",
-          "--sound-menu-arrow": `${position?.arrow ?? 0}px`,
-        } as React.CSSProperties
-      }
-      onContextMenu={(event) => event.preventDefault()}
+  return (
+    <SoundPopover
+      anchor={anchor}
+      className={confirming ? "sound-tile-menu sound-tile-menu--confirm" : "sound-tile-menu"}
+      label={`Ações de ${sound.name}`}
+      onClose={onClose}
     >
       {confirming ? (
         <>
-          <span className="sound-tile-menu-question">Remover “{sound.name}”?</span>
+          <span className="sound-tile-menu-question">
+            Excluir “{sound.name}” de vez?
+          </span>
           <button
             type="button"
             role="menuitem"
@@ -126,7 +67,7 @@ export function SoundTileMenu({
             autoFocus
             onClick={onDelete}
           >
-            Remover
+            Excluir
           </button>
         </>
       ) : (
@@ -151,14 +92,86 @@ export function SoundTileMenu({
           <button
             type="button"
             role="menuitem"
+            className="sound-tile-menu-item sound-tile-menu-item--hide"
+            title="O som sai da grade e fica no catálogo"
+            onClick={onDeactivate}
+          >
+            Tirar da grade
+          </button>
+          <button
+            type="button"
+            role="menuitem"
             className="sound-tile-menu-item sound-tile-menu-item--delete sound-tile-menu-item--danger"
             onClick={() => setConfirming(true)}
           >
-            Remover
+            Excluir
           </button>
         </>
       )}
-    </div>,
-    portalRoot,
+      <CloseItem onClose={onClose} />
+    </SoundPopover>
+  );
+}
+
+/**
+ * O "+" de um lugar vazio, com sons fora da grade: escolher um do catalogo para por ali, ou
+ * criar um novo.
+ */
+export function SoundSlotPicker({
+  sounds,
+  anchor,
+  onClose,
+  onPick,
+  onCreate,
+}: {
+  /** Os sons do catalogo que estao fora da grade. */
+  sounds: SoundItem[];
+  anchor: DOMRect;
+  onClose: () => void;
+  onPick: (sound: SoundItem) => void;
+  onCreate: () => void;
+}) {
+  return (
+    <SoundPopover
+      anchor={anchor}
+      className="sound-slot-picker"
+      label="Pôr um som aqui"
+      onClose={onClose}
+    >
+      <div className="sound-slot-picker-heading">
+        <span>Do catálogo</span>
+        <button
+          type="button"
+          role="menuitem"
+          className="sound-tile-menu-item sound-tile-menu-item--close"
+          aria-label="Fechar"
+          title="Fechar"
+          onClick={onClose}
+        />
+      </div>
+      <div className="sound-slot-picker-list">
+        {sounds.map((sound) => (
+          <button
+            key={sound.id}
+            type="button"
+            role="menuitem"
+            className="sound-slot-picker-item"
+            style={soundTileStyle(sound.color, sound.color2)}
+            onClick={() => onPick(sound)}
+          >
+            <span className="sound-slot-picker-face" aria-hidden="true" />
+            <span className="sound-slot-picker-name">{sound.name}</span>
+          </button>
+        ))}
+      </div>
+      <button
+        type="button"
+        role="menuitem"
+        className="sound-tile-menu-item sound-tile-menu-item--new"
+        onClick={onCreate}
+      >
+        Novo som
+      </button>
+    </SoundPopover>
   );
 }
