@@ -5706,25 +5706,21 @@ button.task-rollover-pill:hover {
   min-height: 0;
 }
 
+/* Metricas em coluna unica, com a barra de progresso como fundo do item */
 .system-grid {
   display: grid;
   flex: 1;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: repeat(4, minmax(0, 1fr));
   min-height: 0;
 }
 
 .system-grid .system-row {
   height: 100%;
-  border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
 }
 
-.system-grid .system-row:nth-child(2n) {
-  border-right: 0;
-}
-
-.system-grid .system-row:nth-child(n + 3) {
+.system-grid .system-row:last-child {
   border-bottom: 0;
 }
 
@@ -5739,8 +5735,16 @@ button.task-rollover-pill:hover {
 }
 
 .system-row--metric {
+  position: relative;
   display: grid;
+  align-content: center;
   gap: 4px;
+}
+
+.system-row--metric .system-row-top,
+.system-row--metric small {
+  position: relative;
+  z-index: 1;
 }
 
 .system-row--throughput {
@@ -5774,21 +5778,20 @@ button.task-rollover-pill:hover {
 }
 
 .system-row-track {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
   overflow: hidden;
-  height: 5px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
 }
 
 .system-row-track > span {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: inherit;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent) 80%, white),
-    var(--accent)
+    color-mix(in srgb, var(--accent) 12%, transparent),
+    color-mix(in srgb, var(--accent) 32%, transparent)
   );
   transform-origin: left center;
   /* transform anima no compositor; width forcava layout a cada frame */
@@ -5796,7 +5799,11 @@ button.task-rollover-pill:hover {
 }
 
 .system-row--warn .system-row-track > span {
-  background: linear-gradient(90deg, #f0a060, #f08a4b);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, #f0a060 16%, transparent),
+    color-mix(in srgb, #f08a4b 38%, transparent)
+  );
 }
 
 .system-row--metric small {
@@ -6058,58 +6065,6 @@ button.task-rollover-pill:hover {
     flex-direction: column;
     align-items: flex-end;
     gap: 2px;
-  }
-
-  /* Modulo estreito: metricas empilhadas em coluna unica */
-  .system-grid {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: repeat(4, minmax(0, 1fr));
-  }
-
-  .system-grid .system-row {
-    border-right: 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .system-grid .system-row:last-child {
-    border-bottom: 0;
-  }
-
-  .system-row--metric {
-    position: relative;
-    align-content: center;
-  }
-
-  .system-row--metric .system-row-top,
-  .system-row--metric small {
-    position: relative;
-    z-index: 1;
-  }
-
-  /* A barra de progresso vira o preenchimento de fundo do item */
-  .system-row-track {
-    position: absolute;
-    z-index: 0;
-    inset: 0;
-    height: auto;
-    border-radius: 0;
-    background: transparent;
-  }
-
-  .system-row-track > span {
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--accent) 12%, transparent),
-      color-mix(in srgb, var(--accent) 32%, transparent)
-    );
-  }
-
-  .system-row--warn .system-row-track > span {
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, #f0a060 16%, transparent),
-      color-mix(in srgb, #f08a4b 38%, transparent)
-    );
   }
 }
 
