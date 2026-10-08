@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sons — tocando</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;600;700&display=swap">
+<style>
+  /* Só o estado "tocando" do botão de som (o parado é o do app). Cada linha é uma opção, mostrada
+     em três pontos do som (0%, 50%, 90%) e uma vez animada. Regra: o nome sempre legível. */
+  :root {
+    --bg: #0b0b0c; --surface: #18181a; --tile: #18181a; --text: #f3f3f4; --muted: #a3a3a8;
+    --border: rgba(255, 255, 255, 0.1); --accent: #8c8dff;
+  }
+  :root[data-theme="light"] {
+    --bg: #f2f4f7; --surface: #ffffff; --tile: #ffffff; --text: #172033; --muted: #687386;
+    --border: rgba(39, 51, 73, 0.12); --accent: #5b5cf0;
+  }
+  @property --fill { syntax: "<percentage>"; inherits: true; initial-value: 0%; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: Inter, "Segoe UI", system-ui, sans-serif; color: var(--text); background: var(--bg); }
+  .page { max-width: 1060px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { margin: 0 0 4px; font-size: 22px; }
+  .lead { margin: 0 0 8px; color: var(--muted); font-size: 14px; line-height: 1.5; max-width: 820px; }
+  .theme { margin: 8px 0 0; display: inline-flex; gap: 2px; padding: 2px; border-radius: 9px; background: color-mix(in srgb, var(--muted) 18%, transparent); }
+  .theme button { border: 0; padding: 5px 10px; border-radius: 7px; font: inherit; font-size: 13px; color: var(--muted); background: transparent; cursor: pointer; }
+  .theme button[aria-pressed="true"] { color: var(--text); background: var(--surface); }
+
+  .opt { margin-top: 30px; }
+  .opt h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; font-size: 16px; }
+  .opt h2 b { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; font-size: 13px; color: #fff; background: var(--accent); }
+  .opt p { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.5; max-width: 820px; }
+  .rows { display: grid; gap: 8px; }
+  .row { display: grid; grid-template-columns: 70px repeat(4, 138px); gap: 8px; align-items: center; }
+  .row > span { color: var(--muted); font-size: 12px; }
+  @media (max-width: 680px) { .row { grid-template-columns: 52px repeat(4, minmax(0, 1fr)); } }
+
+  /* Botão (mesmas medidas do app: nome em cima da onda, 7 px de respiro) */
+  .t { position: relative; height: 122px; overflow: hidden; border: 1px solid var(--border); border-radius: 4px; }
+  .name {
+    position: absolute; top: 8px; right: 7px; bottom: 24px; left: 7px; z-index: 2;
+    display: flex; flex-direction: column; justify-content: flex-end;
+    font: 400 var(--fs, 34px)/.9 Anton, Impact, sans-serif; text-transform: uppercase;
+  }
+  .txt { display: block; -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .wave { position: absolute; z-index: 2; left: 7px; right: 7px; bottom: 8px; height: 14px; }
+  .bars { position: absolute; inset: 0; display: flex; align-items: center; gap: 2px; }
+  .bars i { flex: 1; border-radius: 2px; background: var(--dim); }
+  .bars.lit { clip-path: inset(0 calc(100% - var(--fill)) 0 0); }
+  .bars.lit i { background: var(--lit); }
+  .head { position: absolute; top: -3px; bottom: -3px; left: calc(var(--fill) - 1px); width: 2px; border-radius: 1px; background: var(--headc); }
+  .sweep { position: absolute; inset: 0; z-index: 1; width: var(--fill); }
+
+  .anim .t { animation: fill 6s linear infinite; }
+  @keyframes fill { from { --fill: 0%; } to { --fill: 100%; } }
+
+  /* A. Hoje: botão na cor 1, letras da tinta apagada para a tinta cheia */
+  .A .t { background: var(--c1); --dim: color-mix(in srgb, var(--ink) 26%, var(--c1)); --lit: var(--ink); --headc: var(--ink); }
+  .A .txt { background-image: linear-gradient(90deg, var(--ink) var(--fill), color-mix(in srgb, var(--ink) 32%, var(--c1)) var(--fill)); }
+
+  /* B. Nome inteiro, a cor enche atrás: começa no fundo escuro tingido com o nome na cor 1;
+     a cor 1 vai enchendo o botão da esquerda para a direita e o nome passa para a tinta onde ela já passou */
+  .B .t { background: linear-gradient(160deg, color-mix(in srgb, var(--c2) 30%, #121214), #101012); --dim: color-mix(in srgb, var(--c1) 30%, #1a1a1d); --lit: var(--ink); --headc: #fff; }
+  .B .sweep { background: var(--c1); }
+  .B .txt { background-image: linear-gradient(90deg, var(--ink) var(--fill), var(--c1) var(--fill)); }
+  .B .bars:not(.lit) i { background: linear-gradient(90deg, color-mix(in srgb, var(--ink) 30%, var(--c1)) 0 0); }
+
+  /* C. Cor cheia, nome sempre cheio: só a onda e uma faixa mais escura atrás mostram o progresso */
+  .C .t { background: var(--c1); --dim: color-mix(in srgb, var(--ink) 26%, var(--c1)); --lit: var(--ink); --headc: var(--ink); }
+  .C .sweep { background: color-mix(in srgb, var(--c2) 45%, var(--c1)); }
+  .C .txt { background-image: linear-gradient(var(--ink), var(--ink)); }
+
+  /* D. Fundo escuro na cor 2, letras da cor 1 para o branco (a "D" pura do mock) */
+  .D .t { background: linear-gradient(160deg, color-mix(in srgb, var(--c2) 45%, #111), color-mix(in srgb, var(--c2) 22%, #0d0d0f)); --dim: color-mix(in srgb, var(--c1) 30%, #18181b); --lit: var(--c1); --headc: #fff; }
+  .D .txt { background-image: linear-gradient(90deg, #fff var(--fill), var(--c1) var(--fill)); }
+  .D .t { box-shadow: inset 0 0 0 2px var(--c1); }
+
+  /* E. Cor cheia em degradê (1 → 2) e nome branco com sombra; as letras vão de meio-branco a branco */
+  .E .t { background: linear-gradient(135deg, var(--c1), var(--c2)); --dim: rgba(255,255,255,.35); --lit: #fff; --headc: #fff; }
+  .E .name { filter: drop-shadow(0 1px 2px rgba(0,0,0,.35)); }
+  .E .txt { background-image: linear-gradient(90deg, #fff var(--fill), rgba(255,255,255,.6) var(--fill)); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Sons — tocando</h1>
+  <p class="lead">Só o botão tocando, com as suas cores. Cada opção aparece no começo do som (0%), no meio (50%)
+    e quase no fim (90%), e embaixo animada. O problema da A (a de hoje) é o começo: o nome todo fica
+    apagado. As outras mantêm o nome legível o tempo todo.</p>
+  <div class="theme" id="theme">
+    <button data-v="dark" aria-pressed="true">Escuro</button>
+    <button data-v="light" aria-pressed="false">Claro</button>
+  </div>
+  <main id="opts"></main>
+</div>
+<script>
+  const SOUNDS = [
+    ['Kaiba', '#ff8a5c', '#e2416b'], ['Boom', '#ffd166', '#f28c28'],
+    ['Faaah', '#8c8dff', '#5a67ff'], ['farmar aura', '#3566a7', '#7b4c61'],
+  ];
+  const OPTS = [
+    ['A', 'Hoje', 'Botão na cor 1 e as letras da tinta apagada para a cheia. Legível só no fim.'],
+    ['B', 'A cor enche atrás', 'Começa escuro com o nome na cor 1 (legível); a cor 1 enche o botão da esquerda para a direita, e onde ela passou o nome fica escuro. O botão inteiro vira a barra de progresso.'],
+    ['C', 'Cor cheia, nome cheio', 'Botão na cor 1 com o nome sempre cheio na tinta; o progresso é uma faixa um pouco mais escura enchendo atrás, mais a onda.'],
+    ['D', 'Escuro na cor 2', 'Fundo escuro tingido da cor 2 com contorno na cor 1; as letras vão da cor 1 para o branco (a D pura do mock).'],
+    ['E', 'Degradê e nome branco', 'Botão no degradê das duas cores e nome branco com sombra; as letras vão de meio-branco a branco.'],
+  ];
+  const isDark = hex => {
+    const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    const l = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return 1.05 / (l + 0.05) >= (l + 0.05) / 0.05;
+  };
+  const mix = (a, b, w) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) * w + parseInt(b.slice(i, i + 2), 16) * (1 - w)).toString(16).padStart(2, '0')).join('');
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+  function rng(seed) {
+    let h = 2166136261;
+    for (const ch of seed) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    return () => { h += 0x6d2b79f5; let t = h; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+
+  function tile([name, c1, c2], fill) {
+    const t = el('div', 't');
+    t.style.setProperty('--c1', c1);
+    t.style.setProperty('--c2', c2);
+    t.style.setProperty('--ink', isDark(c1) ? '#ffffff' : mix(c2, '#000000', 0.38));
+    if (fill != null) t.style.setProperty('--fill', fill + '%');
+    t.append(el('span', 'sweep'));
+    const box = el('span', 'name');
+    box.append(el('span', 'txt', name));
+    t.append(box);
+    const w = el('span', 'wave');
+    const r = rng(name);
+    const hs = Array.from({ length: 28 }, (_, k) => { const x = k / 27; return Math.round(14 + 86 * Math.min(1, x * 6) * (1 - x * .55) * (.4 + .6 * r())); });
+    for (const cls of ['bars', 'bars lit']) {
+      const bars = el('span', cls);
+      hs.forEach(h => { const i = el('i'); i.style.height = h + '%'; bars.append(i); });
+      w.append(bars);
+    }
+    w.append(el('span', 'head'));
+    t.append(w);
+    return t;
+  }
+
+  function fit() {
+    document.querySelectorAll('.name').forEach(box => {
+      const txt = box.firstChild;
+      let lo = 10, hi = 40, best = 10;
+      while (hi - lo > .5) {
+        const mid = (lo + hi) / 2;
+        box.style.setProperty('--fs', mid + 'px');
+        if (txt.scrollWidth <= txt.clientWidth + 1 && txt.offsetHeight <= box.clientHeight + 1) { best = mid; lo = mid; } else hi = mid;
+      }
+      box.style.setProperty('--fs', Math.floor(best) + 'px');
+    });
+  }
+
+  const root = document.getElementById('opts');
+  for (const [id, title, desc] of OPTS) {
+    const sec = el('section', `opt ${id}`);
+    const h = el('h2');
+    h.append(el('b', null, id), document.createTextNode(title));
+    sec.append(h, el('p', null, desc));
+    const rows = el('div', 'rows');
+    for (const [label, fill] of [['0%', 0], ['50%', 50], ['90%', 90], ['animado', null]]) {
+      const row = el('div', 'row' + (fill == null ? ' anim' : ''));
+      row.append(el('span', null, label));
+      SOUNDS.forEach(s => row.append(tile(s, fill)));
+      rows.append(row);
+    }
+    sec.append(rows);
+    root.append(sec);
+  }
+  document.fonts.load('40px Anton').then(fit);
+  fit();
+
+  document.getElementById('theme').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    document.documentElement.dataset.theme = b.dataset.v;
+    document.querySelectorAll('#theme button').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  });
+</script>
+</body>
+</html>

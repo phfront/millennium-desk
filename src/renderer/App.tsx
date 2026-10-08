@@ -241,6 +241,7 @@ export function App() {
   const soundboardSettingsRef = useRef(soundboardSettings);
   soundboardSettingsRef.current = soundboardSettings;
   const [soundCreateSlot, setSoundCreateSlot] = useState<number | null>(null);
+  const [soundEditId, setSoundEditId] = useState<number | null>(null);
   const [audioControl, setAudioControl] = useState<AudioControlSettings>(
     DEFAULT_AUDIO_CONTROL_SETTINGS,
   );
@@ -696,14 +697,18 @@ export function App() {
     return saved;
   };
 
-  const deleteSound = async (id: number) => {
-    await window.electronControl.sounds.delete(id);
-    await loadSounds();
-  };
+  // Estaveis: o modulo dos Sons (memo) tambem usa
+  const deleteSound = useCallback(
+    async (id: number) => {
+      await window.electronControl.sounds.delete(id);
+      await loadSounds();
+    },
+    [loadSounds],
+  );
 
-  const placeSound = async (id: number, slot: number) => {
+  const placeSound = useCallback(async (id: number, slot: number) => {
     setSounds(await window.electronControl.sounds.place(id, slot));
-  };
+  }, []);
 
   const updateSoundboardSettings = async (
     patch: Partial<SoundboardSettings>,
@@ -1189,6 +1194,10 @@ export function App() {
     setSoundCreateSlot(null);
   }, []);
 
+  const handleSoundEditRequestHandled = useCallback(() => {
+    setSoundEditId(null);
+  }, []);
+
   const openSoundboardSettings = useCallback(
     (slot?: number) => {
       setSoundCreateSlot(
@@ -1196,6 +1205,16 @@ export function App() {
           ? slot
           : null,
       );
+      openModuleSettings("soundboard");
+    },
+    [openModuleSettings],
+  );
+
+  // "Editar" do menu de segurar um som: abre os ajustes ja com o editor dele
+  const openSoundEditor = useCallback(
+    (id: number) => {
+      setSoundCreateSlot(null);
+      setSoundEditId(id);
       openModuleSettings("soundboard");
     },
     [openModuleSettings],
@@ -1715,6 +1734,9 @@ export function App() {
             settings={soundboardSettings}
             onConfigure={openSoundboardSettingsDefault}
             onAddAtSlot={openSoundboardSettings}
+            onEdit={openSoundEditor}
+            onDelete={deleteSound}
+            onPlace={placeSound}
           />
         );
       case "scenes":
@@ -2270,6 +2292,8 @@ export function App() {
                   onPlace={placeSound}
                   createAtSlot={soundCreateSlot}
                   onCreateRequestHandled={handleSoundCreateRequestHandled}
+                  editSoundId={soundEditId}
+                  onEditRequestHandled={handleSoundEditRequestHandled}
                 />
               )}
                 </>

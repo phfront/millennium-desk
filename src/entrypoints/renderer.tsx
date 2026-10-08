@@ -18,6 +18,7 @@ import { isPastDateKey, todayDateKey } from "../shared/date";
 import {
   DEFAULT_SOUND_COLOR,
   DEFAULT_SOUND_COLOR2,
+  SOUND_PALETTE,
   DEFAULT_SOUNDBOARD_SETTINGS,
   SOUND_AUDIO_EXTENSIONS,
 } from "../shared/soundboard";
@@ -146,22 +147,20 @@ if (!window.electronControl) {
   // ?demo: sons de exemplo para olhar a grade e a lista sem cadastrar arquivo
   if (new URLSearchParams(window.location.search).has("demo")) {
     browserSounds = [
-      ["du-bist-gut-genug", "🎵"],
-      ["guitarra-humana-so-na-pisadinha", "🎸"],
-      ["faaah", "😱"],
-      ["la-ele", ""],
-      ["anime-wow-sound-effect", "🌸"],
-      ["meme-de-creditos-finales", "🎬"],
-      ["tf_nemesis", ""],
-      ["vine-boom-sound-effect", "💥"],
-    ].map(([name, emoji], index) => ({
+      "Du Bist Gut",
+      "Guitarra Humana",
+      "Faaah",
+      "La Ele",
+      "Wow",
+      "Creditos",
+      "Nemesis",
+      "Boom",
+    ].map((name, index) => ({
       id: index + 1,
       name,
-      emoji,
-      color: DEFAULT_SOUND_COLOR,
-      color2: DEFAULT_SOUND_COLOR2,
+      color: SOUND_PALETTE[index][0],
+      color2: SOUND_PALETTE[index][1],
       volume: 1,
-      iconDataUrl: null,
       fileName: `demo-${index}.mp3`,
       gridSlot: index,
     }));
@@ -549,14 +548,9 @@ if (!window.electronControl) {
         const item = {
           id: existing?.id ?? Date.now(),
           name: input.name.trim(),
-          emoji: input.emoji ?? "",
           color: input.color ?? DEFAULT_SOUND_COLOR,
           color2: input.color2 ?? DEFAULT_SOUND_COLOR2,
           volume: input.volume ?? 1,
-          iconDataUrl:
-            input.iconDataUrl === undefined
-              ? (existing?.iconDataUrl ?? null)
-              : input.iconDataUrl,
           fileName,
           gridSlot:
             existing?.gridSlot ??

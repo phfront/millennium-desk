@@ -24,15 +24,26 @@ Desk (sons) ── setSinkId(CABLE Input) ─────┘
 
 ## Módulo (implementado)
 
-- Grade de botões como a dos Atalhos (cor, emoji, nome). Tocar toca; tocar de novo para. Com
-  algo tocando, aparece o botão de parar tudo no cabeçalho e uma barra de progresso no botão.
+- Grade de botões só com o nome, grande, em Anton maiúscula (o maior tamanho que cabe sem
+  quebrar palavra), e a forma de onda do próprio áudio no pé. Parado: fundo do tema tingido e o
+  nome no degradê das duas cores; tocando, o botão vira a cor 1 e as letras enchem da esquerda
+  para a direita junto com a onda (o nome é a barra de progresso). Tocar de novo para; com algo
+  tocando, aparece o botão de parar tudo no cabeçalho. Mock em `docs/mocks/sons-poster.html`
+  (opção "D + E").
+- **Segurar um botão** (450 ms parado, ou botão direito) abre um menu logo acima dele: Editar
+  (abre os ajustes já no editor do som), Ouvir no fone (só no retorno, nunca no microfone) e
+  Remover (confirma no próprio menu). Segurar e mexer fecha o menu e arrasta: o botão vira um
+  fantasma no dedo, a grade mostra a troca e soltar troca os dois de lugar. Deslizar antes do
+  tempo não toca nem mexe; com o menu aberto, tocar fora só fecha o menu.
 - Cada som toca em duas saídas: o cabo (volume do som × volume no microfone) e, se ligado, o
   retorno no fone (volume do som × volume no fone), para o Pedro ouvir o que os outros ouvem.
 - **Ajustes → Sons:** saída do cabo (sem escolha, pega o `CABLE Input`), volume no microfone,
   retorno liga/desliga, saída e volume do retorno, colunas × linhas e a lista de sons.
 - **Editor de som:** arquivo (mp3, wav, ogg, m4a, aac, flac, webm; até 20 MB), nome (vem do
-  arquivo), emoji, volume próprio, posição na grade (escolher um slot ocupado troca os dois) e
-  cores. "Ouvir" toca só no retorno, nunca no microfone.
+  arquivo), volume próprio, posição na grade (escolher um slot ocupado troca os dois) e uma cor
+  só: as 14 da paleta (`SOUND_PALETTE`, com a segunda cor escolhida a dedo) ou outra qualquer, que
+  ganha a segunda por `soundSecondColor`. Emoji e imagem saíram (as colunas ficaram no banco, sem
+  uso). "Ouvir" toca só no retorno, nunca no microfone.
 
 Como ficou:
 

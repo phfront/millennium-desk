@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sons — layouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
+<style>
+  /* Mock do módulo Sons (src/renderer/modules/soundboard). Cada seção é um jeito de pintar o
+     botão com as duas cores do som (color, color2). A estrutura do botão é a mesma do app:
+     .shortcut-tile > .shortcut-tile-bg + .sound-emoji + .shortcut-tile-label (+ barra de progresso). */
+  :root {
+    --bg: #f2f4f7;
+    --surface: #ffffff;
+    --surface-muted: #e9edf3;
+    --tile: #ffffff;
+    --text: #172033;
+    --muted: #687386;
+    --border: rgba(39, 51, 73, 0.12);
+    --accent: #5b5cf0;
+    --sans: Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --pad-x: 7px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b0b0c; --surface: #18181a; --surface-muted: #242426; --tile: #1c1c1f;
+      --text: #f3f3f4; --muted: #a3a3a8; --border: rgba(255, 255, 255, 0.1); --accent: #8c8dff;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0b0c; --surface: #18181a; --surface-muted: #242426; --tile: #1c1c1f;
+    --text: #f3f3f4; --muted: #a3a3a8; --border: rgba(255, 255, 255, 0.1); --accent: #8c8dff;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    color: var(--text);
+    background: var(--bg);
+  }
+  button { font: inherit; }
+
+  .page { max-width: 1000px; margin: 0 auto; padding: 24px 16px 64px; }
+  header.top h1 { margin: 0 0 4px; font-size: 22px; }
+  header.top p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
+
+  /* Barra de controles, presa no topo para comparar rolando */
+  .controls {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    margin: 16px -16px 8px; padding: 12px 16px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .control { display: flex; align-items: center; gap: 8px; }
+  .control > span { color: var(--muted); }
+  .seg { display: inline-flex; padding: 2px; border-radius: 9px; background: var(--surface-muted); }
+  .seg button {
+    border: 0; padding: 5px 10px; border-radius: 7px; cursor: pointer;
+    color: var(--muted); background: transparent;
+  }
+  .seg button[aria-pressed="true"] { color: var(--text); background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  input[type="range"] { width: 110px; accent-color: var(--accent); }
+  output { min-width: 64px; font-variant-numeric: tabular-nums; }
+
+  /* Uma opção = título + módulo */
+  .option { margin-top: 28px; }
+  .option h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 4px; font-size: 16px; }
+  .option h2 .letter {
+    display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px;
+    font-size: 13px; color: #fff; background: var(--accent);
+  }
+  .option h2 .tag { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .option > p { margin: 0 0 10px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+  /* Casca do módulo, como no Desk */
+  .module {
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+  }
+  .module-heading {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+  }
+  .eyebrow { display: block; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
+  .module-heading h3 { margin: 0; font-size: 17px; }
+  .gear { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    grid-auto-rows: 122px;
+    gap: 0;
+  }
+  @media (max-width: 720px) {
+    .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 104px; }
+  }
+  .sep-gap .grid { gap: 6px; padding: 6px; }
+  .sep-gap .shortcut-tile { border: 0; border-radius: 10px; }
+
+  /* ===== Botão (base comum, igual ao app) ===== */
+  .shortcut-tile {
+    position: relative;
+    display: flex; flex-direction: column; justify-content: center;
+    min-width: 0; padding: 0; overflow: hidden;
+    border: 0;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    color: #fff; text-align: left; cursor: pointer;
+    background: transparent;
+    --ring: rgba(255, 255, 255, 0.85);
+    --fg: #fff;
+  }
+  .shortcut-tile:active { transform: scale(0.98); }
+  .shortcut-tile-bg { position: absolute; inset: 0; z-index: 0; pointer-events: none; transition: filter 160ms; }
+  .shortcut-tile:hover .shortcut-tile-bg { filter: brightness(1.08); }
+  .sound-emoji {
+    position: relative; z-index: 1;
+    display: grid; flex: 1; place-items: center; padding-bottom: 40px;
+    font-size: 34px; line-height: 1; pointer-events: none;
+  }
+  .shortcut-tile-label {
+    position: absolute; right: 0; bottom: 0; left: 0; z-index: 2;
+    display: grid; gap: 2px;
+    padding: 24px var(--pad-x) 12px;
+    color: var(--fg);
+  }
+  .shortcut-tile strong { overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
+  .shortcut-tile small { opacity: .72; text-transform: uppercase; font-size: 10px; }
+  .shortcut-tile.playing::after {
+    content: ""; position: absolute; inset: 0; z-index: 3;
+    box-shadow: inset 0 0 0 3px var(--ring); pointer-events: none;
+  }
+  .sep-gap .shortcut-tile.playing::after { border-radius: 10px; }
+  .shortcut-tile.playing .shortcut-tile-bg { filter: brightness(1.15) saturate(1.2); }
+  .progress {
+    position: absolute; right: 0; bottom: 0; left: 0; z-index: 3; height: 4px;
+    background: var(--ring); transform-origin: left center;
+    animation: progress 6s linear infinite;
+  }
+  @keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  @media (prefers-reduced-motion: reduce) { .progress { animation: none; transform: scaleX(.4); } }
+  .empty { align-items: center; justify-content: center; color: var(--muted); background: var(--surface-muted); font-size: 30px; font-weight: 300; }
+
+  /* ===== A. Atual: radial c1 → c2 com véu preto embaixo ===== */
+  .lay-a .shortcut-tile-bg { background: radial-gradient(circle, var(--c1) 0%, var(--c2) 71%); }
+  .lay-a .shortcut-tile-label { background: linear-gradient(transparent, rgba(0, 0, 0, 0.78)); }
+
+  /* ===== B. Diagonal limpa: linear 135° sem véu; só sombra no texto ===== */
+  .lay-b .shortcut-tile-bg { background: linear-gradient(135deg, var(--c1), var(--c2)); }
+  .lay-b .shortcut-tile-label { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+
+  /* ===== C. Chapado: só a cor 1, texto escuro ou claro conforme o contraste ===== */
+  .lay-c .shortcut-tile-bg { background: var(--c1); }
+  .lay-c .shortcut-tile { --fg: var(--auto-fg); --ring: var(--auto-fg); }
+
+  /* ===== D. Tinta: fundo do tema tingido com a cor, texto na cor ===== */
+  .lay-d .shortcut-tile-bg {
+    background:
+      linear-gradient(160deg, color-mix(in srgb, var(--c1) 26%, transparent), color-mix(in srgb, var(--c2) 14%, transparent)),
+      var(--tile);
+  }
+  .lay-d .shortcut-tile { --fg: color-mix(in srgb, var(--c1) 55%, var(--text)); --ring: var(--c1); }
+  .lay-d .shortcut-tile small { color: var(--muted); opacity: 1; }
+
+  /* ===== E. Aurora: fundo do tema com o brilho das duas cores nos cantos ===== */
+  .lay-e .shortcut-tile-bg {
+    background:
+      radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--c1) 70%, transparent), transparent 62%),
+      radial-gradient(100% 80% at 0% 100%, color-mix(in srgb, var(--c2) 45%, transparent), transparent 70%),
+      var(--tile);
+  }
+  .lay-e .shortcut-tile { --fg: var(--text); --ring: var(--c1); }
+  .lay-e .shortcut-tile small { color: var(--muted); opacity: 1; }
+
+  /* ===== F. Faixa: botão neutro com uma faixa c1 → c2 na esquerda ===== */
+  .lay-f .shortcut-tile-bg {
+    background:
+      linear-gradient(var(--c1), var(--c2)) left / 5px 100% no-repeat,
+      var(--tile);
+  }
+  .lay-f .shortcut-tile { --fg: var(--text); --ring: var(--c1); }
+  .lay-f .shortcut-tile-label { padding-left: calc(var(--pad-x) + 5px); }
+  .lay-f .shortcut-tile small { color: var(--c1); opacity: 1; font-weight: 700; }
+
+  /* ===== G. Rodapé colorido: botão neutro, a cor fica na faixa do nome ===== */
+  .lay-g .shortcut-tile-bg { background: var(--tile); }
+  .lay-g .shortcut-tile-label {
+    padding-top: 10px;
+    background: linear-gradient(90deg, var(--c1), var(--c2));
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  }
+  .lay-g .shortcut-tile { --ring: var(--c1); }
+  .lay-g .sound-emoji { padding-bottom: 54px; }
+  .lay-g .progress { background: #fff; }
+
+  /* ===== H. Moldura: fundo do tema com contorno de 2px nas cores ===== */
+  .lay-h .shortcut-tile-bg {
+    background:
+      linear-gradient(var(--tile), var(--tile)) padding-box,
+      linear-gradient(135deg, var(--c1), var(--c2)) border-box;
+    border: 2px solid transparent;
+    inset: 5px;
+    border-radius: 10px;
+  }
+  .lay-h .shortcut-tile { --fg: var(--text); --ring: var(--c1); }
+  .lay-h .shortcut-tile-label { bottom: 5px; left: 5px; right: 5px; padding-left: calc(var(--pad-x) + 2px); padding-right: calc(var(--pad-x) + 2px); }
+  .lay-h .shortcut-tile small { color: var(--muted); opacity: 1; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <h1>Sons — layouts de cor</h1>
+    <p>Mesmos sons, mesmas duas cores (cor 1 e cor 2 do editor), oito jeitos de pintar o botão.
+      O último botão de cada grade está tocando (moldura + barra de progresso). Responda pela letra.</p>
+  </header>
+
+  <div class="controls">
+    <label class="control"><span>Padding lateral</span>
+      <input id="pad" type="range" min="0" max="20" step="1" value="7">
+      <output id="padOut">7 px</output>
+    </label>
+    <div class="control"><span>Cores</span>
+      <div class="seg" data-ctl="palette">
+        <button data-v="mine" aria-pressed="true">As suas</button>
+        <button data-v="mixed" aria-pressed="false">Variadas</button>
+      </div>
+    </div>
+    <div class="control"><span>Emoji</span>
+      <div class="seg" data-ctl="emoji">
+        <button data-v="off" aria-pressed="true">Sem</button>
+        <button data-v="on" aria-pressed="false">Com</button>
+      </div>
+    </div>
+    <div class="control"><span>Separação</span>
+      <div class="seg" data-ctl="sep">
+        <button data-v="lines" aria-pressed="true">Linhas</button>
+        <button data-v="gap" aria-pressed="false">Espaço</button>
+      </div>
+    </div>
+    <div class="control"><span>Tema</span>
+      <div class="seg" data-ctl="theme">
+        <button data-v="dark" aria-pressed="true">Escuro</button>
+        <button data-v="light" aria-pressed="false">Claro</button>
+      </div>
+    </div>
+  </div>
+
+  <main id="options"></main>
+</div>
+
+<script>
+  const LAYOUTS = [
+    ['a', 'Atual', 'hoje', 'Radial da cor 1 (centro) para a cor 2 (bordas), com o véu preto embaixo do nome. É o que está no app.'],
+    ['b', 'Diagonal limpa', 'colorido', 'Degradê linear em 135° da cor 1 para a cor 2, sem véu: o nome fica direto sobre a cor, com uma sombra leve.'],
+    ['c', 'Chapado', 'colorido', 'Só a cor 1, sem degradê. O texto vira escuro ou claro sozinho conforme a cor.'],
+    ['d', 'Tinta', 'discreto', 'Fundo do tema tingido com as duas cores (bem fraco) e o nome escrito na cor. Mais calmo, combina com os outros módulos.'],
+    ['e', 'Aurora', 'discreto', 'Fundo do tema com o brilho da cor 1 no canto de cima e da cor 2 no de baixo.'],
+    ['f', 'Faixa', 'neutro', 'Botão no fundo do tema e uma faixa vertical com as duas cores na esquerda. "Tocar" na cor 1.'],
+    ['g', 'Rodapé colorido', 'meio a meio', 'Botão no fundo do tema (onde fica o emoji ou a imagem) e a cor só na faixa do nome.'],
+    ['h', 'Moldura', 'neutro', 'Botão no fundo do tema com um contorno de 2 px no degradê das duas cores, cantos arredondados.'],
+  ];
+
+  // Nomes da captura de tela; "as suas" imitam o rosa → laranja de hoje, "variadas" mostram cada
+  // layout com cores diferentes lado a lado
+  const SOUNDS = [
+    ['Du Bist Mein Schatz', '🎺'], ['Boom', '💥'], ['Faaah', '😱'], ['La Ele', '🎤'], ['Wow', '🤩'],
+    ['Creditos', '🎬'], ['Nemesis', '👾'], ['Guitarra triste', '🎸'], ['fdpoce', '🤬'], ['quico risada', '😂'],
+    ['peter pranchas', '🏄'], ['ai ki dilica', '😋'], ['rela no jardim', '🌷'], ['farmar aura', '✨'],
+  ];
+  const MINE = SOUNDS.map((_, i) => i === 13 ? ['#4a7fc8', '#6b4a6e'] : ['#f29a63', '#de5ca6']);
+  const MIXED = [
+    ['#ff8a5c', '#e2416b'], ['#ffd166', '#f28c28'], ['#8c8dff', '#5a67ff'], ['#4cc9a0', '#1f8f7a'],
+    ['#ff6fb5', '#a64dff'], ['#5ec8f2', '#3a6fd8'], ['#b4e05a', '#4caf50'], ['#c084fc', '#7c3aed'],
+    ['#f87171', '#b91c1c'], ['#fbbf24', '#ef6c00'], ['#38bdf8', '#0e7490'], ['#f9a8d4', '#ec4899'],
+    ['#86efac', '#16a34a'], ['#4a7fc8', '#6b4a6e'],
+  ];
+
+  const state = { palette: 'mine', emoji: 'off', sep: 'lines', theme: 'dark' };
+
+  // Texto escuro ou claro sobre a cor (luminância relativa do WCAG)
+  function autoFg(hex) {
+    const ch = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    const l = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+    return (1.05) / (l + 0.05) >= (l + 0.05) / 0.05 ? '#ffffff' : '#14161c';
+  }
+
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function tile(sound, colors, playing) {
+    const [name, emoji] = sound;
+    const [c1, c2] = colors;
+    const b = el('button', 'shortcut-tile' + (playing ? ' playing' : ''));
+    b.type = 'button';
+    b.title = name;
+    b.style.setProperty('--c1', c1);
+    b.style.setProperty('--c2', c2);
+    b.style.setProperty('--auto-fg', autoFg(c1));
+    b.append(el('span', 'shortcut-tile-bg'));
+    if (state.emoji === 'on') b.append(el('span', 'sound-emoji', emoji));
+    const label = el('span', 'shortcut-tile-label');
+    label.append(el('strong', null, name), el('small', null, playing ? 'Tocando · toque para parar' : 'Tocar'));
+    b.append(label);
+    if (playing) b.append(el('span', 'progress'));
+    b.addEventListener('click', () => b.classList.toggle('playing'));
+    return b;
+  }
+
+  function render() {
+    const root = document.getElementById('options');
+    root.replaceChildren();
+    const palette = state.palette === 'mine' ? MINE : MIXED;
+    for (const [id, title, tag, desc] of LAYOUTS) {
+      const sec = el('section', `option lay-${id} sep-${state.sep}`);
+      const h = el('h2');
+      h.append(el('span', 'letter', id.toUpperCase()), document.createTextNode(title + ' '), el('span', 'tag', tag));
+      sec.append(h, el('p', null, desc));
+      const mod = el('div', 'module');
+      const head = el('div', 'module-heading');
+      const titles = el('div');
+      titles.append(el('span', 'eyebrow', 'NO MICROFONE'), el('h3', null, 'Sons'));
+      const gear = el('button', 'gear', '⚙');
+      gear.setAttribute('aria-label', 'Configurar sons');
+      head.append(titles, gear);
+      const grid = el('div', 'grid');
+      SOUNDS.forEach((s, i) => grid.append(tile(s, palette[i], i === 13)));
+      mod.append(head, grid);
+      sec.append(mod);
+      root.append(sec);
+    }
+  }
+
+  document.querySelectorAll('.seg').forEach(seg => {
+    seg.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      state[seg.dataset.ctl] = btn.dataset.v;
+      seg.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+      if (seg.dataset.ctl === 'theme') document.documentElement.dataset.theme = btn.dataset.v;
+      else render();
+    });
+  });
+
+  const pad = document.getElementById('pad');
+  const padOut = document.getElementById('padOut');
+  pad.addEventListener('input', () => {
+    document.documentElement.style.setProperty('--pad-x', pad.value + 'px');
+    padOut.textContent = pad.value + ' px' + (pad.value === '14' ? ' (hoje)' : '');
+  });
+
+  // Começa no tema do sistema
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  state.theme = dark ? 'dark' : 'light';
+  document.documentElement.dataset.theme = state.theme;
+  document.querySelectorAll('[data-ctl="theme"] button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === state.theme)));
+  render();
+</script>
+</body>
+</html>

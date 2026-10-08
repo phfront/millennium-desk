@@ -152,6 +152,29 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
       ALTER TABLE sounds ADD COLUMN icon_data_url TEXT;
     `,
   },
+  {
+    // Sons com nome grande (mock docs/mocks/sons-poster.html): quem ainda esta na cor padrao
+    // antiga ganha a paleta nova pela posicao na grade (SOUND_PALETTE); cor escolhida a mao fica.
+    version: 14,
+    sql: `
+      UPDATE sounds
+      SET
+        color = CASE grid_slot % 14
+          WHEN 0 THEN '#ff8a5c' WHEN 1 THEN '#ffd166' WHEN 2 THEN '#8c8dff'
+          WHEN 3 THEN '#4cc9a0' WHEN 4 THEN '#ff6fb5' WHEN 5 THEN '#5ec8f2'
+          WHEN 6 THEN '#b4e05a' WHEN 7 THEN '#c084fc' WHEN 8 THEN '#f87171'
+          WHEN 9 THEN '#fbbf24' WHEN 10 THEN '#38bdf8' WHEN 11 THEN '#f9a8d4'
+          WHEN 12 THEN '#86efac' ELSE '#4a7fc8' END,
+        color_2 = CASE grid_slot % 14
+          WHEN 0 THEN '#e2416b' WHEN 1 THEN '#f28c28' WHEN 2 THEN '#5a67ff'
+          WHEN 3 THEN '#1f8f7a' WHEN 4 THEN '#a64dff' WHEN 5 THEN '#3a6fd8'
+          WHEN 6 THEN '#4caf50' WHEN 7 THEN '#7c3aed' WHEN 8 THEN '#b91c1c'
+          WHEN 9 THEN '#ef6c00' WHEN 10 THEN '#0e7490' WHEN 11 THEN '#ec4899'
+          WHEN 12 THEN '#16a34a' ELSE '#6b4a6e' END,
+        updated_at = datetime('now')
+      WHERE lower(color) = '#f08a4b' AND lower(color_2) = '#e15f9a';
+    `,
+  },
 ];
 
 const getCurrentVersion = (database: DatabaseSync) => {

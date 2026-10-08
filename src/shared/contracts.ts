@@ -85,15 +85,14 @@ export interface ShortcutGridSettings {
 /** Som do modulo de efeitos, tocado na saida do microfone virtual. */
 export interface SoundItem {
   id: number;
+  /** O botao mostra so o nome, grande; as colunas emoji e icon_data_url ficaram sem uso. */
   name: string;
-  /** Emoji (ou texto curto) exibido no botao; vazio usa o nome. */
-  emoji: string;
+  /** Cor 1: o fundo quando toca e o inicio do degrade do nome. */
   color: string;
+  /** Cor 2: o fim do degrade e o tom do fundo parado (soundSecondColor). */
   color2: string;
   /** Volume proprio do som, de 0 a 1. */
   volume: number;
-  /** Imagem do botao (data URL); no lugar do emoji quando existe. */
-  iconDataUrl: string | null;
   /** Nome do arquivo na pasta sounds do userData. */
   fileName: string;
   gridSlot: number;
@@ -108,12 +107,9 @@ export interface SoundAudioUpload {
 export interface SaveSoundInput {
   id?: number;
   name: string;
-  emoji?: string;
   color?: string;
   color2?: string;
   volume?: number;
-  /** undefined mantem a imagem atual; null tira. */
-  iconDataUrl?: string | null;
   gridSlot?: number;
   /** Obrigatorio ao criar; ao editar, so quando o arquivo e trocado. */
   audio?: SoundAudioUpload;

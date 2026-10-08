@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { shortcutTileStyle } from "../shortcuts/shortcutColors";
 import {
   DEFAULT_SOUND_COLOR,
   DEFAULT_SOUND_COLOR2,
   SOUND_AUDIO_EXTENSIONS,
+  SOUND_GRID_MAX_COLUMNS,
+  SOUND_GRID_MAX_ROWS,
   SOUND_MAX_BYTES,
+  SOUND_PALETTE,
+  soundSecondColor,
 } from "../../../shared/soundboard";
+import { SoundName } from "./SoundTileParts";
+import { soundTileStyle } from "./soundLook";
 import {
   forgetSoundAudio,
   listAudioOutputs,
@@ -25,11 +30,9 @@ import type {
 interface SoundForm {
   id?: number;
   name: string;
-  emoji: string;
   color: string;
   color2: string;
   volume: number;
-  iconDataUrl: string | null;
   gridSlot: number | null;
   /** Arquivo novo escolhido no editor (ao criar, ou para trocar o audio). */
   file: File | null;
@@ -39,37 +42,13 @@ interface SoundForm {
 
 const EMPTY_FORM: SoundForm = {
   name: "",
-  emoji: "",
   color: DEFAULT_SOUND_COLOR,
   color2: DEFAULT_SOUND_COLOR2,
   volume: 1,
-  iconDataUrl: null,
   gridSlot: null,
   file: null,
   savedFileName: null,
 };
-
-const IMAGE_ACCEPT = "image/png,image/jpeg,image/webp,image/gif";
-const IMAGE_MAX_BYTES = 2_000_000;
-
-const readImage = (file: File) =>
-  new Promise<string>((resolve, reject) => {
-    if (!file.type.startsWith("image/")) {
-      reject(new Error("Selecione um arquivo de imagem."));
-      return;
-    }
-    if (file.size > IMAGE_MAX_BYTES) {
-      reject(new Error("A imagem deve ter no máximo 2 MB."));
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () =>
-      typeof reader.result === "string"
-        ? resolve(reader.result)
-        : reject(new Error("Não foi possível ler a imagem."));
-    reader.onerror = () => reject(new Error("Não foi possível ler a imagem."));
-    reader.readAsDataURL(file);
-  });
 
 /** Arraste na grade de sons: o que a tela mostra. */
 interface DragView {
@@ -93,14 +72,6 @@ interface DragState extends DragView {
 
 const DRAG_THRESHOLD = 6;
 
-/** O desenho do botao: imagem, ou emoji, ou nada (so o gradiente). */
-function SoundFace({ sound }: { sound: Pick<SoundItem, "iconDataUrl" | "emoji"> }) {
-  if (sound.iconDataUrl) {
-    return <img className="sound-face-image" src={sound.iconDataUrl} alt="" draggable={false} />;
-  }
-  return sound.emoji ? <span className="sound-face-emoji">{sound.emoji}</span> : null;
-}
-
 const AUDIO_ACCEPT = Object.keys(SOUND_AUDIO_EXTENSIONS)
   .map((extension) => `.${extension}`)
   .join(",");
@@ -122,6 +93,8 @@ export function SoundboardSettingsPanel({
   onPlace,
   createAtSlot,
   onCreateRequestHandled,
+  editSoundId,
+  onEditRequestHandled,
 }: {
   sounds: SoundItem[];
   settings: SoundboardSettings;
@@ -131,6 +104,9 @@ export function SoundboardSettingsPanel({
   onPlace: (id: number, slot: number) => Promise<void>;
   createAtSlot?: number | null;
   onCreateRequestHandled?: () => void;
+  /** Som a abrir no editor (o "Editar" do menu de segurar, no modulo). */
+  editSoundId?: number | null;
+  onEditRequestHandled?: () => void;
 }) {
   const [devices, setDevices] = useState<AudioOutputDevice[]>([]);
   const [devicesError, setDevicesError] = useState<string | null>(null);
@@ -147,6 +123,8 @@ export function SoundboardSettingsPanel({
   const previewUrlRef = useRef<string | null>(null);
   const onCreateRequestHandledRef = useRef(onCreateRequestHandled);
   onCreateRequestHandledRef.current = onCreateRequestHandled;
+  const onEditRequestHandledRef = useRef(onEditRequestHandled);
+  onEditRequestHandledRef.current = onEditRequestHandled;
 
   const slotCount = settings.grid.columns * settings.grid.rows;
   const output = resolveOutputDevice(devices, settings);
@@ -189,8 +167,15 @@ export function SoundboardSettingsPanel({
     const freeSlot = Array.from({ length: slotCount }, (_, index) => index).find(
       (index) => !sounds.some((sound) => sound.gridSlot === index),
     );
+    // Cor nova: a primeira da paleta que nenhum som usa ainda
+    const used = new Set(sounds.map((sound) => sound.color.toLowerCase()));
+    const [color, color2] =
+      SOUND_PALETTE.find(([first]) => !used.has(first)) ??
+      SOUND_PALETTE[sounds.length % SOUND_PALETTE.length];
     setForm({
       ...EMPTY_FORM,
+      color,
+      color2,
       gridSlot:
         typeof slot === "number" && Number.isInteger(slot) && slot >= 0
           ? slot
@@ -204,11 +189,9 @@ export function SoundboardSettingsPanel({
     setForm({
       id: sound.id,
       name: sound.name,
-      emoji: sound.emoji,
       color: sound.color,
       color2: sound.color2,
       volume: sound.volume,
-      iconDataUrl: sound.iconDataUrl,
       gridSlot: sound.gridSlot,
       file: null,
       savedFileName: sound.fileName,
@@ -222,6 +205,13 @@ export function SoundboardSettingsPanel({
     create(createAtSlot);
     onCreateRequestHandledRef.current?.();
   }, [createAtSlot]);
+
+  useEffect(() => {
+    if (editSoundId === null || editSoundId === undefined) return;
+    const sound = sounds.find((item) => item.id === editSoundId);
+    if (sound) edit(sound);
+    onEditRequestHandledRef.current?.();
+  }, [editSoundId]);
 
   useEffect(() => {
     if (!editorOpen) return;
@@ -291,11 +281,9 @@ export function SoundboardSettingsPanel({
       const saved = await onSave({
         id: form.id,
         name: form.name,
-        emoji: form.emoji,
         color: form.color,
         color2: form.color2,
         volume: form.volume,
-        iconDataUrl: form.iconDataUrl,
         gridSlot: form.gridSlot ?? undefined,
         audio,
       });
@@ -317,16 +305,15 @@ export function SoundboardSettingsPanel({
     await onDelete(sound.id);
   };
 
-  // Renomear ou trocar a imagem direto da lista, sem abrir o editor
+  // Renomear direto da lista, sem abrir o editor
   const quickSave = async (
     sound: SoundItem,
-    patch: Partial<Pick<SaveSoundInput, "name" | "iconDataUrl">>,
+    patch: Partial<Pick<SaveSoundInput, "name">>,
   ) => {
     try {
       await onSave({
         id: sound.id,
         name: sound.name,
-        emoji: sound.emoji,
         color: sound.color,
         color2: sound.color2,
         volume: sound.volume,
@@ -347,26 +334,6 @@ export function SoundboardSettingsPanel({
     const name = renameDraft.trim();
     setRenamingId(null);
     if (name && name !== sound.name) await quickSave(sound, { name });
-  };
-
-  const changeImage = async (sound: SoundItem, file: File | undefined) => {
-    if (!file) return;
-    try {
-      await quickSave(sound, { iconDataUrl: await readImage(file) });
-    } catch (imageError) {
-      setListError(imageError instanceof Error ? imageError.message : "Falha na imagem.");
-    }
-  };
-
-  const chooseFormImage = async (file: File | undefined) => {
-    if (!file) return;
-    try {
-      const iconDataUrl = await readImage(file);
-      setForm((current) => ({ ...current, iconDataUrl }));
-      setError(null);
-    } catch (imageError) {
-      setError(imageError instanceof Error ? imageError.message : "Falha na imagem.");
-    }
   };
 
   // ---------- grade: arrastar troca de lugar; tocar sem arrastar abre o editor ----------
@@ -498,14 +465,13 @@ export function SoundboardSettingsPanel({
         }}
         className="sound-organizer-ghost"
         style={{
-          ...shortcutTileStyle(draggedSound.color, draggedSound.color2),
+          ...soundTileStyle(draggedSound.color, draggedSound.color2),
           width: dragRef.current.width,
           height: dragRef.current.height,
         }}
         aria-hidden="true"
       >
-        <SoundFace sound={draggedSound} />
-        <strong>{draggedSound.name}</strong>
+        <SoundName name={draggedSound.name} max={26} className="sound-mini-name" />
       </div>,
       document.body,
     );
@@ -592,45 +558,6 @@ export function SoundboardSettingsPanel({
             />
           </label>
           <label>
-            <span>Emoji (opcional)</span>
-            <input
-              value={form.emoji}
-              maxLength={16}
-              placeholder="😂"
-              onChange={(event) => setForm({ ...form, emoji: event.target.value })}
-            />
-          </label>
-          <div className="shortcut-icon-field sound-file-field">
-            <span>Imagem (no lugar do emoji)</span>
-            <div>
-              {form.iconDataUrl ? (
-                <img src={form.iconDataUrl} alt="Imagem do som" />
-              ) : (
-                <span className="shortcut-icon-placeholder">Sem imagem</span>
-              )}
-              <label className="button shortcut-icon-upload">
-                Escolher imagem
-                <input
-                  type="file"
-                  accept={IMAGE_ACCEPT}
-                  onChange={(event) => {
-                    void chooseFormImage(event.target.files?.[0]);
-                    event.target.value = "";
-                  }}
-                />
-              </label>
-              {form.iconDataUrl && (
-                <button
-                  type="button"
-                  className="button"
-                  onClick={() => setForm({ ...form, iconDataUrl: null })}
-                >
-                  Remover
-                </button>
-              )}
-            </div>
-          </div>
-          <label>
             <span>Volume do som · {Math.round(form.volume * 100)}%</span>
             <input
               type="range"
@@ -663,28 +590,66 @@ export function SoundboardSettingsPanel({
               ))}
             </select>
           </label>
-          <div className="shortcut-color-fields">
-            <label>
-              <span>Cor 1</span>
-              <input
-                type="color"
-                value={form.color}
-                onChange={(event) => setForm({ ...form, color: event.target.value })}
-              />
-            </label>
-            <label>
-              <span>Cor 2</span>
-              <input
-                type="color"
-                value={form.color2}
-                onChange={(event) => setForm({ ...form, color2: event.target.value })}
-              />
-            </label>
-            <span
-              className="shortcut-color-preview"
-              style={shortcutTileStyle(form.color, form.color2)}
-              aria-hidden="true"
-            />
+          <div className="sound-color-field">
+            <span>Cor</span>
+            <div className="sound-color-options">
+              {SOUND_PALETTE.map(([color, color2]) => {
+                const selected = form.color.toLowerCase() === color;
+                return (
+                  <button
+                    key={color}
+                    type="button"
+                    className={selected ? "sound-color-swatch selected" : "sound-color-swatch"}
+                    style={soundTileStyle(color, color2)}
+                    aria-label={`Cor ${color}`}
+                    aria-pressed={selected}
+                    onClick={() => setForm({ ...form, color, color2 })}
+                  />
+                );
+              })}
+              <label
+                className={[
+                  "sound-color-swatch",
+                  "sound-color-custom",
+                  SOUND_PALETTE.some(([color]) => color === form.color.toLowerCase())
+                    ? ""
+                    : "selected",
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
+                title="Outra cor"
+              >
+                <input
+                  type="color"
+                  value={form.color}
+                  aria-label="Outra cor"
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      color: event.target.value,
+                      color2: soundSecondColor(event.target.value),
+                    })
+                  }
+                />
+              </label>
+            </div>
+            <div className="sound-color-previews" aria-hidden="true">
+              {[false, true].map((playing) => (
+                <figure key={String(playing)}>
+                  <span
+                    className={
+                      playing
+                        ? "sound-tile sound-tile--playing sound-color-preview"
+                        : "sound-tile sound-color-preview"
+                    }
+                    style={soundTileStyle(form.color, form.color2)}
+                  >
+                    <SoundName name={form.name.trim() || "Som"} max={34} />
+                  </span>
+                  <figcaption>{playing ? "Tocando" : "Parado"}</figcaption>
+                </figure>
+              ))}
+            </div>
           </div>
           {error && <p className="shortcut-form-error">{error}</p>}
           <div className="shortcut-form-actions">
@@ -852,7 +817,7 @@ export function SoundboardSettingsPanel({
             <input
               type="number"
               min={1}
-              max={8}
+              max={SOUND_GRID_MAX_COLUMNS}
               value={settings.grid.columns}
               onChange={(event) =>
                 void onSettingsChange({
@@ -866,7 +831,7 @@ export function SoundboardSettingsPanel({
             <input
               type="number"
               min={1}
-              max={6}
+              max={SOUND_GRID_MAX_ROWS}
               value={settings.grid.rows}
               onChange={(event) =>
                 void onSettingsChange({
@@ -910,12 +875,12 @@ export function SoundboardSettingsPanel({
                     ]
                       .filter(Boolean)
                       .join(" ")}
-                    style={shortcutTileStyle(sound.color, sound.color2)}
+                    style={soundTileStyle(sound.color, sound.color2)}
                     title={`${sound.name} · arraste para mover, toque para editar`}
+                    aria-label={`${sound.name}: arraste para mover, toque para editar`}
                     onPointerDown={(event) => handleTilePointerDown(event, sound)}
                   >
-                    <SoundFace sound={sound} />
-                    <strong>{sound.name}</strong>
+                    <SoundName name={sound.name} max={26} className="sound-mini-name" />
                   </button>
                 ) : (
                   <button
@@ -951,11 +916,9 @@ export function SoundboardSettingsPanel({
           <div key={sound.id} className="shortcut-settings-row sound-settings-row">
             <span
               className="sound-row-face"
-              style={shortcutTileStyle(sound.color, sound.color2)}
+              style={soundTileStyle(sound.color, sound.color2)}
               aria-hidden="true"
-            >
-              <SoundFace sound={sound} />
-            </span>
+            />
             {renamingId === sound.id ? (
               <input
                 className="sound-rename-input"
@@ -991,25 +954,11 @@ export function SoundboardSettingsPanel({
               title="Renomear"
               onClick={() => startRename(sound)}
             />
-            <label
-              className="sound-row-action sound-row-action--image"
-              title="Trocar a imagem"
-            >
-              <input
-                type="file"
-                accept={IMAGE_ACCEPT}
-                aria-label={`Trocar a imagem de ${sound.name}`}
-                onChange={(event) => {
-                  void changeImage(sound, event.target.files?.[0]);
-                  event.target.value = "";
-                }}
-              />
-            </label>
             <button
               type="button"
               className="sound-row-action sound-row-action--edit"
               aria-label={`Editar ${sound.name}`}
-              title="Editar (arquivo, emoji, volume, cores)"
+              title="Editar (arquivo, volume, cor)"
               onClick={() => edit(sound)}
             />
             <button

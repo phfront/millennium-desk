@@ -19,19 +19,15 @@ import { getDatabase } from "../database";
 interface SoundRow {
   id: number;
   name: string;
-  emoji: string;
   color: string;
   color_2: string;
   volume: number;
-  icon_data_url: string | null;
   file_name: string;
   grid_slot: number;
 }
 
 const SELECT_COLUMNS =
-  "id, name, emoji, color, color_2, volume, icon_data_url, file_name, grid_slot";
-
-const ICON_MAX_CHARS = 3_000_000;
+  "id, name, color, color_2, volume, file_name, grid_slot";
 
 const getSoundsDir = () => path.join(getConfiguredUserDataPath(), "sounds");
 
@@ -45,11 +41,9 @@ const resolveSoundFile = (fileName: string) => {
 const toSound = (row: SoundRow): SoundItem => ({
   id: row.id,
   name: row.name,
-  emoji: row.emoji,
   color: row.color,
   color2: row.color_2,
   volume: row.volume,
-  iconDataUrl: row.icon_data_url || null,
   fileName: row.file_name,
   gridSlot: row.grid_slot,
 });
@@ -100,23 +94,7 @@ const normalizeInput = (input: SaveSoundInput) => {
     typeof input.volume === "number" && Number.isFinite(input.volume)
       ? Math.min(1, Math.max(0, input.volume))
       : 1;
-  const icon = input.iconDataUrl;
-  if (
-    typeof icon === "string" &&
-    (!/^data:image\/(png|jpeg|webp|gif|svg\+xml);base64,/i.test(icon) ||
-      icon.length > ICON_MAX_CHARS)
-  ) {
-    throw new Error("Imagem do som invalida (png, jpg, webp ou gif ate 2 MB).");
-  }
-  return {
-    name,
-    emoji: (input.emoji ?? "").trim().slice(0, 16),
-    color,
-    color2,
-    volume,
-    // undefined mantem a atual; null tira
-    iconDataUrl: icon === undefined ? undefined : icon || null,
-  };
+  return { name, color, color2, volume };
 };
 
 export const listSounds = (): SoundItem[] => {
@@ -133,22 +111,18 @@ export const saveSound = (input: SaveSoundInput): SoundItem => {
   if (input.id !== undefined) {
     const current = selectSound(input.id);
     const fileName = input.audio ? writeAudioFile(input.audio) : current.fileName;
-    const iconDataUrl =
-      normalized.iconDataUrl === undefined ? current.iconDataUrl : normalized.iconDataUrl;
     database
       .prepare(
         `UPDATE sounds
-         SET name = ?, emoji = ?, color = ?, color_2 = ?, volume = ?, icon_data_url = ?,
-             file_name = ?, updated_at = datetime('now')
+         SET name = ?, color = ?, color_2 = ?, volume = ?, file_name = ?,
+             updated_at = datetime('now')
          WHERE id = ?`,
       )
       .run(
         normalized.name,
-        normalized.emoji,
         normalized.color,
         normalized.color2,
         normalized.volume,
-        iconDataUrl,
         fileName,
         input.id,
       );
@@ -174,17 +148,14 @@ export const saveSound = (input: SaveSoundInput): SoundItem => {
   try {
     const result = database
       .prepare(
-        `INSERT INTO sounds
-           (name, emoji, color, color_2, volume, icon_data_url, file_name, grid_slot)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO sounds (name, color, color_2, volume, file_name, grid_slot)
+         VALUES (?, ?, ?, ?, ?, ?)`,
       )
       .run(
         normalized.name,
-        normalized.emoji,
         normalized.color,
         normalized.color2,
         normalized.volume,
-        normalized.iconDataUrl ?? null,
         fileName,
         slot,
       );

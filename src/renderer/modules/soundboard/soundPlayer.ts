@@ -81,7 +81,7 @@ const resolveMonitorDeviceId = (
 
 const urlCache = new Map<number, { fileName: string; url: Promise<string> }>();
 
-const getSoundUrl = (sound: SoundItem) => {
+export const getSoundUrl = (sound: SoundItem) => {
   const cached = urlCache.get(sound.id);
   if (cached?.fileName === sound.fileName) return cached.url;
   if (cached) void cached.url.then((url) => URL.revokeObjectURL(url), () => {});
@@ -186,14 +186,21 @@ export const toggleSound = async (
     }
 
     const [main] = elements;
-    main.addEventListener("loadedmetadata", () => {
+    // O audio vem de um blob local: os metadados costumam carregar durante o setSinkId, antes
+    // de qualquer listener. Por isso le a duracao tambem logo depois de registrar o som
+    const publishDuration = () => {
       if (active.get(sound.id) !== elements) return;
-      const duration = Number.isFinite(main.duration) ? main.duration : null;
+      if (!Number.isFinite(main.duration) || main.duration <= 0) return;
+      const duration = main.duration;
       setPlaying((next) => {
         const current = next.get(sound.id);
-        if (current) next.set(sound.id, { ...current, duration });
+        if (current && current.duration !== duration) {
+          next.set(sound.id, { ...current, duration });
+        }
       });
-    });
+    };
+    main.addEventListener("loadedmetadata", publishDuration);
+    main.addEventListener("durationchange", publishDuration);
     main.addEventListener("ended", () => {
       if (active.get(sound.id) === elements) stopSound(sound.id);
     });
@@ -202,6 +209,7 @@ export const toggleSound = async (
     setPlaying((next) =>
       next.set(sound.id, { startedAt: Date.now(), duration: null }),
     );
+    publishDuration();
     try {
       await Promise.all(elements.map((element) => element.play()));
     } catch (error) {

@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sons — pôster</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Barlow+Condensed:wght@800&family=Bebas+Neue&family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@500;700&family=Oswald:wght@700&display=swap">
+<style>
+  /* Terceira rodada do módulo Sons: tudo parte do Pôster (nome enorme) e da Forma de onda.
+     Regra fixa: o nome é sempre o maior possível sem quebrar palavra. O tamanho é calculado
+     botão a botão (fitAll no script), então nome curto fica gigante e nome longo desce de linha. */
+  :root {
+    --bg: #f2f4f7;
+    --surface: #ffffff;
+    --surface-muted: #e9edf3;
+    --tile: #ffffff;
+    --text: #172033;
+    --muted: #687386;
+    --border: rgba(39, 51, 73, 0.12);
+    --accent: #5b5cf0;
+    --sans: Inter, "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", "Cascadia Code", Consolas, ui-monospace, monospace;
+    --pad-x: 7px;
+    --bf: Anton, Impact, sans-serif;
+    --bw: 400;
+    --blh: .9;
+    --bls: 0;
+    --case: uppercase;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0b0b0c; --surface: #18181a; --surface-muted: #242426; --tile: #1c1c1f;
+      --text: #f3f3f4; --muted: #a3a3a8; --border: rgba(255, 255, 255, 0.1); --accent: #8c8dff;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0b0b0c; --surface: #18181a; --surface-muted: #242426; --tile: #1c1c1f;
+    --text: #f3f3f4; --muted: #a3a3a8; --border: rgba(255, 255, 255, 0.1); --accent: #8c8dff;
+  }
+
+  @property --p { syntax: "<percentage>"; inherits: false; initial-value: 0%; }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: var(--sans); color: var(--text); background: var(--bg); }
+  button { font: inherit; }
+
+  .page { max-width: 1000px; margin: 0 auto; padding: 24px 16px 80px; }
+  header.top h1 { margin: 0 0 4px; font-size: 22px; }
+  header.top p { margin: 0; max-width: 820px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+  .jump { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .jump a { padding: 4px 9px; border-radius: 8px; font-size: 12px; font-weight: 600; text-decoration: none; color: var(--text); background: var(--surface-muted); }
+  .jump a b { color: var(--accent); margin-right: 4px; }
+
+  .controls {
+    position: sticky; top: 0; z-index: 20;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+    margin: 16px -16px 8px; padding: 12px 16px;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .control { display: flex; align-items: center; gap: 8px; }
+  .control > span { color: var(--muted); }
+  .seg { display: inline-flex; flex-wrap: wrap; padding: 2px; border-radius: 9px; background: var(--surface-muted); }
+  .seg button { border: 0; padding: 5px 10px; border-radius: 7px; cursor: pointer; color: var(--muted); background: transparent; }
+  .seg button[aria-pressed="true"] { color: var(--text); background: var(--surface); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  input[type="range"] { width: 100px; accent-color: var(--accent); }
+  output { min-width: 56px; font-variant-numeric: tabular-nums; }
+
+  .option { margin-top: 32px; scroll-margin-top: 110px; }
+  .option h2 { display: flex; align-items: baseline; gap: 10px; margin: 0 0 4px; font-size: 16px; }
+  .option h2 .letter { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; font-size: 13px; color: #fff; background: var(--accent); }
+  .option > p { margin: 0 0 10px; max-width: 780px; color: var(--muted); font-size: 13px; line-height: 1.55; }
+
+  .module { overflow: hidden; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+  .module-heading { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  .eyebrow { display: block; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--muted); }
+  .module-heading h3 { margin: 0; font-size: 17px; }
+  .gear { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); }
+
+  .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: 122px; }
+  @media (max-width: 720px) { .grid { grid-template-columns: repeat(4, minmax(0, 1fr)); grid-auto-rows: 110px; } }
+
+  /* ---------- base do botão ---------- */
+  .t {
+    --iter: 1;
+    --emo-top: 0px;
+    position: relative; display: block; min-width: 0; padding: 0; overflow: hidden;
+    border: 0; border-right: 1px solid rgba(0,0,0,.28); border-bottom: 1px solid rgba(0,0,0,.28);
+    color: var(--ink); text-align: left; cursor: pointer; background: var(--c1);
+  }
+  .emoji-on .t { --emo-top: 22px; }
+  .t .when-on { display: none; }
+  .t.on .when-on { display: inline; }
+  .t.on .when-off { display: none; }
+
+  /* O nome: caixa absoluta; o script acha o maior font-size que cabe nela */
+  .big {
+    position: absolute; z-index: 2;
+    top: calc(8px + var(--emo-top)); right: var(--pad-x); bottom: 8px; left: var(--pad-x);
+    display: flex; flex-direction: column; justify-content: flex-end;
+    font-family: var(--bf); font-weight: var(--bw); line-height: var(--blh); letter-spacing: var(--bls);
+    text-transform: var(--case); color: var(--ink); pointer-events: none;
+  }
+  .txt { display: block; overflow-wrap: normal; word-break: normal; hyphens: none; }
+  .emo { position: absolute; z-index: 3; top: 6px; left: var(--pad-x); font-size: 17px; line-height: 1; }
+
+  .prog { position: absolute; z-index: 4; right: 0; bottom: 0; left: 0; height: 4px; background: var(--ink); transform: scaleX(0); transform-origin: left; opacity: 0; }
+  .t.on .prog { opacity: 1; animation: fill-x var(--dur) linear var(--iter) both; }
+  @keyframes fill-x { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+  /* Forma de onda reaproveitável: barras apagadas, as mesmas acesas recortadas pelo progresso, e o cursor */
+  .wave { position: absolute; z-index: 1; pointer-events: none; }
+  .wave .bars { position: absolute; inset: 0; display: flex; align-items: center; gap: 2px; }
+  .wave .bar { flex: 1; border-radius: 2px; background: var(--wave-dim); transition: background 150ms; }
+  .wave .lit { clip-path: inset(0 100% 0 0); }
+  .wave .lit .bar { background: var(--wave-lit); }
+  .t.on .wave .lit { animation: reveal var(--dur) linear var(--iter) both; }
+  .wave .head { position: absolute; top: -3px; bottom: -3px; left: 0; width: 2px; border-radius: 1px; background: var(--wave-head); opacity: 0; }
+  .t.on .wave .head { opacity: 1; animation: sweep var(--dur) linear var(--iter) both; }
+  @keyframes reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  @keyframes sweep { from { left: 0; } to { left: calc(100% - 2px); } }
+
+  .time { font: 700 10px var(--mono); letter-spacing: .02em; }
+
+  /* ============ A. Pôster (rodada anterior) ============ */
+  .cx-poster .big { top: calc(34px + var(--emo-top)); }
+  .cx-poster .play { position: absolute; top: 9px; right: 9px; width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--ink); opacity: .75; }
+  .cx-poster .play::before { content: ""; position: absolute; inset: 4px 4px 4px 6px; background: var(--ink); clip-path: polygon(0 0, 100% 50%, 0 100%); }
+  .cx-poster .t.on .play::before { inset: 4px; clip-path: none; border-radius: 1px; background: var(--c1); }
+  .cx-poster .t.on .play { border-color: var(--c1); }
+  .cx-poster .marq { position: absolute; left: 0; right: 0; top: 50%; transform: translateY(-46%); overflow: hidden; opacity: 0; }
+  .cx-poster .run { display: inline-block; white-space: nowrap; font: var(--bw) 64px/1 var(--bf); text-transform: var(--case); color: var(--c1); }
+  .cx-poster .t.on { background: color-mix(in srgb, var(--c2) 70%, #000); }
+  .cx-poster .t.on .big, .cx-poster .t.on .emo { opacity: 0; }
+  .cx-poster .t.on .marq { opacity: 1; }
+  .cx-poster .t.on .run { animation: marq 3.2s linear infinite; }
+  .cx-poster .prog { background: var(--c1); }
+  @keyframes marq { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* ============ B. Onda atrás do nome ============ */
+  .cx-atras .t { --wave-dim: color-mix(in srgb, var(--ink) 16%, var(--c1)); --wave-lit: color-mix(in srgb, #fff 45%, var(--c1)); --wave-head: var(--ink); }
+  .cx-atras .wave { top: 14px; bottom: 14px; left: var(--pad-x); right: var(--pad-x); }
+  .cx-atras .big { justify-content: center; }
+  .cx-atras .t.on { background: color-mix(in srgb, var(--c1) 88%, var(--c2)); }
+
+  /* ============ C. Onda no pé ============ */
+  .cx-pe .t { --wave-dim: color-mix(in srgb, var(--ink) 28%, var(--c1)); --wave-lit: var(--ink); --wave-head: var(--ink); }
+  .cx-pe .big { top: calc(22px + var(--emo-top)); bottom: 36px; }
+  .cx-pe .wave { left: var(--pad-x); right: var(--pad-x); bottom: 9px; height: 22px; }
+  .cx-pe .time { position: absolute; z-index: 3; top: 8px; right: var(--pad-x); opacity: .75; }
+  .cx-pe .t.on .time { opacity: 1; }
+
+  /* ============ D. Nome que enche ============ */
+  .cx-enche .t {
+    --wave-dim: color-mix(in srgb, var(--c1) 28%, #141417); --wave-lit: var(--c1); --wave-head: #fff;
+    background: linear-gradient(160deg, color-mix(in srgb, var(--c2) 26%, #141417), #111113);
+    border-color: rgba(255,255,255,.06);
+  }
+  .cx-enche .big { bottom: 22px; color: var(--c1); }
+  .cx-enche .t.on .txt {
+    background: linear-gradient(90deg, #fff var(--p), var(--c1) var(--p));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: ring var(--dur) linear var(--iter) both;
+  }
+  @keyframes ring { from { --p: 0%; } to { --p: 100%; } }
+  .cx-enche .wave { left: var(--pad-x); right: var(--pad-x); bottom: 7px; height: 10px; }
+  .cx-enche .wave .bars { gap: 1px; }
+
+  /* ============ E. Escuro, nome colorido ============ */
+  .cx-escuro .t {
+    --wave-dim: color-mix(in srgb, var(--c1) 22%, var(--tile)); --wave-lit: var(--ink); --wave-head: var(--ink);
+    background: radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--c1) 16%, transparent), transparent 70%), var(--tile);
+    border-color: var(--border);
+    transition: background-color 200ms;
+  }
+  .cx-escuro .big { bottom: 24px; }
+  .cx-escuro .txt {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--c1) 88%, var(--text)), color-mix(in srgb, var(--c2) 88%, var(--text)));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .cx-escuro .wave { left: var(--pad-x); right: var(--pad-x); bottom: 8px; height: 14px; }
+  .cx-escuro .t.on { background: var(--c1); --wave-dim: color-mix(in srgb, var(--ink) 28%, var(--c1)); }
+  .cx-escuro .t.on .txt { background: none; color: var(--ink); }
+
+  /* ============ F. Montanha ============ */
+  .cx-montanha .big { top: calc(8px + var(--emo-top)); bottom: 34px; justify-content: flex-start; }
+  .cx-montanha .mtn { position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; height: 50px; pointer-events: none; }
+  .cx-montanha .mtn > div { position: absolute; inset: 0; }
+  .cx-montanha .mtn svg { display: block; width: 100%; height: 100%; }
+  .cx-montanha .m-dim path { fill: color-mix(in srgb, var(--c2) 70%, var(--c1)); }
+  .cx-montanha .m-lit { clip-path: inset(0 100% 0 0); }
+  .cx-montanha .m-lit path { fill: color-mix(in srgb, var(--ink) 55%, var(--c2)); }
+  .cx-montanha .t.on .m-lit { animation: reveal var(--dur) linear var(--iter) both; }
+  .cx-montanha .mtn .head { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: var(--ink); opacity: 0; }
+  .cx-montanha .t.on .mtn .head { opacity: 1; animation: sweep var(--dur) linear var(--iter) both; }
+
+  /* ============ G. Encaixe máximo ============ */
+  .cx-max .big { top: calc(6px + var(--emo-top)); bottom: 6px; justify-content: center; }
+  .cx-max .sweep { position: absolute; inset: 0; z-index: 0; background: color-mix(in srgb, var(--c2) 75%, var(--c1)); transform: scaleX(0); transform-origin: left; }
+  .cx-max .t.on .sweep { animation: fill-x var(--dur) linear var(--iter) both; }
+
+  /* ============ H. Cartão com régua ============ */
+  .cx-cartao .t { display: flex; flex-direction: column; background: color-mix(in srgb, var(--c2) 30%, #0f0f12); }
+  .cx-cartao .face { position: relative; flex: 1; background: var(--c1); transition: filter 150ms; }
+  .cx-cartao .face .big { top: calc(6px + var(--emo-top)); bottom: 6px; }
+  .cx-cartao .t.on .face { animation: beat .5s ease-in-out infinite; }
+  @keyframes beat { 50% { filter: brightness(1.12); } }
+  .cx-cartao .strip { position: relative; flex: none; height: 26px; color: #fff; }
+  .cx-cartao .strip .wave { --wave-dim: color-mix(in srgb, var(--c1) 35%, #1a1a1d); --wave-lit: var(--c1); --wave-head: #fff; left: var(--pad-x); right: 44px; top: 6px; bottom: 6px; }
+  .cx-cartao .strip .time { position: absolute; right: var(--pad-x); top: 50%; transform: translateY(-50%); opacity: .7; }
+  .cx-cartao .t.on .strip .time { opacity: 1; color: var(--c1); }
+
+  /* ============ I. D + E ============ */
+  /* Parado é a E; tocando, o botão vira a cor 1 (E) e as letras viram a barra de progresso (D) */
+  .cx-de .t {
+    --wave-dim: color-mix(in srgb, var(--c1) 22%, var(--tile)); --wave-lit: var(--ink); --wave-head: var(--ink);
+    background:
+      radial-gradient(120% 90% at 0% 0%, color-mix(in srgb, var(--c1) 18%, transparent), transparent 70%),
+      linear-gradient(160deg, color-mix(in srgb, var(--c2) 12%, var(--tile)), var(--tile));
+    border-color: var(--border);
+  }
+  .cx-de .big { bottom: 24px; }
+  .cx-de .txt {
+    background: linear-gradient(135deg, color-mix(in srgb, var(--c1) 88%, var(--text)), color-mix(in srgb, var(--c2) 88%, var(--text)));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .cx-de .wave { left: var(--pad-x); right: var(--pad-x); bottom: 8px; height: 14px; }
+  .cx-de .t.on { background: var(--c1); --wave-dim: color-mix(in srgb, var(--ink) 26%, var(--c1)); animation: de-pop 260ms ease-out; }
+  .cx-de .t.on .txt {
+    background: linear-gradient(90deg, var(--ink) var(--p), color-mix(in srgb, var(--ink) 32%, var(--c1)) var(--p));
+    -webkit-background-clip: text; background-clip: text;
+    animation: ring var(--dur) linear var(--iter) both;
+  }
+  @keyframes de-pop { from { filter: brightness(1.35); } }
+
+  .t:hover { filter: brightness(1.06); }
+  .t:active { transform: scale(.985); }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="top">
+    <h1>Sons — pôster</h1>
+    <p>Tudo parte do Pôster com a Forma de onda. Regra fixa: o nome é o maior possível sem quebrar
+      palavra (cada botão calcula o próprio tamanho). Clique para tocar; o último de cada grade toca em
+      loop. Os controles de fonte e de maiúsculas valem para todas as opções.</p>
+    <nav class="jump" id="jump"></nav>
+  </header>
+
+  <div class="controls">
+    <div class="control"><span>Fonte</span>
+      <div class="seg" data-ctl="font">
+        <button data-v="anton" aria-pressed="true">Anton</button>
+        <button data-v="bebas" aria-pressed="false">Bebas</button>
+        <button data-v="oswald" aria-pressed="false">Oswald</button>
+        <button data-v="barlow" aria-pressed="false">Barlow</button>
+        <button data-v="inter" aria-pressed="false">Inter Black</button>
+      </div>
+    </div>
+    <div class="control"><span>Letras</span>
+      <div class="seg" data-ctl="case">
+        <button data-v="uppercase" aria-pressed="true">MAIÚSCULAS</button>
+        <button data-v="none" aria-pressed="false">Como escrito</button>
+      </div>
+    </div>
+    <label class="control"><span>Respiro</span>
+      <input id="pad" type="range" min="0" max="20" step="1" value="7">
+      <output id="padOut">7 px</output>
+    </label>
+    <div class="control"><span>Cores</span>
+      <div class="seg" data-ctl="palette">
+        <button data-v="mine" aria-pressed="false">As suas</button>
+        <button data-v="mixed" aria-pressed="true">Variadas</button>
+      </div>
+    </div>
+    <div class="control"><span>Emoji</span>
+      <div class="seg" data-ctl="emoji">
+        <button data-v="off" aria-pressed="true">Sem</button>
+        <button data-v="on" aria-pressed="false">Com</button>
+      </div>
+    </div>
+    <div class="control"><span>Tema</span>
+      <div class="seg" data-ctl="theme">
+        <button data-v="dark" aria-pressed="true">Escuro</button>
+        <button data-v="light" aria-pressed="false">Claro</button>
+      </div>
+    </div>
+  </div>
+
+  <main id="options"></main>
+</div>
+
+<script>
+  const SOUNDS = [
+    ['Du Bist Mein Schatz', '🎺'], ['Boom', '💥'], ['Faaah', '😱'], ['La Ele', '🎤'], ['Wow', '🤩'],
+    ['Creditos', '🎬'], ['Nemesis', '👾'], ['Guitarra triste', '🎸'], ['fdpoce', '🤬'], ['quico risada', '😂'],
+    ['peter pranchas', '🏄'], ['ai ki dilica', '😋'], ['rela no jardim', '🌷'], ['farmar aura', '✨'],
+  ];
+  const MINE = SOUNDS.map((_, i) => i === 13 ? ['#4a7fc8', '#6b4a6e'] : ['#f29a63', '#de5ca6']);
+  const MIXED = [
+    ['#ff8a5c', '#e2416b'], ['#ffd166', '#f28c28'], ['#8c8dff', '#5a67ff'], ['#4cc9a0', '#1f8f7a'],
+    ['#ff6fb5', '#a64dff'], ['#5ec8f2', '#3a6fd8'], ['#b4e05a', '#4caf50'], ['#c084fc', '#7c3aed'],
+    ['#f87171', '#b91c1c'], ['#fbbf24', '#ef6c00'], ['#38bdf8', '#0e7490'], ['#f9a8d4', '#ec4899'],
+    ['#86efac', '#16a34a'], ['#4a7fc8', '#6b4a6e'],
+  ];
+  // family, peso, entrelinha, espaçamento e o nome usado no document.fonts.load
+  const FONTS = {
+    anton: ['Anton, Impact, sans-serif', 400, .9, '0', 'Anton'],
+    bebas: ['"Bebas Neue", Impact, sans-serif', 400, .9, '.01em', 'Bebas Neue'],
+    oswald: ['Oswald, Impact, sans-serif', 700, .95, '0', 'Oswald'],
+    barlow: ['"Barlow Condensed", Impact, sans-serif', 800, .9, '0', 'Barlow Condensed'],
+    inter: ['Inter, system-ui, sans-serif', 900, .95, '-.02em', 'Inter'],
+  };
+
+  const state = { palette: 'mixed', emoji: 'off', theme: 'dark', font: 'anton', case: 'uppercase' };
+
+  // ---------- utilidades ----------
+  function el(tag, cls, text) {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function add(parent, cls, text, tag = 'span') {
+    const n = el(tag, cls, text);
+    parent.append(n);
+    return n;
+  }
+  function autoFg(hex) {
+    const ch = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    const l = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+    return 1.05 / (l + 0.05) >= (l + 0.05) / 0.05 ? 'light' : 'dark';
+  }
+  function rng(seed) {
+    let h = 2166136261;
+    for (const ch of seed) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    return () => {
+      h += 0x6d2b79f5;
+      let t = h;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  // Forma de onda inventada a partir do nome (no app sairia do arquivo de áudio)
+  function heights(name, n) {
+    const r = rng(name + 'wave');
+    return Array.from({ length: n }, (_, k) => {
+      const x = k / (n - 1);
+      const env = Math.min(1, x * 6) * (1 - x * 0.55);
+      return Math.round(14 + 86 * env * (0.4 + 0.6 * r()));
+    });
+  }
+  const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const showEmoji = () => state.emoji === 'on';
+
+  function big(parent, s, max = 40) {
+    const box = add(parent, 'big');
+    box.dataset.max = max;
+    add(box, 'txt', s.name);
+    return box;
+  }
+  function wave(parent, s, n = 24) {
+    const w = add(parent, 'wave');
+    const hs = heights(s.name, n);
+    for (const cls of ['bars', 'bars lit']) {
+      const bars = add(w, cls);
+      hs.forEach(h => { add(bars, 'bar').style.height = h + '%'; });
+    }
+    add(w, 'head');
+    return w;
+  }
+  function clock(parent, s) {
+    const t = add(parent, 'time');
+    add(t, 'when-off', fmt(s.dur));
+    add(t, 'when-on', '0:00').dataset.clock = '';
+    return t;
+  }
+  function mountain(parent, s) {
+    const n = 32;
+    const raw = heights(s.name, n);
+    const hs = raw.map((_, k) => (raw[Math.max(0, k - 1)] + raw[k] * 2 + raw[Math.min(n - 1, k + 1)]) / 4);
+    const pts = hs.map((h, k) => [(k / (n - 1)) * 100, 50 - (h / 100) * 46]);
+    let d = `M0,50 L${pts[0][0]},${pts[0][1]}`;
+    for (let k = 1; k < n; k++) {
+      const [x0, y0] = pts[k - 1];
+      const [x1, y1] = pts[k];
+      d += ` Q${x0},${y0} ${(x0 + x1) / 2},${(y0 + y1) / 2}`;
+    }
+    d += ` L100,${pts[n - 1][1]} L100,50 Z`;
+    const m = add(parent, 'mtn');
+    for (const cls of ['m-dim', 'm-lit']) {
+      const holder = add(m, cls, null, 'div');
+      holder.innerHTML = `<svg viewBox="0 0 100 50" preserveAspectRatio="none" aria-hidden="true"><path d="${d}"/></svg>`;
+    }
+    add(m, 'head');
+  }
+
+  // ---------- opções ----------
+  const CONCEPTS = [
+    {
+      id: 'poster', title: 'Pôster',
+      desc: 'A da rodada anterior, agora com o tamanho calculado (o nome curto fica maior, o longo desce de linha inteiro). Tocando: inverte e vira letreiro. Repare que o letreiro atrapalha a leitura, por isso as outras não usam.',
+      build(b, s) {
+        if (showEmoji()) add(b, 'emo', s.emoji);
+        big(b, s);
+        add(b, 'play');
+        add(add(b, 'marq'), 'run', `${s.name} · ${s.name} · `);
+        add(b, 'prog');
+      },
+    },
+    {
+      id: 'atras', title: 'Onda atrás do nome',
+      desc: 'A forma de onda ocupa o botão inteiro, bem apagada, e o nome fica por cima, centralizado. Tocando: a onda acende da esquerda para a direita atrás das letras, sem mexer no nome.',
+      build(b, s) {
+        if (showEmoji()) add(b, 'emo', s.emoji);
+        wave(b, s, 22);
+        big(b, s, 44);
+      },
+    },
+    {
+      id: 'pe', title: 'Onda no pé',
+      desc: 'Pôster com uma régua de onda embaixo e a duração no canto. Tocando: a onda acende com o cursor e o tempo corre. É a junção mais direta das duas que você gostou.',
+      build(b, s) {
+        if (showEmoji()) add(b, 'emo', s.emoji);
+        clock(b, s);
+        big(b, s, 38);
+        wave(b, s, 26);
+      },
+    },
+    {
+      id: 'enche', title: 'Nome que enche',
+      desc: 'Botão escuro tingido com a cor 2 e o nome grande na cor 1. Tocando: as próprias letras vão ficando brancas da esquerda para a direita (o nome é a barra de progresso), com uma onda fininha embaixo.',
+      build(b, s) {
+        if (showEmoji()) add(b, 'emo', s.emoji);
+        big(b, s, 40);
+        wave(b, s, 36);
+      },
+    },
+    {
+      id: 'escuro', title: 'Escuro, nome colorido',
+      desc: 'Fundo do tema e o nome grande pintado no degradê das duas cores; a onda fica discreta no pé. Tocando: o botão inteiro vira a cor 1 e o nome fica escuro, impossível de não ver.',
+      build(b, s) {
+        if (showEmoji()) add(b, 'emo', s.emoji);
+        big(b, s, 40);
+        wave(b, s, 30);
+      },
+    },
+    {
+      id: 'montanha', title: 'Montanha',
+      desc: 'Pôster com a forma de onda virando uma silhueta de montanha na cor 2, como paisagem. O nome fica em cima, alinhado no topo. Tocando: a montanha escurece da esquerda para a direita.',
+      build(b, s) {
+        if (showEmoji()) add(b, 'emo', s.emoji);
+        mountain(b, s);
+        big(b, s, 40);
+      },
+    },
+    {
+      id: 'max', title: 'Encaixe máximo',
+      desc: 'Sem nada além do nome: ele ocupa o botão todo, do maior tamanho que couber (até 80 px). Tocando: o próprio botão vira a barra de progresso, a cor 2 enchendo atrás do nome.',
+      build(b, s) {
+        add(b, 'sweep');
+        if (showEmoji()) add(b, 'emo', s.emoji);
+        big(b, s, 80);
+      },
+    },
+    {
+      id: 'cartao', title: 'Cartão com régua',
+      desc: 'Dois andares: em cima o pôster com o nome, embaixo uma régua escura com a onda e o tempo. Tocando: a cor pulsa na batida e a régua acende.',
+      build(b, s) {
+        const face = add(b, 'face');
+        if (showEmoji()) add(face, 'emo', s.emoji);
+        big(face, s, 40);
+        const strip = add(b, 'strip');
+        wave(strip, s, 22);
+        clock(strip, s);
+      },
+    },
+    {
+      id: 'de', title: 'D + E',
+      desc: 'Parado é a E: fundo do tema, nome grande no degradê das duas cores e a onda discreta no pé. Tocando: o botão inteiro acende na cor 1 (da E) e o nome vira a barra de progresso (da D): as letras começam claras e vão escurecendo da esquerda para a direita, junto com a onda.',
+      build(b, s) {
+        if (showEmoji()) add(b, 'emo', s.emoji);
+        big(b, s, 40);
+        wave(b, s, 30);
+      },
+    },
+  ];
+
+  // ---------- tamanho do nome ----------
+  // Busca binária: maior font-size em que nenhuma palavra passa da largura e o texto cabe na altura
+  function fit(box) {
+    const txt = box.firstChild;
+    const max = Number(box.dataset.max) || 40;
+    let lo = 12, hi = max, best = 12;
+    if (!box.clientHeight) return;
+    while (hi - lo > 0.5) {
+      const mid = (lo + hi) / 2;
+      box.style.fontSize = mid + 'px';
+      const ok = txt.scrollWidth <= txt.clientWidth + 1 && txt.offsetHeight <= box.clientHeight + 1;
+      if (ok) { best = mid; lo = mid; } else hi = mid;
+    }
+    box.style.fontSize = Math.floor(best) + 'px';
+  }
+  async function fitAll() {
+    const f = FONTS[state.font];
+    try { await document.fonts.load(`${f[1]} 40px "${f[4]}"`); } catch {}
+    document.querySelectorAll('.big').forEach(fit);
+  }
+
+  // ---------- tocar ----------
+  function play(b) {
+    b.classList.remove('on');
+    void b.offsetWidth;
+    b.classList.add('on');
+    b.dataset.start = performance.now();
+    clearTimeout(b._stop);
+    if (!b.dataset.loop) b._stop = setTimeout(() => stop(b), b._dur * 1000);
+  }
+  function stop(b) {
+    clearTimeout(b._stop);
+    b.classList.remove('on');
+  }
+  setInterval(() => {
+    document.querySelectorAll('.t.on [data-clock]').forEach(c => {
+      const b = c.closest('.t');
+      const el = (performance.now() - Number(b.dataset.start)) / 1000;
+      c.textContent = fmt(Math.min(b._dur, el % b._dur));
+    });
+  }, 200);
+
+  // ---------- montar ----------
+  function render() {
+    const root = document.getElementById('options');
+    root.replaceChildren();
+    const palette = state.palette === 'mine' ? MINE : MIXED;
+    CONCEPTS.forEach((cx, ci) => {
+      const letter = String.fromCharCode(65 + ci);
+      const sec = el('section', `option cx-${cx.id} ${showEmoji() ? 'emoji-on' : 'no-emoji'}`);
+      sec.id = cx.id;
+      const h = el('h2');
+      h.append(el('span', 'letter', letter), document.createTextNode(cx.title));
+      sec.append(h, el('p', null, cx.desc));
+      const mod = el('div', 'module');
+      const head = el('div', 'module-heading');
+      const titles = el('div');
+      titles.append(el('span', 'eyebrow', 'NO MICROFONE'), el('h3', null, 'Sons'));
+      const gear = el('button', 'gear', '⚙');
+      gear.setAttribute('aria-label', 'Configurar sons');
+      head.append(titles, gear);
+      const grid = el('div', 'grid');
+      SOUNDS.forEach(([name, emoji], i) => {
+        const [c1, c2] = palette[i];
+        const dur = 2.5 + rng(name)() * 6;
+        const b = el('button', 't');
+        b.type = 'button';
+        b.title = name;
+        b._dur = dur;
+        b.style.setProperty('--c1', c1);
+        b.style.setProperty('--c2', c2);
+        // Tinta do nome sobre a cor 1: escura puxada para a cor 2, ou branca quando a cor 1 é escura
+        b.style.setProperty('--ink', autoFg(c1) === 'light' ? '#ffffff' : `color-mix(in srgb, ${c2} 38%, #000)`);
+        b.style.setProperty('--dur', `${dur.toFixed(2)}s`);
+        cx.build(b, { name, emoji, i, dur });
+        b.addEventListener('click', () => (b.classList.contains('on') && !b.dataset.loop ? stop(b) : play(b)));
+        if (i === SOUNDS.length - 1) {
+          b.dataset.loop = '1';
+          b.style.setProperty('--iter', 'infinite');
+          requestAnimationFrame(() => play(b));
+        }
+        grid.append(b);
+      });
+      mod.append(head, grid);
+      sec.append(mod);
+      root.append(sec);
+    });
+    fitAll();
+  }
+
+  function applyFont() {
+    const [family, weight, lh, ls] = FONTS[state.font];
+    const s = document.documentElement.style;
+    s.setProperty('--bf', family);
+    s.setProperty('--bw', weight);
+    s.setProperty('--blh', lh);
+    s.setProperty('--bls', ls);
+    s.setProperty('--case', state.case);
+  }
+
+  const jump = document.getElementById('jump');
+  CONCEPTS.forEach((cx, ci) => {
+    const a = el('a');
+    a.href = '#' + cx.id;
+    a.append(el('b', null, String.fromCharCode(65 + ci)), document.createTextNode(cx.title));
+    jump.append(a);
+  });
+
+  document.querySelectorAll('.seg').forEach(seg => {
+    seg.addEventListener('click', e => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+      const ctl = seg.dataset.ctl;
+      state[ctl] = btn.dataset.v;
+      seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === btn)));
+      if (ctl === 'theme') document.documentElement.dataset.theme = btn.dataset.v;
+      else if (ctl === 'font' || ctl === 'case') { applyFont(); fitAll(); }
+      else render();
+    });
+  });
+
+  const pad = document.getElementById('pad');
+  const padOut = document.getElementById('padOut');
+  let raf = 0;
+  pad.addEventListener('input', () => {
+    document.documentElement.style.setProperty('--pad-x', pad.value + 'px');
+    padOut.textContent = pad.value + ' px' + (pad.value === '14' ? ' (hoje)' : '');
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(fitAll);
+  });
+  let rt = 0;
+  addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(fitAll, 120); });
+
+  state.theme = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  document.documentElement.dataset.theme = state.theme;
+  document.querySelectorAll('[data-ctl="theme"] button').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.v === state.theme)));
+  applyFont();
+  render();
+  document.fonts.ready.then(fitAll);
+</script>
+</body>
+</html>
