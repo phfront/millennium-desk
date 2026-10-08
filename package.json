@@ -1,7 +1,7 @@
 {
   "name": "millennium-desk",
   "productName": "Millennium Desk",
-  "version": "0.1.7",
+  "version": "0.1.10",
   "private": true,
   "description": "Millennium Desk — painel touchscreen modular",
   "main": ".vite/build/main.js",
